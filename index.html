@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RUMBO · Plataforma PREU & Web App Dinámica</title>
+  <meta name="description" content="Plataforma PREU & Web App Dinámica para preparación preuniversitaria con cursos, biblioteca y simuladores">
+  <meta property="og:title" content="RUMBO · Plataforma PREU & Web App Dinámica">
+  <meta property="og:description" content="Plataforma PREU & Web App Dinámica para preparación preuniversitaria con cursos, biblioteca y simuladores">
+  
+  <!-- Favicon & PWA Theme -->
+  <link rel="icon" type="image/png" href="./applogo.png">
+  <link rel="apple-touch-icon" href="./applogo.png">
+  <meta name="theme-color" content="#F2F2F7">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- PWA Early Install Prompt Listener -->
+  <script>
+    window.deferredPWAEvent = null;
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      window.deferredPWAEvent = e;
+    });
+  </script>
+
+  <!-- Fonts: Nunito, Plus Jakarta Sans, Inter, Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

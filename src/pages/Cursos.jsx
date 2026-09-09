@@ -1,0 +1,386 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Shield, Book, Award, MessageCircle, Share2, Lock, AlertTriangle, Plus, Settings, Search, Sparkles, Layers, Video } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { InspirationalDailyBanner } from '../components/InspirationalDailyBanner';
+import { useAuth } from '../context/AuthContext';
+import { subscribeToAccessSettings, checkAccessPermission, getCachedAccessSettings } from '../lib/accessControl';
+import { AccessGate } from '../components/AccessGate';
+import { db } from '../lib/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+
+export const WhatsAppIconSVG = ({ size = 18, color = "currentColor", style = {} }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill={color}
+    style={style}
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+  </svg>
+);
+
+export const Cursos = () => {
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const [accessSettings, setAccessSettings] = useState(getCachedAccessSettings);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [customCursos, setCustomCursos] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const unsub = subscribeToAccessSettings((newSettings) => {
+      setAccessSettings(newSettings);
+    });
+    return () => unsub();
+  }, []);
+
+  // Listen to Firestore dynamic courses
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'cursos'), orderBy('orden', 'asc'));
+      const unsub = onSnapshot(q, (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setCustomCursos(list);
+      }, (err) => console.warn('Cursos snap notice:', err));
+      return () => unsub();
+    } catch (e) {
+      console.warn('Error loading custom cursos:', e);
+    }
+  }, []);
+
+  const permission = checkAccessPermission('cursos', user, isAdmin, accessSettings);
+
+  // Filter custom courses that are active
+  const activeCustomCursos = customCursos.filter(c => c.activo !== false);
+
+  // Check which static courses are overridden by custom courses
+  const customIds = new Set(activeCustomCursos.map(c => c.id?.toLowerCase()));
+
+  // Default presets (Esparta, Kelsen, Briceño) if not overridden
+  const staticPresets = [
+    {
+      id: 'esparta',
+      nombre: 'Academia Esparta',
+      badge: '⚔️ ESPARTA',
+      subtitulo: '18 Materias',
+      descripcion: 'Preparación exigente y disciplinada para asegurar tu vacante universitaria.',
+      colorTheme: {
+        primary: '#FF3B30',
+        gradient: 'linear-gradient(135deg, #FF3B30, #FF5252)',
+        badgeGradient: 'linear-gradient(135deg, #FF3B30, #FF6B6B)',
+        bg: 'linear-gradient(180deg, rgba(255, 59, 48, 0.06) 0%, var(--card-bg) 60%)',
+        border: 'rgba(255, 59, 48, 0.28)',
+        shadow: 'rgba(255, 59, 48, 0.08)',
+        btnShadow: 'rgba(255, 59, 48, 0.25)'
+      }
+    },
+    {
+      id: 'kelsen',
+      nombre: 'Academia Kelsen',
+      badge: '⚖️ KELSEN',
+      subtitulo: 'Letras y Leyes',
+      descripcion: 'Especialistas en humanidades, derecho, ciencias sociales y letras preuniversitarias.',
+      colorTheme: {
+        primary: '#007AFF',
+        gradient: 'linear-gradient(135deg, #007AFF, #0A84FF)',
+        badgeGradient: 'linear-gradient(135deg, #007AFF, #00C6FF)',
+        bg: 'linear-gradient(180deg, rgba(0, 122, 255, 0.06) 0%, var(--card-bg) 60%)',
+        border: 'rgba(0, 122, 255, 0.28)',
+        shadow: 'rgba(0, 122, 255, 0.08)',
+        btnShadow: 'rgba(0, 122, 255, 0.25)'
+      }
+    },
+    {
+      id: 'briceno',
+      nombre: 'Academia Briceño',
+      badge: '🎓 BRICEÑO',
+      subtitulo: '2027 EN CURSO',
+      descripcion: 'Ciclo 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
+      colorTheme: {
+        primary: '#059669',
+        gradient: 'linear-gradient(135deg, #059669, #10B981)',
+        badgeGradient: 'linear-gradient(135deg, #059669, #34D399)',
+        bg: 'linear-gradient(180deg, rgba(5, 150, 105, 0.06) 0%, var(--card-bg) 60%)',
+        border: 'rgba(5, 150, 105, 0.28)',
+        shadow: 'rgba(5, 150, 105, 0.08)',
+        btnShadow: 'rgba(5, 150, 105, 0.25)'
+      }
+    }
+  ].filter(p => !customIds.has(p.id));
+
+  // Merge custom courses with non-overridden static presets
+  const allCourses = [...activeCustomCursos, ...staticPresets];
+
+  const filteredCourses = allCourses.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (c.nombre || '').toLowerCase().includes(q) ||
+      (c.badge || '').toLowerCase().includes(q) ||
+      (c.descripcion || '').toLowerCase().includes(q) ||
+      (c.subtitulo || '').toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <AccessGate
+      sectionId="cursos"
+      permission={permission}
+      accessSettings={accessSettings}
+      onUnlocked={() => setRefreshKey(k => k + 1)}
+    >
+      <div key={refreshKey} className="page-container" style={{ padding: '0 24px 100px', maxWidth: '1240px', margin: '0 auto', boxSizing: 'border-box' }}>
+        {/* 2-Column Hero Grid: Inspiración + Comunidad */}
+      <div 
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '20px',
+          margin: '0 auto 32px',
+          width: '100%',
+          alignItems: 'stretch'
+        }}
+      >
+        {/* Columna 1: Frase / Versículo Inspiracional */}
+        <InspirationalDailyBanner style={{ maxWidth: '100%', margin: 0, height: '100%' }} />
+
+        {/* Columna 2: Mensaje de la Comunidad RASTRO */}
+        <div 
+          className="glass-card"
+          style={{
+            borderRadius: '24px',
+            padding: '20px 24px',
+            border: '1.5px solid rgba(0, 122, 255, 0.25)',
+            background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.05) 0%, rgba(52, 168, 83, 0.04) 100%)',
+            boxShadow: '0 8px 30px rgba(0, 122, 255, 0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '14px',
+            boxSizing: 'border-box',
+            height: '100%'
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                💙 Mensaje de la Comunidad
+              </span>
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,122,255,0.1)', padding: '2px 10px', borderRadius: '10px' }}>
+                Comunidad RASTRO
+              </span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5, margin: 0 }}>
+              <strong style={{ color: 'var(--text-main)' }}>Mantener este espacio cuesta tiempo y dedicación.</strong> Si el contenido te sirve, únete a nuestro canal oficial y comparte RASTRO con tus compañeros.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: 'auto' }}>
+            <a 
+              href="https://www.whatsapp.com/channel/0029VbDFAEu7YScyVZBNul0X"
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                flex: 1,
+                minWidth: '140px',
+                padding: '10px 16px',
+                borderRadius: '14px',
+                background: '#25D366',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <WhatsAppIconSVG size={18} /> Canal WhatsApp
+            </a>
+
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.origin);
+                alert('¡Enlace de RASTRO copiado al portapapeles! 🚀');
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '14px',
+                border: '1.5px solid var(--card-border)',
+                background: 'var(--card-bg)',
+                color: 'var(--text-main)',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <Share2 size={16} /> Compartir
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <header style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <h1 style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.2rem)', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+            Academias y Cursos
+          </h1>
+
+          {isAdmin && (
+            <Link
+              to="/admin"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '99px',
+                background: 'rgba(0, 122, 255, 0.1)',
+                border: '1px solid rgba(0, 122, 255, 0.3)',
+                color: '#007AFF',
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                textDecoration: 'none'
+              }}
+            >
+              <Settings size={14} />
+              <span>⚙️ Administrar Cursos</span>
+            </Link>
+          )}
+        </div>
+
+        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '600px' }}>
+          Explora ciclos preuniversitarios, clases grabadas, módulos organizados y materiales de estudio.
+        </p>
+
+        {/* Buscador de Cursos si hay más de 2 */}
+        {allCourses.length > 2 && (
+          <div style={{ width: '100%', maxWidth: '420px', position: 'relative', marginTop: '6px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              placeholder="Buscar curso o academia..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px 10px 38px',
+                borderRadius: '14px',
+                border: '1.5px solid var(--card-border)',
+                background: 'var(--card-bg)',
+                color: 'var(--text-main)',
+                fontSize: '0.88rem',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+        )}
+      </header>
+
+      {/* Grid de Cursos Dinámicos */}
+      {filteredCourses.length === 0 ? (
+        <div className="glass-card" style={{ padding: '40px 20px', borderRadius: '24px', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.92rem' }}>
+            No se encontraron cursos con el término "{searchQuery}".
+          </p>
+        </div>
+      ) : (
+        <section className="academy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', width: '100%', maxWidth: '1200px', margin: '0 auto', boxSizing: 'border-box' }}>
+          {filteredCourses.map((c) => {
+            const theme = c.colorTheme || {};
+            const primaryColor = theme.primary || '#7C3AED';
+            const gradient = theme.gradient || 'linear-gradient(135deg, #7C3AED, #A855F7)';
+            const badgeGrad = theme.badgeGradient || theme.gradient || 'linear-gradient(135deg, #7C3AED, #A855F7)';
+            const bgGrad = theme.bg || `linear-gradient(180deg, ${theme.primary ? theme.primary + '10' : 'rgba(124, 58, 237, 0.06)'} 0%, var(--card-bg) 60%)`;
+            const borderCol = theme.border || (theme.primary ? `${theme.primary}44` : 'rgba(124, 58, 237, 0.28)');
+            const shadowCol = theme.shadow || (theme.primary ? `${theme.primary}18` : 'rgba(124, 58, 237, 0.08)');
+            const btnShadow = theme.btnShadow || (theme.primary ? `${theme.primary}40` : 'rgba(124, 58, 237, 0.25)');
+
+            const totalModules = Array.isArray(c.modules) ? c.modules.length : 0;
+            const totalVideos = Array.isArray(c.modules) 
+              ? c.modules.reduce((acc, m) => acc + (m.items?.length || 0), 0)
+              : 0;
+
+            return (
+              <Link key={c.id} to={`/cursos/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <motion.div 
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="glass-card" 
+                  style={{ 
+                    padding: 'clamp(16px, 2.2vw, 20px)', 
+                    borderRadius: '20px',
+                    border: `1.5px solid ${borderCol}`,
+                    background: bgGrad,
+                    boxShadow: `0 8px 20px ${shadowCol}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ 
+                      background: badgeGrad, 
+                      color: '#FFFFFF', 
+                      padding: '4px 10px', 
+                      borderRadius: '999px', 
+                      fontWeight: 800, 
+                      fontSize: '0.78rem',
+                      boxShadow: `0 2px 6px ${btnShadow}`
+                    }}>
+                      {c.badge || '🎓 CURSO'}
+                    </span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                      {c.subtitulo || (totalModules > 0 ? `${totalModules} Módulos • ${totalVideos} Clases` : 'Contenido Activo')}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: 'clamp(1.18rem, 1.6vw, 1.35rem)', fontWeight: 800, marginBottom: '6px', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                    {c.nombre}
+                  </h3>
+
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.86rem', lineHeight: 1.45, flex: 1 }}>
+                    {c.descripcion || 'Accede a todas las sesiones, clases grabadas y material complementario.'}
+                  </p>
+
+                  <div style={{ 
+                    width: '100%', 
+                    textAlign: 'center', 
+                    padding: '10px 14px', 
+                    background: gradient, 
+                    color: '#FFFFFF', 
+                    borderRadius: '12px', 
+                    fontWeight: 800, 
+                    fontSize: '0.88rem',
+                    boxShadow: `0 4px 12px ${btnShadow}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <span>Ingresar a {c.nombre.replace(/^(Academia|Curso|Ciclo)\s+/i, '')}</span> ➔
+                  </div>
+                </motion.div>
+              </Link>
+            );
+          })}
+        </section>
+      )}
+    </div>
+    </AccessGate>
+  );
+};

@@ -1,0 +1,30 @@
+{
+  "short_name": "RASTRO",
+  "name": "RASTRO · Plataforma PREU",
+  "icons": [
+    {
+      "src": "applogo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "applogo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/rastro-pwa-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
+  "display": "standalone",
+  "orientation": "portrait"
+}

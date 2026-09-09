@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5F3FF"/>
+      <stop offset="50%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#DDD6FE"/>
+    </linearGradient>
+
+    <!-- Blue Bubble 3D Gradients -->
+    <linearGradient id="pwaBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="45%" stop-color="#0099FF"/>
+      <stop offset="85%" stop-color="#0066CC"/>
+      <stop offset="100%" stop-color="#004499"/>
+    </linearGradient>
+
+    <!-- Cyan Mascot Gradients -->
+    <linearGradient id="pwaCyan" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2DD4BF"/>
+      <stop offset="50%" stop-color="#00C9A7"/>
+      <stop offset="100%" stop-color="#00897B"/>
+    </linearGradient>
+
+    <!-- Book Gradients -->
+    <linearGradient id="bookCover" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="bookGlow" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#C084FC" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <filter id="pwaShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#3B0764" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded Squircle App Icon Background -->
+  <rect width="512" height="512" rx="115" fill="url(#iconBg)"/>
+
+  <!-- Decorative Pastel Wave Curves in Background -->
+  <path d="M 0 380 Q 140 330 256 370 T 512 360 L 512 512 L 0 512 Z" fill="#E0E7FF" opacity="0.6"/>
+  <path d="M 0 420 Q 180 390 320 430 T 512 410 L 512 512 L 0 512 Z" fill="#C7D2FE" opacity="0.4"/>
+
+  <!-- Golden 4-Point Star in Top Right -->
+  <g transform="translate(410, 85) scale(0.95)" filter="url(#pwaShadow)">
+    <path d="M 0 -28 Q 0 0 28 0 Q 0 0 0 28 Q 0 0 -28 0 Q 0 0 0 -28 Z" fill="#FBBF24"/>
+    <circle cx="0" cy="0" r="6" fill="#FFFBEB"/>
+  </g>
+
+  <!-- Little Lavender Plus Sign in Top Left -->
+  <g transform="translate(75, 110)">
+    <rect x="-4" y="-14" width="8" height="28" rx="4" fill="#A855F7" opacity="0.7"/>
+    <rect x="-14" y="-4" width="28" height="8" rx="4" fill="#A855F7" opacity="0.7"/>
+  </g>
+
+  <!-- Little Fun Sprinkles -->
+  <circle cx="110" cy="80" r="5" fill="#38BDF8" opacity="0.8"/>
+  <circle cx="445" cy="150" r="4.5" fill="#EC4899" opacity="0.7"/>
+  <circle cx="360" cy="65" r="4" fill="#A855F7" opacity="0.7"/>
+
+  <!-- ======================================================== -->
+  <!-- 1. CUTE CYAN MASCOT PEEKING FROM BEHIND THE LETTERS      -->
+  <!-- ======================================================== -->
+  <g id="peeking-mascot" filter="url(#pwaShadow)">
+    <!-- Mascot Head Base -->
+    <path d="M 180 190 
+             C 170 120, 220 70, 280 70 
+             C 340 70, 385 115, 380 190 
+             Z" 
+          fill="url(#pwaCyan)" stroke="#004D40" stroke-width="8"/>
+
+    <!-- Left Antenna -->
+    <path d="M 220 85 C 205 50, 185 45, 175 58 C 165 70, 185 85, 210 95 Z" fill="url(#pwaCyan)" stroke="#004D40" stroke-width="6"/>
+    <circle cx="180" cy="55" r="6" fill="#FFFFFF" opacity="0.8"/>
+
+    <!-- Right Antenna -->
+    <path d="M 330 85 C 345 50, 365 45, 375 58 C 385 70, 365 85, 340 95 Z" fill="url(#pwaCyan)" stroke="#004D40" stroke-width="6"/>
+    <circle cx="370" cy="55" r="6" fill="#FFFFFF" opacity="0.8"/>
+
+    <!-- Big Shiny Eyes -->
+    <!-- Left Eye -->
+    <ellipse cx="240" cy="140" rx="22" ry="28" fill="#FFFFFF" stroke="#004D40" stroke-width="6"/>
+    <ellipse cx="246" cy="136" rx="13" ry="16" fill="#0F172A"/>
+    <ellipse cx="250" cy="130" rx="5" ry="7" fill="#FFFFFF"/>
+    <ellipse cx="242" cy="142" rx="2.5" ry="2.5" fill="#FFFFFF"/>
+
+    <!-- Right Eye -->
+    <ellipse cx="305" cy="140" rx="22" ry="28" fill="#FFFFFF" stroke="#004D40" stroke-width="6"/>
+    <ellipse cx="311" cy="136" rx="13" ry="16" fill="#0F172A"/>
+    <ellipse cx="315" cy="130" rx="5" ry="7" fill="#FFFFFF"/>
+    <ellipse cx="307" cy="142" rx="2.5" ry="2.5" fill="#FFFFFF"/>
+
+    <!-- Blushing Cheeks -->
+    <ellipse cx="212" cy="165" rx="12" ry="7" fill="#F43F5E" opacity="0.45"/>
+    <ellipse cx="332" cy="165" rx="12" ry="7" fill="#F43F5E" opacity="0.45"/>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- 2. "ASTRO" 3D CANDY BUBBLE TYPOGRAPHY                    -->
+  <!-- ======================================================== -->
+  <g id="astro-typography" filter="url(#pwaShadow)">
+    <!-- Letter A -->
+    <g id="icon-A">
+      <path d="M 92 210 C 105 210, 116 218, 124 235 L 158 310 C 162 320, 156 332, 144 336 C 132 340, 120 332, 115 320 L 108 300 L 76 300 L 69 320 C 64 332, 52 340, 40 336 C 28 332, 22 320, 26 310 L 60 235 C 68 218, 79 210, 92 210 Z" 
+            fill="url(#pwaBlue)" stroke="#031E42" stroke-width="12" stroke-linejoin="round"/>
+      <ellipse cx="92" cy="225" rx="16" ry="6" fill="#FFFFFF" opacity="0.8"/>
+    </g>
+
+    <!-- Letter S -->
+    <g id="icon-S">
+      <path d="M 195 240 C 195 220, 178 210, 160 210 C 138 210, 125 224, 125 245 C 125 278, 185 272, 185 302 C 185 318, 170 330, 150 330 C 132 330, 122 320, 120 305 C 119 295, 110 290, 100 292 C 90 294, 84 304, 86 315 C 92 342, 118 350, 150 350 C 185 350, 215 332, 215 298 C 215 262, 155 268, 155 245 C 155 232, 166 226, 178 226 C 190 226, 198 232, 200 242 C 202 252, 212 258, 222 254 C 230 250, 234 242, 230 232 Z" 
+            fill="url(#pwaBlue)" stroke="#031E42" stroke-width="12" stroke-linejoin="round"/>
+      <ellipse cx="165" cy="220" rx="18" ry="5" fill="#FFFFFF" opacity="0.8"/>
+    </g>
+
+    <!-- Letter T -->
+    <g id="icon-T">
+      <path d="M 215 225 C 215 215, 224 210, 235 210 L 290 210 C 300 210, 310 215, 310 225 C 310 235, 300 242, 290 242 L 272 242 L 272 320 C 272 332, 262 340, 252 340 C 242 340, 232 332, 232 320 L 232 242 L 215 242 C 205 242, 195 235, 195 225 Z" 
+            fill="url(#pwaBlue)" stroke="#031E42" stroke-width="12" stroke-linejoin="round"/>
+      <ellipse cx="262" cy="218" rx="26" ry="5" fill="#FFFFFF" opacity="0.8"/>
+    </g>
+
+    <!-- Letter R -->
+    <g id="icon-R">
+      <path d="M 305 220 C 305 212, 314 208, 325 208 L 355 208 C 378 208, 395 222, 395 248 C 395 270, 380 285, 362 292 L 382 322 C 388 332, 382 344, 372 348 C 362 352, 350 344, 345 334 L 328 305 L 328 322 C 328 334, 318 342, 308 342 C 298 342, 290 334, 290 322 L 290 220 Z" 
+            fill="url(#pwaBlue)" stroke="#031E42" stroke-width="12" stroke-linejoin="round"/>
+      <ellipse cx="340" cy="216" rx="20" ry="5" fill="#FFFFFF" opacity="0.8"/>
+    </g>
+
+    <!-- Letter O with Mascot inside -->
+    <g id="icon-O">
+      <!-- Golden sparks -->
+      <path d="M 445 200 C 455 185, 465 185, 470 190 C 475 195, 468 205, 455 210 Z" fill="#FBBF24"/>
+      <path d="M 460 215 C 475 205, 485 210, 488 218 C 490 225, 480 232, 468 228 Z" fill="#FBBF24"/>
+
+      <!-- O Body -->
+      <ellipse cx="430" cy="275" rx="42" ry="60" fill="url(#pwaBlue)" stroke="#031E42" stroke-width="12"/>
+      <ellipse cx="430" cy="275" rx="18" ry="30" fill="#EDE9FE" stroke="#031E42" stroke-width="8"/>
+      <ellipse cx="430" cy="225" rx="20" ry="6" fill="#FFFFFF" opacity="0.85"/>
+
+      <!-- Mini Purple Friend Inside O -->
+      <ellipse cx="430" cy="285" rx="14" ry="16" fill="#9333EA" stroke="#3B0764" stroke-width="3"/>
+      <circle cx="427" cy="282" r="3" fill="#FFFFFF"/>
+      <circle cx="433" cy="282" r="3" fill="#FFFFFF"/>
+      <circle cx="428" cy="281" r="1.5" fill="#0F172A"/>
+      <circle cx="434" cy="281" r="1.5" fill="#0F172A"/>
+    </g>
+  </g>
+
+  <!-- Paws of Mascot Resting over the Word ASTRO -->
+  <ellipse cx="140" cy="210" rx="14" ry="10" fill="url(#pwaCyan)" stroke="#004D40" stroke-width="4"/>
+  <ellipse cx="205" cy="210" rx="14" ry="10" fill="url(#pwaCyan)" stroke="#004D40" stroke-width="4"/>
+
+  <!-- ======================================================== -->
+  <!-- 3. STYLIZED 3D OPEN BOOK AT BOTTOM (WITH LIGHT BEAM)     -->
+  <!-- ======================================================== -->
+  <!-- Upward Radiant Light Beam -->
+  <polygon points="170,440 256,360 342,440 256,420" fill="url(#bookGlow)"/>
+
+  <g id="open-book" filter="url(#pwaShadow)" transform="translate(0, 30)">
+    <!-- Book Purple Spine / Outer Cover -->
+    <path d="M 160 410 
+             Q 256 425 352 410 
+             L 360 435 
+             Q 256 455 152 435 
+             Z" 
+          fill="url(#bookCover)" stroke="#4C1D95" stroke-width="6"/>
+
+    <!-- Left Open Page -->
+    <path d="M 164 402 
+             Q 210 380 254 404 
+             L 254 424 
+             Q 210 402 160 422 
+             Z" 
+          fill="#FFFFFF" stroke="#6D28D9" stroke-width="5"/>
+    <line x1="180" y1="402" x2="238" y2="395" stroke="#C4B5FD" stroke-width="3" stroke-linecap="round"/>
+    <line x1="185" y1="412" x2="235" y2="405" stroke="#C4B5FD" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Right Open Page -->
+    <path d="M 348 402 
+             Q 302 380 258 404 
+             L 258 424 
+             Q 302 402 352 422 
+             Z" 
+          fill="#FFFFFF" stroke="#6D28D9" stroke-width="5"/>
+    <line x1="274" y1="395" x2="332" y2="402" stroke="#C4B5FD" stroke-width="3" stroke-linecap="round"/>
+    <line x1="277" y1="405" x2="327" y2="412" stroke="#C4B5FD" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Book Center Gold Ribbon Marker -->
+    <path d="M 256 405 L 256 438 L 262 444 L 256 448 L 250 444 L 256 438 Z" fill="#F59E0B"/>
+  </g>
+</svg>
