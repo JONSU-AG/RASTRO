@@ -74,78 +74,178 @@ export function OrsttyMiniCard({
         maxWidth: '100%'
       }}
     >
-      {/* Card Header: Icon + Title */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            fontSize: '1.05rem',
-            background: isVideo 
-              ? 'rgba(239, 68, 68, 0.12)' 
-              : isDocument 
-              ? 'rgba(0, 122, 255, 0.12)' 
-              : isBook 
-              ? 'rgba(168, 85, 247, 0.12)' 
-              : isExam 
-              ? 'rgba(245, 158, 11, 0.12)' 
-              : 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid var(--card-border, rgba(0, 0, 0, 0.08))'
-          }}
-        >
-          {item.icon || (isVideo ? '🎬' : isDocument ? '📄' : isBook ? '📚' : isExam ? '📝' : '✨')}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h4
-            style={{
-              margin: 0,
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              color: 'var(--text-main, #111827)',
-              lineHeight: 1.35,
-              wordBreak: 'break-word'
-            }}
-          >
-            {title}
-          </h4>
-
-          <p
-            style={{
-              margin: '3px 0 0',
-              fontSize: '0.74rem',
-              color: 'var(--text-secondary, #4B5563)',
-              lineHeight: 1.3,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-            title={subtitle}
-          >
-            {subtitle}
-          </p>
-
-          {description && (
-            <p
+      {/* Si es documento/material/separata: Renderizar como tarjeta de publicación de perfil */}
+      {isDocument ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Header tipo Perfil de Usuario */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #007AFF, #5856D6)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  flexShrink: 0,
+                  boxShadow: '0 2px 6px rgba(0, 122, 255, 0.25)'
+                }}
+              >
+                {(item.author || item.uploadedBy?.name || 'R').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main, #111827)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.author || item.uploadedBy?.name || 'Comunidad RASTRO'}
+                  </p>
+                  <span style={{ fontSize: '0.65rem', color: '#007AFF', fontWeight: 700 }}>✓</span>
+                </div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary, #6B7280)', display: 'block' }}>
+                  {item.categoria || 'Material Académico'}
+                </span>
+              </div>
+            </div>
+            <span
               style={{
-                margin: '6px 0 0',
-                fontSize: '0.78rem',
-                color: 'var(--text-main, #374151)',
-                lineHeight: 1.4,
-                whiteSpace: 'pre-line',
-                opacity: 0.92
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '8px',
+                background: 'rgba(0, 122, 255, 0.12)',
+                color: '#007AFF',
+                whiteSpace: 'nowrap'
               }}
             >
-              {description}
+              📄 {item.type === 'pdf' ? 'PDF' : 'Separata'}
+            </span>
+          </div>
+
+          {/* Bloque del Recurso / Archivo */}
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: '12px',
+              background: 'rgba(120, 120, 128, 0.06)',
+              border: '1px solid var(--card-border, rgba(0, 0, 0, 0.08))',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}
+          >
+            <h4
+              style={{
+                margin: 0,
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                color: 'var(--text-main, #111827)',
+                lineHeight: 1.35,
+                wordBreak: 'break-word'
+              }}
+            >
+              {title}
+            </h4>
+            <p
+              style={{
+                margin: '2px 0 0',
+                fontSize: '0.72rem',
+                color: 'var(--text-secondary, #4B5563)',
+                lineHeight: 1.3
+              }}
+            >
+              {subtitle}
             </p>
-          )}
+            {description && (
+              <p
+                style={{
+                  margin: '4px 0 0',
+                  fontSize: '0.74rem',
+                  color: 'var(--text-main, #374151)',
+                  lineHeight: 1.4,
+                  opacity: 0.92
+                }}
+              >
+                {description}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Card Header regular: Icon + Title */
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              fontSize: '1.05rem',
+              background: isVideo 
+                ? 'rgba(239, 68, 68, 0.12)' 
+                : isBook 
+                ? 'rgba(168, 85, 247, 0.12)' 
+                : isExam 
+                ? 'rgba(245, 158, 11, 0.12)' 
+                : 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid var(--card-border, rgba(0, 0, 0, 0.08))'
+            }}
+          >
+            {item.icon || (isVideo ? '🎬' : isBook ? '📚' : isExam ? '📝' : '✨')}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h4
+              style={{
+                margin: 0,
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                color: 'var(--text-main, #111827)',
+                lineHeight: 1.35,
+                wordBreak: 'break-word'
+              }}
+            >
+              {title}
+            </h4>
+
+            <p
+              style={{
+                margin: '3px 0 0',
+                fontSize: '0.74rem',
+                color: 'var(--text-secondary, #4B5563)',
+                lineHeight: 1.3,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+              title={subtitle}
+            >
+              {subtitle}
+            </p>
+
+            {description && (
+              <p
+                style={{
+                  margin: '6px 0 0',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-main, #374151)',
+                  lineHeight: 1.4,
+                  whiteSpace: 'pre-line',
+                  opacity: 0.92
+                }}
+              >
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div 

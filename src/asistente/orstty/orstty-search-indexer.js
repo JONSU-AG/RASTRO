@@ -254,19 +254,19 @@ export const CANONICAL_ACADEMIAS = {
     name: 'Academia Briceño',
     cycle: 'Ciclo 2027',
     path: '/cursos/briceno',
-    aliases: ['briceno', 'briceno 2027', 'academia briceno', 'briceno 27', 'briceno virtual']
+    aliases: ['briceno', 'briceno 2027', 'academia briceno', 'briceno 27', 'briceno virtual', 'brciceño', 'brciceno', 'bricenio', 'brice', 'bricennio', 'ebrciceño', 'ebrciceno']
   },
   ESPARTA: {
     name: 'Academia Esparta',
     cycle: '18 Materias',
     path: '/cursos/esparta',
-    aliases: ['esparta', 'academia esparta', 'esparta preu']
+    aliases: ['esparta', 'academia esparta', 'esparta preu', 'esparata', 'eparat', 'eeparat', 'espartan', 'eeparta']
   },
   KELSEN: {
     name: 'Academia Kelsen',
     cycle: 'Grabaciones Oficiales',
     path: '/cursos/kelsen',
-    aliases: ['kelsen', 'academia kelsen', 'kelsen grabaciones']
+    aliases: ['kelsen', 'academia kelsen', 'kelsen grabaciones', 'kelse', 'kels']
   }
 };
 
@@ -490,26 +490,159 @@ export function detectMateria(text) {
 }
 
 /**
- * Detecta si el texto menciona una academia específica.
+ * Detecta si el texto menciona una academia específica con tolerancia a typos.
  */
 export function detectAcademia(text) {
   const norm = normalizeBase(text);
+  const tokens = norm.split(' ').filter(Boolean);
+
+  // 1. Alias directos
   for (const [key, data] of Object.entries(CANONICAL_ACADEMIAS)) {
     for (const alias of data.aliases) {
       if (norm.includes(alias)) return key;
     }
   }
+
+  // 2. Token match difuso
+  for (const tok of tokens) {
+    if (tok.length >= 4) {
+      if (isFuzzyMatch(tok, 'briceno') || tok.includes('bricen') || tok.includes('brcice')) return 'BRICENO';
+      if (isFuzzyMatch(tok, 'esparta') || tok.includes('espart') || tok.includes('eparat')) return 'ESPARTA';
+      if (isFuzzyMatch(tok, 'kelsen') || tok.includes('kelse')) return 'KELSEN';
+    }
+  }
+
+  return null;
+}
+
+const WORD_NUMBERS_MAP = {
+  cero: 0,
+  uno: 1, una: 1, primer: 1, primera: 1, primero: 1,
+  dos: 2, segundo: 2, segunda: 2,
+  tres: 3, tercer: 3, tercera: 3, tercero: 3,
+  cuatro: 4, cuarto: 4, cuarta: 4,
+  cinco: 5, quinto: 5, quinta: 5,
+  seis: 6, sexto: 6, sexta: 6,
+  siete: 7, septimo: 7, septima: 7,
+  ocho: 8, octavo: 8, octava: 8,
+  nueve: 9, noveno: 9, novena: 9,
+  diez: 10, decimo: 10, decima: 10,
+  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16
+};
+
+/**
+ * Detecta semana numérica o escrita en palabras (ej: "semana 5", "smna dos", "sem 3", "la 2", "s4", "semana tres").
+ */
+export function detectSemana(text) {
+  const norm = normalizeBase(text);
+
+  // 1. Semana con dígitos (ej: "semana 2", "smna 2", "sem 3", "s1", "la 2")
+  const digitMatch = norm.match(/\b(?:semanas?|semnas?|smnas?|sem|s|clase|la)\s*(\d{1,2})\b/) || norm.match(/^(\d{1,2})$/);
+  if (digitMatch) return parseInt(digitMatch[1], 10);
+
+  // 2. Semana con palabras en español (ej: "semana dos", "smna dos", "sem tres", "semana primera")
+  const wordPattern = Object.keys(WORD_NUMBERS_MAP).join('|');
+  const wordRegex = new RegExp(`\\b(?:semanas?|semnas?|smnas?|sem|s|clase|la)\\s*(${wordPattern})\\b`);
+  const wordMatch = norm.match(wordRegex);
+  if (wordMatch && WORD_NUMBERS_MAP[wordMatch[1]] !== undefined) {
+    return WORD_NUMBERS_MAP[wordMatch[1]];
+  }
+
+  // 3. Palabra aislada
+  const isolatedMatch = norm.match(new RegExp(`^(${wordPattern})$`));
+  if (isolatedMatch && WORD_NUMBERS_MAP[isolatedMatch[1]] !== undefined) {
+    return WORD_NUMBERS_MAP[isolatedMatch[1]];
+  }
+
   return null;
 }
 
 /**
- * Detecta semana numérica (ej: "semana 5", "sem 3", "la 2", "s4").
+ * Detecta si el usuario pregunta por la actualización o estado de una semana o última clase.
  */
-export function detectSemana(text) {
+export function detectConsultaSemanaActualizacion(text) {
   const norm = normalizeBase(text);
-  const match = norm.match(/\b(?:semana|sem|clase|la|s)\s*(\d{1,2})\b/) || norm.match(/^(\d{1,2})$/);
-  if (match) return parseInt(match[1], 10);
-  return null;
+  const patterns = [
+    /\b(?:ya salio|ya salieron|salio|subieron|actualizaron|se actualizo|actualizado|esta disponible|hay semana|tienen la semana|llego la semana|cuando sale|ultima semana|ultimas semanas|ultima clase|ultimas clases|lo ultimo subido|lo ultimo)\b/,
+    /\b(?:que semanas hay|cuales semanas|que semana va|cuantas semanas)\b/
+  ];
+  return patterns.some(p => p.test(norm));
+}
+
+/**
+ * Devuelve el estado real de semanas de las academias en RASTRO.
+ */
+export function getEstadoSemanas(params = {}) {
+  const acad = params.academia || null;
+  const sem = params.semana !== null && params.semana !== undefined ? Number(params.semana) : null;
+
+  // Datos reales en RASTRO:
+  // - Briceño 2027: Semana 0 (Introducción) y Semana 1 (En curso)
+  // - Esparta (COURSES): Semanas 1 a 6 disponibles (18 materias)
+  // - Kelsen: Grabaciones oficiales del ciclo intensivo
+
+  if (acad === 'BRICENO') {
+    if (sem !== null) {
+      if (sem === 0 || sem === 1) {
+        return {
+          disponible: true,
+          academia: 'Academia Briceño',
+          semana: sem,
+          mensaje: `¡Sí! La **Semana ${sem}** de **Academia Briceño** está disponible en RASTRO con clases de Biología, Matemática, Lenguaje, Química y Raz. Verbal.`,
+          sugerencias: [`Ver Semana ${sem} de Briceño`, 'Semana 0 Briceño', 'Ver Esparta']
+        };
+      } else {
+        return {
+          disponible: false,
+          academia: 'Academia Briceño',
+          semana: sem,
+          mensaje: `En **Academia Briceño**, actualmente tenemos contenido hasta la **Semana 1** (Semana 0 de Introducción y Semana 1 en curso). La **Semana ${sem}** aún no ha sido publicada por la academia.`,
+          sugerencias: ['Semana 1 Briceño', 'Semana 0 Briceño', 'Ver Semana 2 de Esparta']
+        };
+      }
+    }
+  }
+
+  if (acad === 'ESPARTA') {
+    if (sem !== null) {
+      if (sem >= 1 && sem <= 6) {
+        return {
+          disponible: true,
+          academia: 'Academia Esparta',
+          semana: sem,
+          mensaje: `¡Sí! La **Semana ${sem}** de **Academia Esparta** ya está disponible en RASTRO con lecciones grabadas de sus 18 cursos oficiales.`,
+          sugerencias: [`Ver Semana ${sem} Esparta`, 'Clases de Matemática', 'Ver Briceño']
+        };
+      } else {
+        return {
+          disponible: false,
+          academia: 'Academia Esparta',
+          semana: sem,
+          mensaje: `En **Academia Esparta**, actualmente tenemos clases registradas hasta la **Semana 6**. La **Semana ${sem}** aún no está disponible.`,
+          sugerencias: ['Semana 6 Esparta', 'Semana 5 Esparta', 'Ver Briceño']
+        };
+      }
+    }
+  }
+
+  // Resumen global de semanas y últimas clases
+  return {
+    disponible: true,
+    resumenGlobal: true,
+    mensaje: `En RASTRO el contenido más reciente está organizado por **Semanas** y dentro de cada una por **Clases**:\n\n` +
+      `• **Academia Briceño (Ciclo 2027)**:\n` +
+      `  - **Semana más reciente**: **Semana 1** (En curso).\n` +
+      `  - **Clases subidas**: Biología (S01), Anatomía (S01), Matemática, Química, Lenguaje y Raz. Verbal.\n` +
+      `  - *(Semana 0 de Introducción también disponible)*.\n\n` +
+      `• **Academia Esparta (18 Materias)**:\n` +
+      `  - **Semana más reciente**: **Semana 6**.\n` +
+      `  - **Clases subidas**: Clase 6 de las 18 asignaturas (Literatura, Matemática 1 y 2, Física, Química, etc.).\n` +
+      `  - *(Semanas 1 a 6 completas disponibles)*.\n\n` +
+      `• **Academia Kelsen**:\n` +
+      `  - Grabaciones oficiales del ciclo intensivo organizadas por fechas.\n\n` +
+      `¿Deseas ver las clases de alguna de estas semanas?`,
+    sugerencias: ['Semana 1 Briceño', 'Semana 6 Esparta', 'Grabaciones Kelsen']
+  };
 }
 
 /**
@@ -683,6 +816,39 @@ export async function executeUniversalSearch(params = {}, context = {}) {
 
   const matData = targetMateria ? CANONICAL_MATERIAS[targetMateria] : null;
 
+  // CASO D: Pregunta sobre actualización o estado de semanas o última clase subida
+  if (detectConsultaSemanaActualizacion(queryRaw)) {
+    const estado = getEstadoSemanas({ academia: detectedAcad, semana: detectedSem, materia: targetMateria });
+    return {
+      success: true,
+      category: 'actualizacion_semana',
+      items: [],
+      totalFound: 0,
+      followUp: estado.mensaje,
+      suggestions: estado.sugerencias,
+      filterContext: { materia: targetMateria, academia: detectedAcad, semana: detectedSem }
+    };
+  }
+
+  // CASO E: Desambiguación de academia para Matemática o cursos con divisiones distintas
+  const isGenericMath = (targetMateria === 'MATEMATICA' || cleanQuery.includes('matematica') || cleanQuery.includes('mate')) && !detectedAcad && (detectedType === 'VIDEO' || !detectedType);
+  if (isGenericMath && !detectedSem) {
+    return {
+      success: true,
+      category: 'desambiguacion_academia',
+      items: [],
+      totalFound: 0,
+      isAmbiguous: true,
+      followUp: `Tenemos clases de **Matemática** en estas academias:\n\n` +
+        `• **Academia Briceño**: Ciclo 2027 (Álgebra, Aritmética, Geometría).\n` +
+        `• **Academia Esparta**: 18 Materias (dividido en **Matemática 1** y **Matemática 2**).\n` +
+        `• **Academia Kelsen**: Grabaciones Oficiales de repaso.\n\n` +
+        `¿De cuál academia deseas ver las clases?`,
+      suggestions: ['Matemática Briceño', 'Matemática Esparta', 'Matemática Kelsen', 'Ver de todas las academias'],
+      filterContext: { materia: 'MATEMATICA' }
+    };
+  }
+
   // Búsqueda de recursos reales
   const videoResults = [];
   const materialResults = [];
@@ -835,34 +1001,51 @@ export async function executeUniversalSearch(params = {}, context = {}) {
   const semNameLabel = detectedSem !== null ? `Semana ${detectedSem}` : '';
 
   if (detectedType === 'MATERIAL' || detectedType === 'LIBRO') {
-    finalItems = materialResults;
-    followUpMessage = finalItems.length > 0
-      ? `Encontré ${finalItems.length} material${finalItems.length === 1 ? '' : 'es'} y separatas${matNameLabel ? ` de ${matNameLabel}` : ''}:`
-      : `No encontré separatas directas para ${matNameLabel || 'esa búsqueda'}. ¿Quieres ver videos o exámenes?`;
-    disambiguationChips = ['Ver videos', 'Simulacros', 'Tomos CEPREUNSA'];
+    if (materialResults.length > 0) {
+      finalItems = materialResults;
+      followUpMessage = `Encontré ${finalItems.length} material${finalItems.length === 1 ? '' : 'es'} y separatas${matNameLabel ? ` de ${matNameLabel}` : ''}:`;
+      disambiguationChips = ['Ver videos', 'Simulacros', 'Tomos CEPREUNSA'];
+    } else if (videoResults.length > 0) {
+      // Fallback solicitado: "si no hay material lo dice y muestra los videos no directamente"
+      finalItems = videoResults;
+      followUpMessage = `No encontré separatas ni PDFs para ${matNameLabel || 'esta materia'}${semNameLabel ? ` en la ${semNameLabel}` : ''}, pero **sí tenemos disponibles las clases en video**. Aquí tienes las grabaciones para que no te quedes sin estudiar:`;
+      disambiguationChips = [`Ver más videos`, 'Tomos CEPREUNSA', 'Simulacros'];
+    } else {
+      followUpMessage = `No encontré separatas ni material escrito para ${matNameLabel || 'esa búsqueda'}${semNameLabel ? ` en la ${semNameLabel}` : ''}. ¿Quieres buscar en otra materia o academia?`;
+      disambiguationChips = ['Academia Briceño', 'Academia Esparta', 'Tomos CEPREUNSA'];
+    }
   } else if (detectedType === 'VIDEO') {
     finalItems = videoResults;
-    followUpMessage = finalItems.length > 0
-      ? `Encontré ${finalItems.length} video${finalItems.length === 1 ? '' : 's'}${matNameLabel ? ` de ${matNameLabel}` : ''}${semNameLabel ? ` (${semNameLabel})` : ''}:`
-      : `No encontré videos de ${matNameLabel || 'esa materia'}${semNameLabel ? ` para la semana ${detectedSem}` : ''}. ¿Probamos con otra semana?`;
-    disambiguationChips = ['la 1', 'la 2', 'la 3', 'Buscar material'];
+    if (finalItems.length > 0) {
+      followUpMessage = `Encontré ${finalItems.length} video${finalItems.length === 1 ? '' : 's'}${matNameLabel ? ` de ${matNameLabel}` : ''}${semNameLabel ? ` (${semNameLabel})` : ''}:`;
+      disambiguationChips = ['Semana 1', 'Semana 2', 'Semana 3', 'Buscar material'];
+    } else {
+      if (detectedAcad === 'BRICENO' && detectedSem !== null && Number(detectedSem) > 1) {
+        followUpMessage = `En **Academia Briceño**, tenemos clases de ${matNameLabel || 'esta materia'} para la **Semana 0** y **Semana 1**, pero la **Semana ${detectedSem}** aún no ha sido publicada por la academia.`;
+        disambiguationChips = [`${matNameLabel || 'Clases'} Briceño Semana 1`, `${matNameLabel || 'Clases'} Briceño Semana 0`, 'Ver en Esparta'];
+      } else {
+        followUpMessage = `No encontré videos de ${matNameLabel || 'esa materia'}${semNameLabel ? ` para la semana ${detectedSem}` : ''}. ¿Probamos con otra semana o academia?`;
+        disambiguationChips = ['Semana 1', 'Semana 2', 'Semana 3', 'Buscar material'];
+      }
+    }
   } else {
-    // Consulta no especificó si video o material (ej: "química 1" o "biología")
+    // Consulta no especificó si video o material (ej: "química" o "biología")
     if (videoResults.length > 0 && materialResults.length > 0) {
       isAmbiguous = true;
-      // Entregar una mezcla balanceada (primeros 3 videos y primeros 3 materiales)
-      finalItems = [...videoResults.slice(0, 3), ...materialResults.slice(0, 2)];
-      followUpMessage = `Encontré tanto videos como material de estudio${matNameLabel ? ` para ${matNameLabel}` : ''}. ¿Qué prefieres consultar?`;
+      followUpMessage = `¿Qué tipo de recurso buscas para **${matNameLabel || 'esta materia'}**?\n\n` +
+        `• **Videos y Clases grabadas**\n` +
+        `• **Material y Separatas (PDF)**\n` +
+        `• **Ambos recursos combinados**`;
       disambiguationChips = [
         `🎥 Solo videos de ${matNameLabel || 'la materia'}`,
         `📚 Solo material de ${matNameLabel || 'la materia'}`,
-        `📝 Prácticas y exámenes`,
+        `✨ Ver ambos`,
         `📖 Tomos CEPREUNSA`
       ];
     } else if (videoResults.length > 0) {
       finalItems = videoResults;
       followUpMessage = `Encontré ${finalItems.length} video${finalItems.length === 1 ? '' : 's'}${matNameLabel ? ` de ${matNameLabel}` : ''}:`;
-      disambiguationChips = ['la 1', 'la 2', 'la 3', 'Ver material'];
+      disambiguationChips = ['Semana 1', 'Semana 2', 'Semana 3', 'Ver material'];
     } else if (materialResults.length > 0) {
       finalItems = materialResults;
       followUpMessage = `Encontré ${finalItems.length} recurso${finalItems.length === 1 ? '' : 's'} escrito${finalItems.length === 1 ? '' : 's'}${matNameLabel ? ` de ${matNameLabel}` : ''}:`;

@@ -220,13 +220,37 @@ export function matchesMateria(itemMateria, targetMateria) {
 export async function toolBuscarVideos(params = {}, context = {}) {
   const materia = params.materia || context.materia || null;
   const semana = params.semana !== undefined ? params.semana : (context.semana !== undefined ? context.semana : null);
+  const academia = params.academia || context.academia || null;
   const queryText = params.query || params.tema || '';
   const cleanQ = cleanText(queryText);
+
+  const cleanAcad = academia ? cleanText(academia) : '';
+  const isBriceno = cleanAcad.includes('bricen') || cleanAcad.includes('brcice') || academia === 'BRICENO';
+  const isEsparta = cleanAcad.includes('espart') || cleanAcad.includes('eparat') || academia === 'ESPARTA';
+  const isKelsen = cleanAcad.includes('kelse') || academia === 'KELSEN';
+  const hasSpecificAcad = isBriceno || isEsparta || isKelsen;
+
+  // Si pide videos de Matemática en general y no especificó academia:
+  if (materia === 'MATEMATICA' && !hasSpecificAcad && semana === null) {
+    return {
+      success: true,
+      toolName: 'buscarVideos',
+      items: [],
+      totalFound: 0,
+      followUp: `Tenemos clases de **Matemática** en estas academias:\n\n` +
+        `• **Academia Briceño**: Ciclo 2027 (Álgebra, Aritmética, Geometría).\n` +
+        `• **Academia Esparta**: 18 Materias (dividido en **Matemática 1** y **Matemática 2**).\n` +
+        `• **Academia Kelsen**: Grabaciones Oficiales de repaso.\n\n` +
+        `¿De cuál academia prefieres ver los videos?`,
+      suggestions: ['Matemática Briceño', 'Matemática Esparta', 'Matemática Kelsen', 'Ver de todas las academias'],
+      filterContext: { materia: 'MATEMATICA' }
+    };
+  }
 
   const results = [];
 
   // 1. Briceño 2027 (organizado por semanas y materias)
-  if (Array.isArray(BRICENO_2027)) {
+  if (Array.isArray(BRICENO_2027) && (!hasSpecificAcad || isBriceno)) {
     BRICENO_2027.forEach((week) => {
       // Filtrar por semana si se especificó
       if (semana !== null && week.num !== Number(semana)) {
@@ -261,7 +285,7 @@ export async function toolBuscarVideos(params = {}, context = {}) {
   }
 
   // 2. Academia Esparta (COURSES)
-  if (COURSES && typeof COURSES === 'object') {
+  if (COURSES && typeof COURSES === 'object' && (!hasSpecificAcad || isEsparta)) {
     Object.entries(COURSES).forEach(([slug, c]) => {
       if (!c.name) return;
       if (materia && !matchesMateria(c.name, materia)) return;
@@ -292,7 +316,7 @@ export async function toolBuscarVideos(params = {}, context = {}) {
   }
 
   // 3. Academia Kelsen
-  if ((!semana || semana === 1) && Array.isArray(KELSEN_VIDEOS)) {
+  if ((!semana || semana === 1) && Array.isArray(KELSEN_VIDEOS) && (!hasSpecificAcad || isKelsen)) {
     KELSEN_VIDEOS.forEach((v, idx) => {
       if (materia && !matchesMateria(v.titulo, materia)) return;
       if (cleanQ && !cleanText(v.titulo).includes(cleanQ)) return;
@@ -355,8 +379,13 @@ export async function toolBuscarVideos(params = {}, context = {}) {
     const semName = semana !== null ? `Semana ${semana}` : '';
     followUp = `Encontré ${results.length} video${results.length === 1 ? '' : 's'}${matName ? ` de ${matName}` : ''}${semName ? ` (${semName})` : ''}:`;
   } else {
-    followUp = `No encontré videos de ${materia ? MATERIA_CANONICAL[materia] || materia : 'esa búsqueda'}${semana !== null ? ` para la semana ${semana}` : ''}. ¿Probamos con otra semana?`;
-    suggestions = ['la 1', 'la 2', 'la 3', 'Buscar material'];
+    if (isBriceno && semana !== null && Number(semana) > 1) {
+      followUp = `En **Academia Briceño**, tenemos clases de ${materia ? MATERIA_CANONICAL[materia] || materia : 'esta materia'} para la **Semana 0** (Introducción) y la **Semana 1** (en curso), pero la **Semana ${semana}** aún no ha sido publicada por la academia.`;
+      suggestions = [`${materia ? MATERIA_CANONICAL[materia] || materia : 'Clases'} Briceño Semana 1`, `${materia ? MATERIA_CANONICAL[materia] || materia : 'Clases'} Briceño Semana 0`, 'Ver en Esparta'];
+    } else {
+      followUp = `No encontré videos de ${materia ? MATERIA_CANONICAL[materia] || materia : 'esa búsqueda'}${semana !== null ? ` para la semana ${semana}` : ''}. ¿Probamos con otra semana?`;
+      suggestions = ['la 1', 'la 2', 'la 3', 'Buscar material'];
+    }
   }
 
   return {
@@ -366,7 +395,7 @@ export async function toolBuscarVideos(params = {}, context = {}) {
     totalFound: results.length,
     followUp,
     suggestions,
-    filterContext: { materia, semana }
+    filterContext: { materia, semana, academia }
   };
 }
 
@@ -489,6 +518,22 @@ export async function toolBuscarMaterial(params = {}, context = {}) {
 
   const matName = materia ? (MATERIA_CANONICAL[materia] || materia) : '';
   const semName = semana !== null ? ` (Semana ${semana})` : '';
+
+  if (results.length === 0) {
+    // Buscar si hay videos disponibles para no dejar al usuario sin recursos
+    const altVideos = await toolBuscarVideos({ materia, semana, query: params.query }, context);
+    if (altVideos.items && altVideos.items.length > 0) {
+      return {
+        success: true,
+        toolName: 'buscarMaterial',
+        items: altVideos.items,
+        totalFound: altVideos.items.length,
+        followUp: `No encontré separatas o documentos en PDF de **${matName || 'esta materia'}**${semName} en este momento, pero **sí tenemos disponibles las clases en video**. Aquí tienes las grabaciones para que no te quedes sin estudiar:`,
+        suggestions: ['Ver más videos', 'Tomos CEPREUNSA', 'Simulacros'],
+        filterContext: { materia, semana }
+      };
+    }
+  }
 
   return {
     success: true,

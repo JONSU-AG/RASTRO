@@ -107,6 +107,7 @@ export function OrsttyChat({
   // Expansión de resultados ("Mostrar más") por id de mensaje
   const [expandedResults, setExpandedResults] = useState({});
 
+  const messagesContainerRef = useRef(null);
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -124,9 +125,14 @@ export function OrsttyChat({
     setActiveContext(getContext());
   };
 
-  // Scroll automático
+  // Scroll automático sin descolocar la ventana superior
   const scrollToBottom = (behavior = 'smooth') => {
-    chatBottomRef.current?.scrollIntoView({ behavior });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      });
+    }
   };
 
   useEffect(() => {
@@ -236,6 +242,9 @@ export function OrsttyChat({
 
         if (items.length > 0) {
           finalState = ORSTTY_STATES.FOUND;
+        } else if (toolOutput.followUp) {
+          // Respetar respuesta directa y precisa de la tool
+          finalState = ORSTTY_STATES.HAPPY;
         } else if (result.intent === 'saludar' || result.intent === 'ayuda') {
           finalState = ORSTTY_STATES.HAPPY;
         } else if (result.intent === 'desviar_recurso' && items.length === 0) {
@@ -256,7 +265,7 @@ export function OrsttyChat({
       } else {
         // Intento directo con Superbuscador Universal antes de IA
         const universalDirect = await executeUniversalSearch({ query: text, ...result.parameters }, result.context);
-        if (universalDirect && (universalDirect.items?.length > 0 || universalDirect.disambiguation)) {
+        if (universalDirect && (universalDirect.items?.length > 0 || universalDirect.followUp || universalDirect.disambiguation)) {
           items = universalDirect.items || [];
           responseText = universalDirect.followUp || 'Aquí tienes los resultados encontrados:';
           suggestions = universalDirect.suggestions || ['Ver videos', 'Ver material', 'Simulador'];
@@ -647,9 +656,11 @@ export function OrsttyChat({
 
       {/* Cuerpo del Chat / Mensajes */}
       <div 
+        ref={messagesContainerRef}
         style={{
           flex: 1,
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
           padding: '16px',
           display: 'flex',
           flexDirection: 'column',
