@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ErrorBoundary } from './ErrorBoundary';
 import {
   Home,
   BookOpen,
@@ -38,7 +39,7 @@ export const GeminiStarIcon = ({ size = 18, color, style = {} }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
-    fill={color || 'currentColor'}
+    fill="none"
     xmlns="http://www.w3.org/2000/svg"
     style={{
       display: 'inline-block',
@@ -48,8 +49,13 @@ export const GeminiStarIcon = ({ size = 18, color, style = {} }) => (
     }}
   >
     <path
-      d="M12 2C12 7.523 7.523 12 2 12C7.523 12 12 16.477 12 22C12 16.477 16.477 12 22 12C16.477 12 12 7.523 12 2Z"
+      d="M12 2L13.8 9.2L21 11L13.8 12.8L12 20L10.2 12.8L3 11L10.2 9.2L12 2Z"
+      stroke={color || 'currentColor'}
+      strokeWidth="1.5"
+      strokeLinejoin="round"
     />
+    <circle cx="18" cy="4" r="1" fill={color || 'currentColor'} />
+    <circle cx="20" cy="14" r="0.8" fill={color || 'currentColor'} opacity="0.7" />
   </svg>
 );
 
@@ -280,27 +286,35 @@ export const LiquidNavbar = () => {
     try {
       const qUser = query(
         collection(db, 'notificaciones'),
-        where('recipientUid', '==', user.uid),
-        where('read', '==', false)
+        where('recipientUid', '==', user.uid)
       );
 
       const qAll = query(
         collection(db, 'notificaciones'),
-        where('recipientUid', '==', 'all'),
-        where('read', '==', false)
+        where('recipientUid', '==', 'all')
       );
 
-      let userUnread = 0;
-      let allUnread = 0;
+      let userDocs = [];
+      let allDocs = [];
+
+      const updateCount = () => {
+        const userUnread = userDocs.filter(d => !d.read).length;
+        const allUnread = allDocs.filter(d => !d.read).length;
+        setUnreadCount(userUnread + allUnread);
+      };
 
       const unsubUser = onSnapshot(qUser, (snap) => {
-        userUnread = snap.docs.length;
-        setUnreadCount(userUnread + allUnread);
+        userDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        updateCount();
+      }, (err) => {
+        console.warn("Navbar user notif listener error:", err);
       });
 
       const unsubAll = onSnapshot(qAll, (snap) => {
-        allUnread = snap.docs.length;
-        setUnreadCount(userUnread + allUnread);
+        allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        updateCount();
+      }, (err) => {
+        console.warn("Navbar all notif listener error:", err);
       });
 
       return () => {
@@ -570,8 +584,7 @@ export const LiquidNavbar = () => {
                 padding: '4px 8px',
                 borderRadius: '10px',
                 border: 'none',
-                background: 'rgba(0, 122, 255, 0.12)',
-                color: 'var(--accent-color)',
+                background: 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -723,9 +736,12 @@ export const LiquidNavbar = () => {
                   to={item.path}
                   onClick={handleItemClick}
                   end={item.path === '/'}
-                  className={`nav-item ${item.desktopOnly ? 'desktop-only-nav-item' : ''} ${
+                  className={`nav-item ${item.isOrstty ? 'desktop-admin-pill' : ''} ${item.desktopOnly ? 'desktop-only-nav-item' : ''} ${
                     isActive ? 'active' : ''
                   }`}
+                  style={item.isOrstty ? {
+                    color: isActive ? 'var(--pill-active-text)' : '#000000'
+                  } : undefined}
                 >
                   {isActive && (
                     <motion.div
@@ -751,7 +767,7 @@ export const LiquidNavbar = () => {
                         zIndex: 2
                       }}
                     >
-                      <GeminiStarIcon size={19} color={isActive ? '#8B5CF6' : undefined} />
+                      <GeminiStarIcon size={19} color={isActive ? '#FFFFFF' : '#000000'} />
                     </div>
                   ) : Icon ? (
                     <Icon
@@ -840,7 +856,6 @@ export const LiquidNavbar = () => {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: unreadCount > 0 ? 'var(--accent-color)' : 'var(--text-main)',
                 position: 'relative'
               }}
             >
@@ -1385,10 +1400,12 @@ export const LiquidNavbar = () => {
         onClose={() => setIsUploadOpen(false)}
       />
 
-      <NotificationsModal
-        isOpen={isNotifOpen}
-        onClose={() => setIsNotifOpen(false)}
-      />
+      <ErrorBoundary onError={() => { setIsNotifOpen(false); document.body.style.overflow = ''; }}>
+        <NotificationsModal
+          isOpen={isNotifOpen}
+          onClose={() => setIsNotifOpen(false)}
+        />
+      </ErrorBoundary>
 
       <GoogleSignPromptModal
         isOpen={showGooglePrompt}

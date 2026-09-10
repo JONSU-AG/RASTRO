@@ -17,23 +17,27 @@ export default function OrsttyPage() {
       <style>{`
         .orstty-page-wrapper {
           min-height: 100vh;
-          padding: 16px 12px 120px;
-          max-width: 900px;
+          padding: 16px 12px 100px;
+          max-width: 100%;
           margin: 0 auto;
           box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
         }
         @media (min-width: 768px) {
           .orstty-page-wrapper {
-            padding-top: 112px !important;
+            padding-top: 110px !important;
             padding-bottom: 60px !important;
-            padding-left: 20px !important;
-            padding-right: 20px !important;
+            padding-left: 24px !important;
+            padding-right: 24px !important;
+            max-width: 700px;
           }
         }
         @media (min-width: 1025px) {
           .orstty-page-wrapper {
             padding-top: 118px !important;
             padding-bottom: 70px !important;
+            max-width: 750px;
           }
         }
       `}</style>
@@ -96,6 +100,7 @@ export default function OrsttyPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22 }}
+        style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
       >
         <OrsttyChat />
       </motion.div>

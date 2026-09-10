@@ -341,25 +341,47 @@ export function OrsttyMiniCard({
 
         {/* Case 6: User profile */}
         {isProfile && (
-          <Link
-            to={`/usuario/${item.id}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '6px 12px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #007AFF, #6366F1)',
-              color: '#FFFFFF',
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              textDecoration: 'none'
-            }}
-          >
-            <User size={13} />
-            <span>Ver perfil</span>
-          </Link>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <Link
+              to={item.profileUrl || `/usuario/${item.id}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #007AFF, #6366F1)',
+                color: '#FFFFFF',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+            >
+              <User size={13} />
+              <span>Ver perfil</span>
+            </Link>
+            {item.chatUrl && (
+              <Link
+                to={item.chatUrl}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  color: '#10B981',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  textDecoration: 'none'
+                }}
+              >
+                <span>💬 Mandar mensaje</span>
+              </Link>
+            )}
+          </div>
         )}
 
         {/* Case 7: Week */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Check, MessageSquare, Heart, Sparkles, Trash2, ExternalLink, Megaphone, Info, Eye, ChevronDown, ChevronUp, Settings, Volume2, VolumeX, Smartphone, Play } from 'lucide-react';
 import { db } from '../lib/firebase';
@@ -27,20 +27,29 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [activeNotifTab, setActiveNotifTab] = useState('avisos'); // 'avisos' | 'normal' | 'ajustes'
+  const [activeNotifTab, setActiveNotifTab] = useState('avisos');
   const [selectedNoticePopup, setSelectedNoticePopup] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({});
 
   const listScrollRef = useRef(null);
   const prevIsOpenRef = useRef(false);
-
   // Bloquear scroll de fondo mientras el modal esté abierto
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    // Safety net: if any unhandled error occurs while modal is open, restore overflow
+    const handleGlobalError = () => {
+      document.body.style.overflow = prevOverflow || '';
+    };
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleGlobalError);
+
     return () => {
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prevOverflow || '';
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleGlobalError);
     };
   }, [isOpen]);
 
@@ -142,46 +151,65 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
       let allDocs = [];
 
       const updateMergedNotifications = () => {
-        const docMap = new Map();
-        [...userDocs, ...allDocs].forEach(d => docMap.set(d.id, d));
-        const combined = Array.from(docMap.values());
+        try {
+          const docMap = new Map();
+          [...userDocs, ...allDocs].forEach(d => docMap.set(d.id, d));
+          const combined = Array.from(docMap.values());
 
-        const clearedNotifsKey = `rumbo_cleared_notifs_${user?.uid || 'guest'}`;
-        const clearedAvisosKey = `rumbo_cleared_avisos_${user?.uid || 'guest'}`;
-        const clearedNotifsTimestamp = parseInt(localStorage.getItem(clearedNotifsKey) || '0', 10);
-        const clearedAvisosTimestamp = parseInt(localStorage.getItem(clearedAvisosKey) || '0', 10);
+          const clearedNotifsKey = `rumbo_cleared_notifs_${user?.uid || 'guest'}`;
+          const clearedAvisosKey = `rumbo_cleared_avisos_${user?.uid || 'guest'}`;
+          const clearedNotifsTimestamp = parseInt(localStorage.getItem(clearedNotifsKey) || '0', 10);
+          const clearedAvisosTimestamp = parseInt(localStorage.getItem(clearedAvisosKey) || '0', 10);
 
-        const isAvisos = (n) => n.type === 'admin_broadcast' || n.type === 'comunidad' || n.type === 'aviso' || n.recipientUid === 'all';
+          const isAvisos = (n) => n.type === 'admin_broadcast' || n.type === 'comunidad' || n.type === 'aviso' || n.recipientUid === 'all';
 
-        const filtered = combined.filter(n => {
-          const time = n.createdAt?.toMillis ? n.createdAt.toMillis() : (n.timestamp || 0);
-          if (isAvisos(n)) {
-            return time > clearedAvisosTimestamp;
-          }
-          return time > clearedNotifsTimestamp;
-        });
+          const filtered = combined.filter(n => {
+            try {
+              const time = n.createdAt?.toMillis ? n.createdAt.toMillis() : (n.timestamp || 0);
+              if (isAvisos(n)) {
+                return time > clearedAvisosTimestamp;
+              }
+              return time > clearedNotifsTimestamp;
+            } catch {
+              return true;
+            }
+          });
 
-        // Sort by most recent first
-        filtered.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.timestamp || 0);
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.timestamp || 0);
-          return timeB - timeA;
-        });
+          filtered.sort((a, b) => {
+            try {
+              const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.timestamp || 0);
+              const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.timestamp || 0);
+              return timeB - timeA;
+            } catch {
+              return 0;
+            }
+          });
 
-        setNotifications(filtered);
-        setUnreadCount(filtered.filter(n => !n.read).length);
+          setNotifications(filtered);
+          setUnreadCount(filtered.filter(n => !n.read).length);
+        } catch (err) {
+          console.warn("Error merging notifications:", err);
+        }
       };
 
       const unsubUser = onSnapshot(qUser, (snapshot) => {
-        userDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        updateMergedNotifications();
+        try {
+          userDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          updateMergedNotifications();
+        } catch (err) {
+          console.warn("Error processing user notifications:", err);
+        }
       }, (err) => {
         console.warn("User notifications listener error:", err);
       });
 
       const unsubAll = onSnapshot(qAll, (snapshot) => {
-        allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        updateMergedNotifications();
+        try {
+          allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          updateMergedNotifications();
+        } catch (err) {
+          console.warn("Error processing all notifications:", err);
+        }
       }, (err) => {
         console.warn("All notifications listener error:", err);
       });
@@ -314,9 +342,14 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'Hace un momento';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    try {
+      if (!timestamp) return 'Hace un momento';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Hace un momento';
+      return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Hace un momento';
+    }
   };
 
   return (
@@ -508,7 +541,7 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                       }}
                     >
                       <span className="tab-text">
-                        <span className="tab-text-full">Avisos ({avisosList.length})</span>
+                        <span className="tab-text-full">Avisos</span>
                         <span className="tab-text-short">Avisos</span>
                         {avisosUnread > 0 && (
                           <span style={{ padding: '1px 5px', borderRadius: '8px', background: '#EF4444', color: '#FFF', fontSize: '0.62rem', fontWeight: 900 }}>
@@ -532,8 +565,8 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                       }}
                     >
                       <span className="tab-text">
-                        <span className="tab-text-full">Notificaciones ({notifList.length})</span>
-                        <span className="tab-text-short">Notifs ({notifList.length})</span>
+                        <span className="tab-text-full">Notificaciones</span>
+                        <span className="tab-text-short">Notifs</span>
                         {notifUnread > 0 && (
                           <span style={{ padding: '1px 5px', borderRadius: '8px', background: '#EF4444', color: '#FFF', fontSize: '0.62rem', fontWeight: 900 }}>
                             {notifUnread}
@@ -810,7 +843,7 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                           const main = entry.mainItem;
                           const isExpanded = expandedGroups[entry.groupKey];
 
-                          return (
+                        return (
                             <div
                               key={entry.groupKey}
                               style={{
@@ -938,7 +971,7 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                         }
 
                         const n = entry.item;
-                        const isBroadcast = isAvisos(n);
+                        const isBroadcast = isAvisosItem(n);
 
                         return (
                           <div

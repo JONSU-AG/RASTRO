@@ -13,11 +13,17 @@ import {
   Cpu, 
   Layers,
   ArrowRight,
-  X
+  X,
+  Power
 } from 'lucide-react';
 import { process as processWithEngine, getTool, getContext, clearContext, updateContext } from './orstty-engine.js';
 import { getResponse } from './orstty-personality.js';
 import { registerAllRastroTools } from './rastro-tools.js';
+import { getDesviationResponse, searchKnowledge, getKnowledgeResponse } from './orstty-knowledge.js';
+import { getConversationalResponse, detectarApodo, getApodoResponse, getRecuperarNombreResponse, getApodo, setApodo } from './orstty-conversacion.js';
+import { procesarIntencionAvanzada, detectarEstadoEmocional } from './orstty-avanzado.js';
+import { getLocalAIResponse } from './orstty-ai-local.js';
+import { getGroqResponse, hasApiKey, getKeyCount } from './orstty-groq-free.js';
 import { OrsttyAvatar, ORSTTY_STATES } from './OrsttyAvatar';
 import { OrsttyMiniCard } from './OrsttyMiniCard';
 import { InChatVideoModal, InChatPreviewModal } from './OrsttyModals';
@@ -38,15 +44,24 @@ const QUICK_STARTERS = [
 const INITIAL_MESSAGE = {
   id: 'welcome',
   sender: 'orstty',
-  text: '¡Hola! Soy ORSTTY 👋 Tu asistente inteligente en RASTRO. Pregúntame sobre videos de clases, separatas, tomos, libros o exámenes de simulación.',
-  suggestions: ['Videos de biología', 'Material de química', 'Simulador', 'Ver cursos'],
+  text: '¡Hola! Soy ORSTTY 👋 Tu asistente de RASTRO. Puedo buscar videos, materiales, cursos, libros y simulacros. También puedo generarte horarios de estudio, darte consejos, o simplemente charlar contigo. ¿Qué necesitas?',
+  suggestions: ['Videos de biología', 'Horario de estudio', '¿Qué es RM?', 'Consejos'],
+  timestamp: Date.now()
+};
+
+// Mensaje de bienvenida con Ollama
+const OLLAMA_WELCOME = {
+  id: 'welcome-ollama',
+  sender: 'orstty',
+  text: '¡Hola! Soy ORSTTY 👋 Tu asistente de RASTRO con IA avanzada. Puedo buscar videos, materiales, cursos, libros y simulacros. También puedo explicar conceptos, darte consejos de estudio, o charlar contigo. ¿Qué necesitas?',
+  suggestions: ['Explica RM', 'Consejos de estudio', 'Videos de biología', '¿Qué es la academia?'],
   timestamp: Date.now()
 };
 
 const STORAGE_KEY = 'rastro_orstty_chat_history';
 
 export function OrsttyChat({ 
-  onClose = null, 
+  onClose = null,
   isDrawer = false,
   className = '' 
 }) {
@@ -54,6 +69,9 @@ export function OrsttyChat({
   
   // Estado del motor (avatar)
   const [engineState, setEngineState] = useState(ORSTTY_STATES.IDLE);
+  
+  // Apodo personalizado
+  const [apodoActual, setApodoActual] = useState(() => getApodo());
   
   // Historial de mensajes
   const [messages, setMessages] = useState(() => {
@@ -67,6 +85,8 @@ export function OrsttyChat({
     return [INITIAL_MESSAGE];
   });
 
+
+
   const [inputVal, setInputVal] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeContext, setActiveContext] = useState(() => getContext());
@@ -74,6 +94,12 @@ export function OrsttyChat({
   // Modales interactivos dentro del chat
   const [activeVideoModal, setActiveVideoModal] = useState(null);
   const [activePreviewModal, setActivePreviewModal] = useState(null);
+
+  // Estado de IA (Groq)
+  const [groqEnabled] = useState(() => hasApiKey());
+  const [keyCount] = useState(() => getKeyCount());
+
+
 
   // Expansión de resultados ("Mostrar más") por id de mensaje
   const [expandedResults, setExpandedResults] = useState({});
@@ -87,6 +113,8 @@ export function OrsttyChat({
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {}
   }, [messages]);
+
+
 
   // Actualizar contexto visible
   const refreshContext = () => {
@@ -121,7 +149,57 @@ export function OrsttyChat({
     setEngineState(ORSTTY_STATES.THINKING);
 
     try {
-      // 1. Procesar con ORSTTY ENGINE
+      // 0. Verificar si es un apodo
+      const apodoInfo = detectarApodo(text);
+      if (apodoInfo) {
+        let responseText;
+        let suggestions = ['Buscar videos', 'Ver cursos', 'Simulador'];
+
+        if (apodoInfo.esApodo) {
+          setApodo(apodoInfo.apodo);
+          setApodoActual(apodoInfo.apodo);
+          responseText = getApodoResponse(apodoInfo.apodo);
+        } else if (apodoInfo.esRecuperar) {
+          setApodoActual('ORSTTY');
+          responseText = getRecuperarNombreResponse();
+        }
+
+        const botMsgId = `orstty-${Date.now()}`;
+        setMessages(prev => [...prev, {
+          id: botMsgId,
+          sender: 'orstty',
+          text: responseText,
+          intent: 'conversacion',
+          items: [],
+          totalFound: 0,
+          suggestions,
+          timestamp: Date.now()
+        }]);
+        setEngineState(ORSTTY_STATES.HAPPY);
+        setTimeout(() => setEngineState(ORSTTY_STATES.IDLE), 3000);
+        return;
+      }
+
+      // 1. Verificar intenciones avanzadas (horarios, psicólogo, creador, etc.)
+      const respuestaAvanzada = procesarIntencionAvanzada(text);
+      if (respuestaAvanzada) {
+        const botMsgId = `orstty-${Date.now()}`;
+        setMessages(prev => [...prev, {
+          id: botMsgId,
+          sender: 'orstty',
+          text: respuestaAvanzada,
+          intent: 'conversacion',
+          items: [],
+          totalFound: 0,
+          suggestions: ['Buscar videos', 'Ver cursos', 'Simulador'],
+          timestamp: Date.now()
+        }]);
+        setEngineState(ORSTTY_STATES.HAPPY);
+        setTimeout(() => setEngineState(ORSTTY_STATES.IDLE), 3000);
+        return;
+      }
+
+      // 2. Procesar con ORSTTY ENGINE
       const result = processWithEngine(text);
       refreshContext();
 
@@ -157,20 +235,94 @@ export function OrsttyChat({
           finalState = ORSTTY_STATES.FOUND;
         } else if (result.intent === 'saludar' || result.intent === 'ayuda') {
           finalState = ORSTTY_STATES.HAPPY;
+        } else if (result.intent === 'desviar_recurso' && items.length === 0) {
+          responseText = 'Déjame buscar lo que tenemos para ti...';
+          finalState = ORSTTY_STATES.SEARCHING;
         } else {
           finalState = ORSTTY_STATES.NO_RESULTS;
         }
       } else {
-        // Sin tool (ej. saludo, ayuda, no_entendido)
-        responseText = getResponse(result.intent);
-        if (result.intent === 'saludar') {
-          finalState = ORSTTY_STATES.HAPPY;
-          suggestions = ['Videos de biología', 'Material de química', 'Simulador', 'Ver cursos'];
-        } else if (result.intent === 'no_entendido') {
-          finalState = ORSTTY_STATES.CONFUSED;
-          suggestions = ['Videos de biología semana 3', 'Separatas de química', 'Simulacros'];
+        // Sin tool - Usar IA para preguntas informativas
+        const esPreguntaInformativa = /que es|que son|como funciona|explica|definicion|significa|dime sobre|hablame de|quien fue|quien es|quien descubrio|cuando fue|donde esta|por que|cuanto es|cual es|como se hace|historia de|ciencia/i.test(text);
+        
+        if (esPreguntaInformativa) {
+          let aiUsed = false;
+
+          // 1. Intentar IA externa si está habilitada
+          console.log('🔍 groqEnabled:', groqEnabled, '| Texto:', text);
+          if (groqEnabled) {
+            setEngineState(ORSTTY_STATES.SEARCHING);
+            const groqResult = await getGroqResponse(text, result, {
+              materia: activeContext?.materia,
+              semana: activeContext?.semana,
+              academia: activeContext?.academia
+            });
+            console.log('🤖 Groq result:', groqResult);
+
+            if (groqResult.used) {
+              responseText = groqResult.response;
+              finalState = ORSTTY_STATES.HAPPY;
+              suggestions = ['Buscar videos', 'Ver cursos', 'Simulador'];
+              aiUsed = true;
+            }
+          }
+
+          // 2. Fallback a IA local
+          if (!aiUsed) {
+            const localResult = getLocalAIResponse(text);
+            
+            if (localResult.success) {
+              responseText = localResult.response;
+              finalState = ORSTTY_STATES.HAPPY;
+              suggestions = ['Buscar videos', 'Ver cursos', 'Simulador'];
+            } else {
+              // IA local no tiene respuesta, intentar knowledge base
+              const knowledge = searchKnowledge(text);
+              if (knowledge.found) {
+                responseText = getKnowledgeResponse(knowledge);
+                finalState = ORSTTY_STATES.HAPPY;
+                suggestions = ['Ver videos', 'Ver material', 'Simulacros'];
+              } else {
+                // Fallback a conversacional
+                const conversationalResponse = getConversationalResponse(text);
+                if (conversationalResponse) {
+                  responseText = conversationalResponse;
+                  finalState = ORSTTY_STATES.HAPPY;
+                  suggestions = ['Buscar videos', 'Ver cursos', 'Simulador'];
+                } else {
+                  responseText = getResponse(result.intent);
+                  finalState = ORSTTY_STATES.NO_RESULTS;
+                  suggestions = ['Videos de biología', 'Material de química', 'Simulador'];
+                }
+              }
+            }
+          }
         } else {
-          finalState = ORSTTY_STATES.IDLE;
+          // No es pregunta informativa - usar flujo normal
+          const conversationalResponse = getConversationalResponse(text);
+          if (conversationalResponse) {
+            responseText = conversationalResponse;
+            finalState = ORSTTY_STATES.HAPPY;
+            suggestions = ['Buscar videos', 'Ver cursos', 'Simulador'];
+          } else {
+            const knowledge = searchKnowledge(text);
+            if (knowledge.found) {
+              responseText = getKnowledgeResponse(knowledge);
+              finalState = ORSTTY_STATES.HAPPY;
+              suggestions = ['Ver videos', 'Ver material', 'Simulacros'];
+            } else {
+              responseText = getResponse(result.intent);
+              if (result.intent === 'saludar') {
+                finalState = ORSTTY_STATES.HAPPY;
+                suggestions = ['Videos de biología', 'Material de química', 'Simulador', 'Ver cursos'];
+              } else if (result.intent === 'no_entendido') {
+                finalState = ORSTTY_STATES.CONFUSED;
+                suggestions = ['Videos de biología semana 3', 'Separatas de química', 'Simulacros'];
+              } else {
+                finalState = ORSTTY_STATES.IDLE;
+              }
+            }
+          }
         }
       }
 
@@ -274,7 +426,7 @@ export function OrsttyChat({
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main, #FFFFFF)' }}>
-                ORSTTY
+                {apodoActual}
               </span>
               <span 
                 style={{
@@ -290,6 +442,7 @@ export function OrsttyChat({
               >
                 Cerebro RASTRO
               </span>
+
             </div>
             <span 
               style={{ 
@@ -306,6 +459,28 @@ export function OrsttyChat({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {/* Indicador de IA */}
+          {groqEnabled && (
+            <div
+              title={`${keyCount} API keys activas - Rotación automática`}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '12px',
+                border: '1px solid rgba(34,197,94,0.3)',
+                background: 'rgba(34,197,94,0.1)',
+                color: '#22C55E',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <Power size={13} />
+              <span className="hide-on-xs">IA ✓</span>
+            </div>
+          )}
+
           {/* Botón reiniciar chat */}
           <button
             onClick={handleClearChat}
@@ -463,7 +638,7 @@ export function OrsttyChat({
                       marginBottom: '2px'
                     }}
                   >
-                    {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'Tú'}
+                    {user?.username ? `@${user.username}` : (user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'Tú')}
                   </div>
                 )}
 
@@ -672,7 +847,7 @@ export function OrsttyChat({
           type="text"
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          placeholder="Pregunta a ORSTTY (ej: videos de biología sem 3, libros de química...)"
+          placeholder={`Pregunta a ${apodoActual} (videos, material, cursos...) o dime "te llamo X"`}
           disabled={isProcessing}
           style={{
             flex: 1,

@@ -12,7 +12,8 @@
 // =============================================================================
 
 // ---------------------------------------------------------------------------
-// 1. NORMALIZACIÓN DE TEXTO
+// 1. NORMALIZACIÓN DE TEXTO - MUY AGRESIVA
+// Maneja typos, abreviaturas, escritura fonética, errores comunes
 // ---------------------------------------------------------------------------
 
 const TILDES = {
@@ -20,8 +21,71 @@ const TILDES = {
   à: 'a', è: 'e', ì: 'i', ò: 'o', ù: 'u',
 };
 
+// Diccionario de errores comunes y sus correcciones
+const CORRECCIONES = {
+  // Abreviaturas de chat
+  'q': 'que', 'xq': 'porque', 'xfa': 'porfa', 'xfavor': 'porfavor',
+  'tb': 'tambien', 'tbn': 'tambien', 'td': 'todo', 'x': 'por',
+  'd': 'de', 'al': 'al', 'xq': 'porque', 'k': 'que',
+  'ns': 'no se', 'ps': 'pues', 'pa': 'para', 'ia': 'ya',
+  'bn': 'bien', 'cm': 'como', 'ha': 'ha', 'xq': 'porque',
+  'alv': 'a la verga', 'nms': 'no manches', 'w': 'doble u',
+  
+  // Errores fonéticos comunes
+  'kiero': 'quiero', 'kiero': 'quiero', 'kiere': 'quiere',
+  'aki': 'aqui', 'ake': 'aque', 'akya': 'alla',
+  'ase': 'hace', 'asen': 'hacen', 'aser': 'hacer',
+  'aver': 'a ver', 'aveces': 'a veces',
+  'tabien': 'tambien', 'tmb': 'tambien', 'tmbn': 'tambien',
+  'dps': 'despues', 'dsp': 'despues', 'dplib': 'despues',
+  'nose': 'no se', 'notengo': 'no tengo', 'nohay': 'no hay',
+  'porfa': 'por favor', 'plis': 'please', 'plisss': 'please',
+  'grx': 'gracias', 'gracias': 'gracias', 'grax': 'gracias',
+  'astudy': 'ayuda', 'asito': 'ayuda',
+  'broo': 'bro', 'brooo': 'bro', 'bro': 'bro',
+  'noo': 'no', 'nooo': 'no', 'nooooo': 'no',
+  'sii': 'si', 'siii': 'si', 'siiiii': 'si',
+  'okii': 'ok', 'oki': 'ok', 'okis': 'ok',
+  'buenoo': 'bueno', 'buenooo': 'bueno',
+  
+  // Errores de escritura comunes
+  'amtematica': 'matematica', 'amtematicas': 'matematicas',
+  'amtematico': 'matematico', 'amtematicos': 'matematicos',
+  'matematica1': 'matematica 1', 'matematica2': 'matematica 2',
+  'razonamiento': 'razonamiento',
+  'examne': 'examen', 'examenm': 'examen',
+  'clasee': 'clase', 'clasees': 'clase',
+  'videos': 'videos', 'vidio': 'video', 'vidios': 'videos',
+  'mateial': 'material', 'matrial': 'material',
+  'cursho': 'curso', 'curshos': 'cursos',
+  'libroo': 'libro', 'libros': 'libros',
+  'simulacro': 'simulacro', 'simualcro': 'simulacro',
+  'historiaa': 'historia', 'fisicaa': 'fisica',
+  'quimicaa': 'quimica', 'biologiaa': 'biologia',
+  
+  // Errores de teclado (letras cambiadas)
+  'qdiero': 'quiero', 'qiero': 'quiero',
+  'necesio': 'necesito', 'necesitoo': 'necesito',
+  'buscoo': 'busco', 'tengoo': 'tengo',
+  'estudioo': 'estudio', 'parro': 'paro',
+  'podriiamos': 'podriamos', 'podriamos': 'podriamos',
+  'studios': 'estudios', 'stuidos': 'estudios',
+  'estudios': 'estudios', 'estudio': 'estudio',
+  'horario': 'horario', 'horarios': 'horarios',
+  
+  // Otras abreviaturas
+  'wn': 'weon', 'wea': 'wea',
+  'ctm': 'concha de tu madre', 'la re': 'la re',
+  'npi': 'no idea', 'tti': 'tu tambien',
+  'ntp': 'no te preocupes', 'ntc': 'no te creas',
+  'igualmente': 'igualmente', 'igau': 'igual',
+  'bss': 'besos', 'saludos': 'saludos',
+  'fn': 'fin', 'xoxo': 'besos',
+};
+
 /**
- * Normaliza texto: minúsculas, sin tildes, sin signos, espacios limpios.
+ * Normaliza texto de forma agresiva: minúsculas, sin tildes, corrige typos,
+ * expande abreviaturas, limpias signos.
  */
 export function normalizeText(text = '') {
   let cleaned = text
@@ -33,12 +97,41 @@ export function normalizeText(text = '') {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Correcciones de mecanografía habituales (ej: amtematica -> matematica) y abreviaturas
+  // 1. Expandir abreviaturas y corregir errores fonéticos
+  const tokens = cleaned.split(' ');
+  const corrected = tokens.map(token => {
+    // Primero buscar coincidencia exacta
+    if (CORRECCIONES[token]) return CORRECCIONES[token];
+    // Luego buscar si contiene el error
+    for (const [error, correccion] of Object.entries(CORRECCIONES)) {
+      if (token.includes(error) && token !== correccion) {
+        return token.replace(error, correccion);
+      }
+    }
+    return token;
+  });
+  cleaned = corrected.join(' ');
+
+  // 2. Correcciones de patrones específicos
   cleaned = cleaned
     .replace(/\bamtematicas?\b/g, 'matematica')
     .replace(/\bamtematicos?\b/g, 'matematico')
     .replace(/\br m\b/g, 'rm')
-    .replace(/\br v\b/g, 'rv');
+    .replace(/\br v\b/g, 'rv')
+    .replace(/\br l\b/g, 'rl')
+    .replace(/\bqiero\b/g, 'quiero')
+    .replace(/\bnecesio\b/g, 'necesito')
+    .replace(/\bnsq\b/g, 'no se que')
+    .replace(/\bxfa\b/g, 'por favor')
+    .replace(/\btk\b/g, 'gracias')
+    .replace(/\bbss\b/g, 'besos')
+    .replace(/\bfty\b/g, 'fortnite')
+    .replace(/\bnose\b/g, 'no se')
+    .replace(/\bnohay\b/g, 'no hay')
+    .replace(/\baver\b/g, 'a ver')
+    .replace(/\btengo1\b/g, 'tengo un')
+    .replace(/\bsoy1\b/g, 'soy un')
+    .replace(/\bquiero1\b/g, 'quiero un');
 
   return cleaned;
 }
@@ -209,6 +302,7 @@ const KNOWN_INTENTS = new Set([
   'buscar_libros', 'buscar_examenes', 'buscar_publicaciones', 'buscar_perfiles',
   'buscar_semanas', 'buscar_nuevos', 'comparar_recursos', 'filtrar',
   'abrir_recurso', 'volver', 'no_entendido',
+  'pregunta_conocimiento', 'desviar_recurso', 'conversacion',
 ]);
 
 /**
@@ -303,6 +397,8 @@ const intentToolMap = {
   buscar_nuevos: 'buscarNuevos',
   comparar_recursos: 'compararRecursos',
   abrir_recurso: 'abrirRecurso',
+  pregunta_conocimiento: 'conocimiento',
+  desviar_recurso: 'buscarVideos',
 };
 
 export function registerIntentTool(intent, toolName) {
@@ -326,7 +422,9 @@ export const STATES = {
 
 function suggestState(intent) {
   if (intent === 'no_entendido') return STATES.CONFUSED;
-  if (intent === 'saludar') return STATES.HAPPY;
+  if (intent === 'saludar' || intent === 'conversacion') return STATES.HAPPY;
+  if (intent === 'pregunta_conocimiento') return STATES.HAPPY;
+  if (intent === 'desviar_recurso') return STATES.SEARCHING;
   if (intentToolMap[intent]) return STATES.SEARCHING;
   return STATES.IDLE;
 }

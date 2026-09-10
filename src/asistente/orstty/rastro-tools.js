@@ -34,6 +34,11 @@ import {
   registerVocab, 
   registerIntentTool 
 } from './orstty-engine.js';
+import { 
+  searchKnowledge, 
+  getKnowledgeResponse, 
+  getDesviationResponse 
+} from './orstty-knowledge.js';
 
 // -----------------------------------------------------------------------------
 // NORMALIZADORES Y VOCABULARIOS COMPLEMENTARIOS DE RASTRO
@@ -756,9 +761,11 @@ export async function toolBuscarPublicaciones(params = {}) {
 // -----------------------------------------------------------------------------
 // TOOL 7: BUSCAR PERFILES PÚBLICOS
 // Respeta estrictamente la privacidad: SOLO campos públicos autorizados
+// Si el usuario quiere mensajear, incluye link al chat
 // -----------------------------------------------------------------------------
 export async function toolBuscarPerfiles(params = {}) {
   const cleanQ = cleanText(params.query || params.username || '');
+  const quiereMensajear = cleanQ.includes('mensaje') || cleanQ.includes('escribir') || cleanQ.includes('hablar') || cleanQ.includes('mandar') || cleanQ.includes('decirle');
   const results = [];
 
   if (!cleanQ) {
@@ -782,7 +789,7 @@ export async function toolBuscarPerfiles(params = {}) {
       if (!nameMatch && !userMatch) return;
 
       // SOLO campos estrictamente públicos
-      results.push({
+      const perfil = {
         id: `user-${d.id}`,
         title: u.displayName || u.username || 'Estudiante RASTRO',
         username: u.username ? `@${u.username}` : '',
@@ -794,18 +801,30 @@ export async function toolBuscarPerfiles(params = {}) {
         profileUrl: `/usuario/${d.id}`,
         type: 'perfil',
         icon: '👤'
-      });
+      };
+
+      // Si quiere mensajear, agregar link al chat
+      if (quiereMensajear) {
+        perfil.chatUrl = `/chats?with=${d.id}`;
+        perfil.actionLabel = `💬 Mandar mensaje a ${u.username || u.displayName}`;
+      }
+
+      results.push(perfil);
     });
   } catch (e) {}
+
+  const followUp = results.length > 0
+    ? (quiereMensajear
+      ? `Encontré ${results.length} usuario${results.length === 1 ? '' : 's'}. Haz clic en "Mandar mensaje" para abrir el chat:`
+      : `Perfiles encontrados en la comunidad:`)
+    : `No encontré un perfil con ese nombre.`;
 
   return {
     success: true,
     toolName: 'buscarPerfiles',
     items: results,
     totalFound: results.length,
-    followUp: results.length > 0 
-      ? `Perfiles encontrados en la comunidad:` 
-      : `No encontré un perfil con ese nombre.`,
+    followUp,
     suggestions: ['Ver mi perfil', 'Ir a la comunidad']
   };
 }
@@ -992,6 +1011,89 @@ export async function toolAbrirRecurso(params = {}, context = {}) {
 }
 
 // -----------------------------------------------------------------------------
+// TOOL 12: CONOCIMIENTO (Q&A breve tipo Siri + búsqueda en publicaciones)
+// -----------------------------------------------------------------------------
+export async function toolConocimiento(params = {}, context = {}) {
+  const query = params.query || params.materia || params.queryText || '';
+  
+  // 1. Primero buscar en la base de conocimiento estática
+  const knowledge = searchKnowledge(query);
+  
+  if (knowledge.found) {
+    const responseText = getKnowledgeResponse(knowledge);
+    return {
+      success: true,
+      toolName: 'conocimiento',
+      items: [],
+      totalFound: 0,
+      followUp: responseText,
+      suggestions: ['Ver videos', 'Ver material', 'Simulacro'],
+      knowledgeData: knowledge
+    };
+  }
+  
+  // 2. Si no encontró en conocimiento estático, buscar en publicaciones de Firestore
+  try {
+    const cleanQ = cleanText(query);
+    if (cleanQ && cleanQ.length >= 2) {
+      const qUploads = query(
+        collection(db, 'uploads'),
+        where('oculto', '==', false),
+        limit(5)
+      );
+      const snap = await safeGetDocs(qUploads, 3000);
+      const matchingUploads = [];
+      
+      snap.docs.forEach(d => {
+        const item = d.data();
+        if (item.hidden || (item.reportsCount || 0) >= 3) return;
+        
+        const title = cleanText(item.title || '');
+        const desc = cleanText(item.desc || '');
+        const cat = cleanText(item.categoriaLabel || item.category || '');
+        
+        if (title.includes(cleanQ) || desc.includes(cleanQ) || cat.includes(cleanQ)) {
+          matchingUploads.push({
+            id: `upload-${d.id}`,
+            title: item.title,
+            materia: item.categoriaLabel || 'Material',
+            author: item.author || 'Comunidad RASTRO',
+            url: item.url || item.driveUrl,
+            type: 'material',
+            icon: '📄',
+            desc: item.desc || ''
+          });
+        }
+      });
+      
+      if (matchingUploads.length > 0) {
+        const items = matchingUploads.slice(0, 3);
+        return {
+          success: true,
+          toolName: 'conocimiento',
+          items,
+          totalFound: items.length,
+          followUp: `Encontré ${items.length} publicación${items.length > 1 ? 'es' : ''} relacionada${items.length > 1 ? 's' : ''} en la comunidad:`,
+          suggestions: ['Ver más publicaciones', 'Buscar videos', 'Subir material']
+        };
+      }
+    }
+  } catch (e) {
+    // Silenciar errores de Firestore
+  }
+  
+  // 3. Si no encontró nada, dar respuesta genérica con sugerencias
+  return {
+    success: true,
+    toolName: 'conocimiento',
+    items: [],
+    totalFound: 0,
+    followUp: 'No tengo información específica sobre eso. ¿Quieres que busque videos, material o cursos de alguna materia?',
+    suggestions: ['Videos de biología', 'Material de química', 'Simulacros', 'Ver cursos']
+  };
+}
+
+// -----------------------------------------------------------------------------
 // REGISTRO DE TODAS LAS TOOLS EN EL MOTOR DE ORSTTY
 // -----------------------------------------------------------------------------
 export function registerAllRastroTools() {
@@ -1006,6 +1108,7 @@ export function registerAllRastroTools() {
   registerTool('buscarNuevos', toolBuscarNuevos);
   registerTool('compararRecursos', toolCompararRecursos);
   registerTool('abrirRecurso', toolAbrirRecurso);
+  registerTool('conocimiento', toolConocimiento);
 
   // Tool para 'filtrar': si el usuario aplica un filtro de semana o materia sobre un contexto anterior
   registerTool('filtrar', async (params, context) => {

@@ -10,6 +10,8 @@ export class ErrorBoundary extends React.Component {
   }
   componentDidCatch(error, info) {
     console.error('RASTRO ErrorBoundary:', error, info);
+    document.body.style.overflow = '';
+    if (this.props.onError) this.props.onError();
   }
   render() {
     if (this.state.hasError) {
