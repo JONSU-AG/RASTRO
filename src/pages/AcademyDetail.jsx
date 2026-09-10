@@ -134,31 +134,74 @@ export const AcademyDetail = () => {
         console.warn("Firestore Briceño setup notice:", e);
       }
     } else {
-      // Dynamic Course loaded from Firestore collection 'cursos'
+      // Check first if this is a custom academy created with the Briceño template in 'academias'
       try {
-        const docRef = doc(db, 'cursos', id);
-        const unsubCourse = onSnapshot(docRef, (snap) => {
+        const acadRef = doc(db, 'academias', id);
+        let unsubWeeks = null;
+        let unsubCourse = null;
+
+        const unsubAcad = onSnapshot(acadRef, (snap) => {
           if (snap.exists()) {
-            const cData = snap.data();
+            const acadData = snap.data();
+            const collName = acadData.semanasCollection || `${id}_semanas`;
             setData({
-              name: cData.nombre || id,
-              badge: cData.badge || '🎓 CURSO',
-              subtitulo: cData.subtitulo || '',
-              descripcion: cData.descripcion || '',
-              colorTheme: cData.colorTheme,
-              modules: Array.isArray(cData.modules) ? cData.modules : [],
-              type: 'custom'
+              name: acadData.nombre || id,
+              badge: acadData.badge || '🎓 ACADEMIA',
+              subtitulo: acadData.subtitulo || '',
+              descripcion: acadData.descripcion || '',
+              colorTheme: acadData.colorTheme,
+              driveUrl: acadData.driveUrl || '',
+              driveText: acadData.driveText || '',
+              cicloName: acadData.cicloName || 'Ciclo 2027',
+              semanasCollection: collName,
+              type: 'briceno',
+              isTemplateInstance: true
             });
+
+            // Clean up previous weeks subscription if any
+            if (unsubWeeks) unsubWeeks();
+
+            // Subscribe to independent collection of weeks for this academy
+            const weeksColRef = collection(db, collName);
+            unsubWeeks = onSnapshot(weeksColRef, (wSnap) => {
+              const weeksList = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              weeksList.sort((a, b) => (a.num !== undefined ? a.num : 99) - (b.num !== undefined ? b.num : 99));
+              setBriceno2027Data(weeksList);
+            }, (err) => console.warn(`Error on ${collName} weeks listener:`, err));
           } else {
-            setData({ name: 'Curso no encontrado', type: 'not_found' });
+            // Not found in 'academias', fallback to check 'cursos'
+            const courseRef = doc(db, 'cursos', id);
+            unsubCourse = onSnapshot(courseRef, (cSnap) => {
+              if (cSnap.exists()) {
+                const cData = cSnap.data();
+                setData({
+                  name: cData.nombre || id,
+                  badge: cData.badge || '🎓 CURSO',
+                  subtitulo: cData.subtitulo || '',
+                  descripcion: cData.descripcion || '',
+                  colorTheme: cData.colorTheme,
+                  modules: Array.isArray(cData.modules) ? cData.modules : [],
+                  type: 'custom'
+                });
+              } else {
+                setData({ name: 'Contenido no encontrado', type: 'not_found' });
+              }
+            }, (err) => {
+              console.warn('Error loading custom course:', err);
+              setData({ name: 'Error al cargar', type: 'not_found' });
+            });
           }
         }, (err) => {
-          console.warn('Error loading custom course:', err);
-          setData({ name: 'Error al cargar', type: 'not_found' });
+          console.warn('Error checking academias:', err);
         });
-        return () => unsubCourse();
+
+        return () => {
+          unsubAcad();
+          if (unsubWeeks) unsubWeeks();
+          if (unsubCourse) unsubCourse();
+        };
       } catch (err) {
-        console.warn('Custom course fetch err:', err);
+        console.warn('Custom academy/course fetch err:', err);
         setData({ name: 'Error', type: 'not_found' });
       }
     }
@@ -463,107 +506,182 @@ export const AcademyDetail = () => {
 
       {data.type === 'briceno' && (
         <div style={{ marginBottom: '32px' }}>
-          {/* Eye-catching Cycles Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '16px',
-            marginBottom: '20px'
-          }}>
-            {/* Card 1: Ciclo Actual 2027 */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => { setBricenoTab('2027'); setSelectedWeek('all'); }}
-              className="glass-card"
+          {/* Cycles Header / Cards */}
+          {id === 'briceno' ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px',
+              marginBottom: '20px'
+            }}>
+              {/* Card 1: Ciclo Actual 2027 */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { setBricenoTab('2027'); setSelectedWeek('all'); }}
+                className="glass-card"
+                style={{
+                  padding: '20px 22px',
+                  borderRadius: '22px',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: bricenoTab === '2027' ? '2px solid #34C759' : '1px solid var(--card-border)',
+                  background: bricenoTab === '2027' 
+                    ? 'linear-gradient(135deg, rgba(52, 199, 89, 0.18), rgba(0, 122, 255, 0.1))' 
+                    : 'var(--card-bg)',
+                  boxShadow: bricenoTab === '2027' ? '0 8px 24px rgba(52, 199, 89, 0.15)' : 'none',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{
+                    width: '42px', height: '42px', borderRadius: '14px',
+                    background: 'rgba(52, 199, 89, 0.2)', color: '#34C759',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.4rem'
+                  }}>
+                    🌱
+                  </div>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    background: bricenoTab === '2027' ? '#34C759' : 'rgba(52, 199, 89, 0.15)',
+                    color: bricenoTab === '2027' ? '#FFFFFF' : '#34C759'
+                  }}>
+                    ● EN CURSO
+                  </span>
+                </div>
+                <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Ciclo Actual 2027
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  En el ciclo actual, las clases se suben constantemente. Clases organizadas por semanas y materias.
+                </p>
+              </motion.div>
+
+              {/* Card 2: Ciclo Intensivo 2026 */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setBricenoTab('2026')}
+                className="glass-card"
+                style={{
+                  padding: '20px 22px',
+                  borderRadius: '22px',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: bricenoTab === '2026' ? '2px solid #A855F7' : '1px solid var(--card-border)',
+                  background: bricenoTab === '2026' 
+                    ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(99, 102, 241, 0.1))' 
+                    : 'var(--card-bg)',
+                  boxShadow: bricenoTab === '2026' ? '0 8px 24px rgba(168, 85, 247, 0.15)' : 'none',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{
+                    width: '42px', height: '42px', borderRadius: '14px',
+                    background: 'rgba(168, 85, 247, 0.2)', color: '#A855F7',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.4rem'
+                  }}>
+                    ⚡
+                  </div>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    background: bricenoTab === '2026' ? '#A855F7' : 'rgba(168, 85, 247, 0.15)',
+                    color: bricenoTab === '2026' ? '#FFFFFF' : '#A855F7'
+                  }}>
+                    8 ÁREAS
+                  </span>
+                </div>
+                <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Ciclo Intensivo 2026
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  Bancos y clases intensivas clasificadas por materias clave.
+                </p>
+              </motion.div>
+            </div>
+          ) : (
+            <div 
+              className="glass-card" 
               style={{
-                padding: '20px 22px',
+                padding: '20px 24px',
                 borderRadius: '22px',
-                cursor: 'pointer',
-                position: 'relative',
-                border: bricenoTab === '2027' ? '2px solid #34C759' : '1px solid var(--card-border)',
-                background: bricenoTab === '2027' 
-                  ? 'linear-gradient(135deg, rgba(52, 199, 89, 0.18), rgba(0, 122, 255, 0.1))' 
-                  : 'var(--card-bg)',
-                boxShadow: bricenoTab === '2027' ? '0 8px 24px rgba(52, 199, 89, 0.15)' : 'none',
-                transition: 'all 0.25s ease'
+                marginBottom: '20px',
+                border: '1.5px solid rgba(52, 199, 89, 0.35)',
+                background: 'linear-gradient(135deg, rgba(52, 199, 89, 0.12), rgba(0, 122, 255, 0.06))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '14px'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{
-                  width: '42px', height: '42px', borderRadius: '14px',
-                  background: 'rgba(52, 199, 89, 0.2)', color: '#34C759',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem'
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '14px',
+                  background: 'rgba(52, 199, 89, 0.25)',
+                  color: '#34C759',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem'
                 }}>
                   🌱
                 </div>
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  background: bricenoTab === '2027' ? '#34C759' : 'rgba(52, 199, 89, 0.15)',
-                  color: bricenoTab === '2027' ? '#FFFFFF' : '#34C759'
-                }}>
-                  ● EN CURSO
-                </span>
-              </div>
-              <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Ciclo Actual 2027
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                En el ciclo actual, las clases se suben constantemente. Clases organizadas por semanas y materias.
-              </p>
-            </motion.div>
-
-            {/* Card 2: Ciclo Intensivo 2026 */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setBricenoTab('2026')}
-              className="glass-card"
-              style={{
-                padding: '20px 22px',
-                borderRadius: '22px',
-                cursor: 'pointer',
-                position: 'relative',
-                border: bricenoTab === '2026' ? '2px solid #A855F7' : '1px solid var(--card-border)',
-                background: bricenoTab === '2026' 
-                  ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(99, 102, 241, 0.1))' 
-                  : 'var(--card-bg)',
-                boxShadow: bricenoTab === '2026' ? '0 8px 24px rgba(168, 85, 247, 0.15)' : 'none',
-                transition: 'all 0.25s ease'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <div style={{
-                  width: '42px', height: '42px', borderRadius: '14px',
-                  background: 'rgba(168, 85, 247, 0.2)', color: '#A855F7',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem'
-                }}>
-                  ⚡
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      {data.cicloName || 'Ciclo en Curso'}
+                    </h3>
+                    <span style={{
+                      padding: '3px 10px',
+                      borderRadius: '10px',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      background: '#34C759',
+                      color: '#FFF'
+                    }}>
+                      ● EN CURSO
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                    {data.subtitulo || data.descripcion || 'Clases organizadas por semanas y materias.'}
+                  </p>
                 </div>
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  background: bricenoTab === '2026' ? '#A855F7' : 'rgba(168, 85, 247, 0.15)',
-                  color: bricenoTab === '2026' ? '#FFFFFF' : '#A855F7'
-                }}>
-                  8 ÁREAS
-                </span>
               </div>
-              <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Ciclo Intensivo 2026
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                Bancos y clases intensivas clasificadas por materias clave.
-              </p>
-            </motion.div>
-          </div>
+              {data.driveUrl && (
+                <a
+                  href={data.driveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 16px',
+                    borderRadius: '12px',
+                    background: '#059669',
+                    color: '#FFF',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <HardDrive size={15} /> {data.driveText || 'Materiales en Drive'} ↗
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Week Selector Bar (When in Ciclo 2027) */}
           {bricenoTab === '2027' && (
@@ -624,41 +742,43 @@ export const AcademyDetail = () => {
               </div>
 
               {/* Botón pequeño de Material Usado en Clases a su costado de los filtros */}
-              <a
-                href="https://drive.google.com/drive/folders/1sGaLVsVGtWeggLUWtw_vB14iwH3mHHH1"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Material usado en clases (se actualiza constantemente en el ciclo actual)"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '8px 15px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(56, 189, 248, 0.12))',
-                  border: '1.5px solid rgba(0, 122, 255, 0.35)',
-                  color: 'var(--accent-color)',
-                  fontWeight: 800,
-                  fontSize: '0.84rem',
-                  textDecoration: 'none',
-                  boxShadow: '0 2px 8px rgba(0, 122, 255, 0.12)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <HardDrive size={15} />
-                <span>Material usado en clases</span>
-                <span style={{
-                  background: 'var(--accent-color)',
-                  color: '#ffffff',
-                  fontSize: '0.70rem',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: '8px'
-                }}>
-                  Drive ↗
-                </span>
-              </a>
+              {(data.driveUrl || id === 'briceno') && (
+                <a
+                  href={data.driveUrl || "https://drive.google.com/drive/folders/1sGaLVsVGtWeggLUWtw_vB14iwH3mHHH1"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={data.driveText || "Material usado en clases (se actualiza constantemente en el ciclo actual)"}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '8px 15px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(56, 189, 248, 0.12))',
+                    border: '1.5px solid rgba(0, 122, 255, 0.35)',
+                    color: 'var(--accent-color)',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 8px rgba(0, 122, 255, 0.12)',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <HardDrive size={15} />
+                  <span>{data.driveText || 'Material usado en clases'}</span>
+                  <span style={{
+                    background: 'var(--accent-color)',
+                    color: '#ffffff',
+                    fontSize: '0.70rem',
+                    fontWeight: 800,
+                    padding: '2px 7px',
+                    borderRadius: '8px'
+                  }}>
+                    Drive ↗
+                  </span>
+                </a>
+              )}
             </div>
           )}
 
@@ -937,9 +1057,39 @@ export const AcademyDetail = () => {
         {data.type === 'briceno' && (
           <>
             {bricenoTab === '2027' ? (
-              briceno2027Data
-                .filter(weekItem => selectedWeek === 'all' || weekItem.num === selectedWeek)
-                .map((weekItem, wIdx) => {
+              briceno2027Data.length === 0 ? (
+                <div className="glass-card" style={{ padding: '48px 24px', textAlign: 'center', borderRadius: '24px', maxWidth: '600px', margin: '24px auto', border: '1.5px dashed var(--card-border)' }}>
+                  <div style={{ fontSize: '2.8rem', marginBottom: '12px' }}>🌱</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 8px' }}>
+                    Esta academia aún no tiene semanas registradas
+                  </h3>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+                    Las clases, videos y materiales aparecerán aquí en cuanto sean subidos desde el panel de administración.
+                  </p>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 20px',
+                        borderRadius: '14px',
+                        background: 'var(--accent-color)',
+                        color: '#FFF',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <Settings size={16} /> Subir Semanas en Panel Admin
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                briceno2027Data
+                  .filter(weekItem => selectedWeek === 'all' || weekItem.num === selectedWeek)
+                  .map((weekItem, wIdx) => {
                   const filteredCourses = (weekItem.data || []).filter(subCat => {
                     return searchMatches([subCat.nombre, subCat.categoria, ...(subCat.videos || []).map(v => v.nombre)], query);
                   });
@@ -1166,6 +1316,7 @@ export const AcademyDetail = () => {
                     </div>
                   );
                 })
+              )
             ) : (
               /* Ciclo Intensivo 2026 - Áreas con SVG */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>

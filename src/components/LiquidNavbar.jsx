@@ -503,16 +503,20 @@ export const LiquidNavbar = () => {
         style={{
           padding: '6px 12px',
           gap: '6px',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          boxSizing: 'border-box',
+          width: '100%',
+          overflow: 'hidden'
         }}
       >
-        <Logo height={42} />
+        <Logo height={32} />
 
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '4px'
+            gap: '6px',
+            flexShrink: 0
           }}
         >
 
@@ -522,7 +526,7 @@ export const LiquidNavbar = () => {
             title="Asistente ORSTTY"
             style={{
               padding: '4px 6px',
-              borderRadius: '10px',
+              borderRadius: '9px',
               border: 'none',
               background: location.pathname.startsWith('/orstty')
                 ? 'rgba(139, 92, 246, 0.15)'
@@ -533,16 +537,16 @@ export const LiquidNavbar = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '2px',
-              fontSize: '0.62rem',
+              fontSize: '0.60rem',
               fontWeight: 800,
               textDecoration: 'none',
               cursor: 'pointer',
-              minWidth: '40px',
+              minWidth: '34px',
               transition: 'all 0.15s ease'
             }}
           >
             <GeminiStarIcon size={16} color={location.pathname.startsWith('/orstty') ? '#8B5CF6' : 'currentColor'} />
-            <span>ORSTTY</span>
+            <span style={{ lineHeight: 1 }}>ORSTTY</span>
           </NavLink>
 
           {/* Mis Chats (Sección superior al lado de ORSTTY en teléfonos móviles) */}
@@ -551,7 +555,7 @@ export const LiquidNavbar = () => {
             title="Mis Chats"
             style={{
               padding: '4px 6px',
-              borderRadius: '10px',
+              borderRadius: '9px',
               border: 'none',
               background: location.pathname.startsWith('/chats')
                 ? 'rgba(0, 122, 255, 0.15)'
@@ -562,27 +566,26 @@ export const LiquidNavbar = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '2px',
-              fontSize: '0.62rem',
+              fontSize: '0.60rem',
               fontWeight: 800,
               textDecoration: 'none',
               cursor: 'pointer',
-              minWidth: '40px',
+              minWidth: '34px',
               transition: 'all 0.15s ease'
             }}
           >
             <MessageSquare size={16} />
-            <span>Chats</span>
+            <span style={{ lineHeight: 1 }}>Chats</span>
           </NavLink>
 
           {/* Notificaciones */}
-
           {user && (
             <button
               onClick={() => setIsNotifOpen(true)}
               title="Notificaciones y Avisos"
               style={{
-                padding: '4px 8px',
-                borderRadius: '10px',
+                padding: '4px 6px',
+                borderRadius: '9px',
                 border: 'none',
                 background: 'transparent',
                 display: 'flex',
@@ -590,16 +593,16 @@ export const LiquidNavbar = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '2px',
-                fontSize: '0.62rem',
+                fontSize: '0.60rem',
                 fontWeight: 800,
                 cursor: 'pointer',
                 position: 'relative',
-                minWidth: '42px'
+                minWidth: '34px'
               }}
             >
-              <Bell size={15} />
+              <Bell size={16} />
 
-              <span className="hide-on-xs">
+              <span style={{ lineHeight: 1 }}>
                 Avisos
               </span>
 
@@ -608,37 +611,33 @@ export const LiquidNavbar = () => {
                   style={{
                     position: 'absolute',
                     top: '-2px',
-                    right: '2px',
+                    right: '1px',
                     background: '#EF4444',
                     color: '#FFFFFF',
-                    fontSize: '0.55rem',
+                    fontSize: '0.52rem',
                     fontWeight: 800,
-                    width: '14px',
-                    height: '14px',
+                    width: '13px',
+                    height: '13px',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border:
-                      '1.5px solid var(--card-bg)'
+                    border: '1.5px solid var(--card-bg)'
                   }}
                 >
-                  {unreadCount > 9
-                    ? '9+'
-                    : unreadCount}
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
           )}
 
           {/* Subir */}
-
           <button
             onClick={() => setIsUploadOpen(true)}
             title="Aportar Material Educativo"
             style={{
-              padding: '4px 8px',
-              borderRadius: '10px',
+              padding: '4px 7px',
+              borderRadius: '9px',
               border: 'none',
               background: 'rgba(0, 122, 255, 0.12)',
               color: 'var(--accent-color)',
@@ -647,27 +646,26 @@ export const LiquidNavbar = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '2px',
-              fontSize: '0.62rem',
+              fontSize: '0.60rem',
               fontWeight: 800,
               cursor: 'pointer',
-              minWidth: '42px'
+              minWidth: '34px'
             }}
           >
-            <UploadCloud size={15} />
+            <UploadCloud size={16} />
 
-            <span className="hide-on-xs">
+            <span style={{ lineHeight: 1 }}>
               Subir
             </span>
           </button>
 
           {/* Tema */}
-
           <button
             onClick={() => setIsThemeOpen(true)}
             title="Cambiar Tema Visual"
             style={{
-              padding: '4px 8px',
-              borderRadius: '10px',
+              padding: '4px 6px',
+              borderRadius: '9px',
               border: 'none',
               background: 'rgba(120, 120, 128, 0.12)',
               color: 'var(--text-main)',
@@ -676,15 +674,15 @@ export const LiquidNavbar = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '2px',
-              fontSize: '0.62rem',
+              fontSize: '0.60rem',
               fontWeight: 800,
               cursor: 'pointer',
-              minWidth: '42px'
+              minWidth: '34px'
             }}
           >
             <Palette size={15} />
 
-            <span className="hide-on-xs">
+            <span style={{ lineHeight: 1 }}>
               Tema
             </span>
           </button>

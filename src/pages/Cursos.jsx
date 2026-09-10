@@ -28,6 +28,7 @@ export const Cursos = () => {
   const [accessSettings, setAccessSettings] = useState(getCachedAccessSettings);
   const [refreshKey, setRefreshKey] = useState(0);
   const [customCursos, setCustomCursos] = useState([]);
+  const [customAcademias, setCustomAcademias] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -48,6 +49,20 @@ export const Cursos = () => {
       return () => unsub();
     } catch (e) {
       console.warn('Error loading custom cursos:', e);
+    }
+  }, []);
+
+  // Listen to custom academies created with the Briceño template
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'academias'));
+      const unsub = onSnapshot(q, (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setCustomAcademias(list);
+      }, (err) => console.warn('Academias snap notice:', err));
+      return () => unsub();
+    } catch (e) {
+      console.warn('Error loading custom academias:', e);
     }
   }, []);
 
@@ -109,10 +124,10 @@ export const Cursos = () => {
         btnShadow: 'rgba(5, 150, 105, 0.25)'
       }
     }
-  ].filter(p => !customIds.has(p.id));
+  ].filter(p => !customIds.has(p.id) && !customAcademias.some(a => a.id === p.id));
 
-  // Merge custom courses with non-overridden static presets
-  const allCourses = [...activeCustomCursos, ...staticPresets];
+  // Merge custom academies (Briceño template), custom courses, and static presets
+  const allCourses = [...customAcademias, ...activeCustomCursos, ...staticPresets];
 
   const filteredCourses = allCourses.filter(c => {
     if (!searchQuery.trim()) return true;
