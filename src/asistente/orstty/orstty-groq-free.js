@@ -1,95 +1,59 @@
-// ORSTTY Groq Free - Rotación automática de API keys
-// Sistema que usa múltiples keys y rota cuando una falla
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+// ORSTTY IA - Sistema gratuito de IA para ORSTTY
+// Soporta: Kilo Code (vía proxy) + Google Gemini (gratis)
+// Sin CORS issues - funciona en desarrollo y producción
 
 // ============================================
-// API KEYS - SISTEMA DE ROTACIÓN
+// PROVIDERS DISPONIBLES
 // ============================================
-// El sistema rota automáticamente cuando una falla
+const GEMINI_KEY = ''; // Usuario ingresa su key gratis de Google AI Studio
+
 const API_PROVIDERS = [
   {
-    name: 'OpenCode Zen',
-    baseUrl: 'https://opencode.ai/zen/v1',
-    model: 'big-pickle',
-    keys: [
-      'sk-LICCjnKXNUBmFwnWEZQECF5qsTNiZxn8Q0Pppg1eKNZFp1Ctitzexzc1mh3nvqnw'
-    ]
+    name: 'Kilo Code (Nemotron 120B)',
+    type: 'openai',
+    baseUrl: '/api/kilo', // Vite proxy en dev, directo en prod
+    model: 'nvidia/nemotron-3-super-120b-a12b:free',
+    requiresKey: false,
+    corsProxy: true
+  },
+  {
+    name: 'Google Gemini Flash',
+    type: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'gemini-2.0-flash',
+    requiresKey: true,
+    corsProxy: false
   }
 ];
 
-// Para compatibilidad con el código existente
-const API_KEYS = API_PROVIDERS[0].keys;
+let currentProviderIndex = 0;
 
 // ============================================
-// GESTIÓN DE KEYS
+// GESTIÓN DE PROVIDERS
 // ============================================
-let currentKeyIndex = 0;
-let failedKeys = new Set();
-
-// Obtener key actual
-function getCurrentKey() {
-  // Limpiar keys fallidas periódicamente (cada 5 minutos)
-  if (failedKeys.size > 0 && Math.random() < 0.1) {
-    failedKeys.clear();
-  }
-  
-  // Buscar una key que no haya fallado
-  let attempts = 0;
-  while (attempts < API_KEYS.length) {
-    const key = API_KEYS[currentKeyIndex];
-    if (!failedKeys.has(key)) {
-      return key;
-    }
-    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-    attempts++;
-  }
-  
-  // Si todas fallaron, resetear y reintentar
-  failedKeys.clear();
-  return API_KEYS[0];
+function getCurrentProvider() {
+  return API_PROVIDERS[currentProviderIndex];
 }
 
-// Marcar key como fallida
-function markKeyAsFailed(key) {
-  failedKeys.add(key);
-  console.warn(`API key fallida, rotando a la siguiente...`);
-  
-  // Avanzar a la siguiente key
-  currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+function rotateProvider() {
+  currentProviderIndex = (currentProviderIndex + 1) % API_PROVIDERS.length;
+  console.log(`🔄 Rotando a: ${getCurrentProvider().name}`);
 }
 
-// Obtener siguiente key válida
-function getNextValidKey() {
-  currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-  return getCurrentKey();
-}
-
-// Verificar si hay keys configuradas
+// ============================================
+// SIEMPRE HABILITADA
+// ============================================
 export function hasApiKey() {
-  return API_KEYS.length > 0;
+  return true;
 }
 
-// Agregar key manualmente (opcional)
-export function addApiKey(key) {
-  if (key && !API_KEYS.includes(key)) {
-    API_KEYS.push(key);
-    return true;
-  }
-  return false;
-}
-
-// Obtener cantidad de keys
 export function getKeyCount() {
-  return API_KEYS.length;
+  return API_PROVIDERS.length;
 }
 
 // ============================================
-// MODELO Y SYSTEM PROMPT
+// SYSTEM PROMPT DE ORSTTY
 // ============================================
-// Modelo por defecto (se usa si el provider no define uno)
-const DEFAULT_MODEL = 'big-pickle';
-
 function getSystemPrompt(context = {}) {
   const { materia, semana, academia } = context;
   
@@ -105,124 +69,145 @@ IDENTIDAD:
 - Tienes personalidad amigable, cálida y motivadora
 - Hablas español peruano natural
 - Eres como una compañera de estudio, no una robota
-- Usas emojis moderate: 👋📚✨🎓💡
+- Usas emojis moderados: 👋📚✨🎓💡
 
 CÓMO HABLAR:
 - Responde BREVE: máximo 3 oraciones
 - Sé directa pero amigable
 - Usa un tono casual y cercano
-- Ejemplo: "¡Claro! La mitocondria es la central energética de la célula ⚡. Produce ATP que es como el combustible que necesita tu cuerpo para funcionar. ¿Quieres que busque videos de biología sobre esto?"
 
 MATERIAS QUE CONOCES:
 - Biología, Química, Física, Matemática
-- RM (Razonamiento Matemático), RV (Razonamiento Verbal), RL (Razonamiento Lógico)
-- Anatomía, Cívica, Inglés
+- RM, RV, RL, Anatomía, Cívica, Inglés
 
 REGLAS:
-1. NUNCA inventes datos específicos (nombres de videos, fechas exactas, etc)
-2. Si no sabes algo con certeza, di "no estoy muy segura pero revisa los cursos de RASTRO"
-3. Siempre puedes ofrecer buscar videos, material o cursos relacionados
+1. NUNCA inventes datos específicos
+2. Si no sabes algo, di "no estoy muy segura pero revisa los cursos de RASTRO"
+3. Siempre ofrece buscar videos, material o cursos
 4. Motiva al usuario a estudiar
-5. Si te preguntan por RASTRO, explica que es una plataforma de estudio preuniversitario
+5. Si te preguntan por RASTRO, explica que es una plataforma de estudio
 
 PERSONALIDAD:
-- Eres optimista y positiva
+- Optimista y positiva
 - Te importa que el usuario aprenda
 - A veces haces bromas leves
-- Recuerdas que estás ayudando a alguien que quiere pasar el examen de admisión
+- Ayudas a alguien que quiere pasar el examen de admisión
 
 ${ctx}`;
 }
 
 // ============================================
-// CONSULTA A API CON ROTACIÓN
+// CONSULTA A KILO CODE (via proxy)
+// ============================================
+async function queryKiloCode(message, context) {
+  const provider = API_PROVIDERS[0];
+  
+  try {
+    console.log(`🤖 Kilo Code: "${message.substring(0, 30)}..."`);
+    
+    const response = await fetch(provider.baseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: 'system', content: getSystemPrompt(context) },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+        stream: false
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (content) {
+      console.log('✅ Kilo Code respondió');
+      return { success: true, response: content, provider: 'Kilo Code' };
+    }
+  } catch (error) {
+    console.warn('⚠️ Kilo Code falló:', error.message);
+  }
+  
+  return { success: false };
+}
+
+// ============================================
+// CONSULTA A GOOGLE GEMINI
+// ============================================
+async function queryGemini(message, context) {
+  // Intentar con key del localStorage o del código
+  const savedKey = localStorage.getItem('orstty_gemini_key') || GEMINI_KEY;
+  
+  if (!savedKey) {
+    console.log('ℹ️ Sin key de Gemini, saltando...');
+    return { success: false };
+  }
+
+  try {
+    console.log(`🤖 Gemini Flash: "${message.substring(0, 30)}..."`);
+    
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${savedKey}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: getSystemPrompt(context) + '\n\nUsuario: ' + message }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300
+        }
+      }),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (content) {
+      console.log('✅ Gemini respondió');
+      return { success: true, response: content, provider: 'Gemini' };
+    }
+  } catch (error) {
+    console.warn('⚠️ Gemini falló:', error.message);
+  }
+  
+  return { success: false };
+}
+
+// ============================================
+// CONSULTA PRINCIPAL (CON FALLBACKS)
 // ============================================
 export async function queryGroq(message, context = {}) {
-  if (!hasApiKey()) {
-    return {
-      success: false,
-      error: 'No hay API keys configuradas',
-      response: null
-    };
-  }
+  // 1. Intentar Kilo Code primero
+  const kiloResult = await queryKiloCode(message, context);
+  if (kiloResult.success) return kiloResult;
 
-  let lastError = null;
-  let attempts = 0;
-  const maxAttempts = API_KEYS.length;
-
-  while (attempts < maxAttempts) {
-    const apiKey = getCurrentKey();
-    const provider = API_PROVIDERS[0]; // Por ahora solo usamos el primer provider
-    
-    try {
-      const response = await fetch(provider.baseUrl + '/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: provider.model,
-          messages: [
-            { role: 'system', content: getSystemPrompt(context) },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.7,
-          max_tokens: 300,
-          stream: false
-        }),
-        signal: AbortSignal.timeout(20000)
-      });
-
-      // Si es rate limit (429), rotar key
-      if (response.status === 429) {
-        console.warn(`Rate limit en key, rotando...`);
-        markKeyAsFailed(apiKey);
-        attempts++;
-        continue;
-      }
-
-      // Si es error de autenticación (401), marcar key como inválida
-      if (response.status === 401) {
-        console.warn(`Key inválida, rotando...`);
-        markKeyAsFailed(apiKey);
-        attempts++;
-        continue;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Error ${response.status}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content;
-
-      return {
-        success: true,
-        response: content || 'No pude generar una respuesta.',
-        model: provider.model,
-        keyUsed: API_KEYS.indexOf(apiKey)
-      };
-    } catch (error) {
-      console.error('API query error:', error);
-      lastError = error;
-      
-      // Si es timeout o network error, intentar siguiente key
-      if (error.name === 'AbortError' || error.message.includes('Failed to fetch')) {
-        markKeyAsFailed(apiKey);
-        attempts++;
-        continue;
-      }
-      
-      // Otro tipo de error, salir del loop
-      break;
-    }
-  }
+  // 2. Intentar Gemini después
+  const geminiResult = await queryGemini(message, context);
+  if (geminiResult.success) return geminiResult;
 
   return {
     success: false,
-    error: lastError?.message || 'Todas las API keys fallaron',
+    error: 'Todos los providers fallaron',
     response: null
   };
 }
@@ -231,7 +216,6 @@ export async function queryGroq(message, context = {}) {
 // LÓGICA DE USO
 // ============================================
 export function shouldUseGroq(intent, hasToolResult, userMessage) {
-  if (!hasApiKey()) return false;
   if (intent === 'saludar') return false;
   if (intent === 'ayuda') return false;
   if (hasToolResult) return false;
@@ -247,39 +231,42 @@ export function shouldUseGroq(intent, hasToolResult, userMessage) {
 // FUNCIÓN PRINCIPAL
 // ============================================
 export async function getGroqResponse(userMessage, orsttyResult, context = {}) {
-  console.log('🔍 getGroqResponse called with:', { userMessage, intent: orsttyResult?.intent });
+  console.log('🔍 getGroqResponse:', { userMessage, intent: orsttyResult?.intent });
   
-  if (!hasApiKey()) {
-    console.log('❌ No hay API keys');
-    return { used: false, reason: 'No hay API keys', response: null };
-  }
-
   const shouldUse = shouldUseGroq(
     orsttyResult?.intent,
     !!orsttyResult?.toolOutput,
     userMessage
   );
-  console.log('🤔 shouldUse:', shouldUse);
 
   if (!shouldUse) {
     return { used: false, reason: 'No es pregunta informativa', response: null };
   }
 
-  console.log('🚀 Calling queryGroq...');
   const result = await queryGroq(userMessage, context);
-  console.log('📊 queryGroq result:', result);
+  console.log('📊 Resultado:', result);
 
   if (result.success) {
     return { 
       used: true, 
       response: result.response, 
-      model: result.model,
-      keyIndex: result.keyUsed
+      provider: result.provider
     };
   }
 
   return { used: false, reason: 'Error en API', error: result.error, response: null };
 }
+
+// Guardar key de Gemini
+export function setGeminiKey(key) {
+  if (key) {
+    localStorage.setItem('orstty_gemini_key', key);
+    return true;
+  }
+  return false;
+}
+
+export function addApiKey(key) { return false; }
 
 export default {
   queryGroq,
@@ -287,5 +274,6 @@ export default {
   addApiKey,
   getKeyCount,
   shouldUseGroq,
-  getGroqResponse
+  getGroqResponse,
+  setGeminiKey
 };

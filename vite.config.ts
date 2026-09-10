@@ -56,6 +56,21 @@ export default defineConfig({
 
     allowedHosts: true,
 
+    proxy: {
+      '/api/kilo': {
+        target: 'https://api.kilo.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/kilo/, '/api/openrouter'),
+        secure: true,
+      },
+      '/api/gemini': {
+        target: 'https://generativelanguage.googleapis.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/gemini/, ''),
+        secure: true,
+      },
+    },
+
     watch: {
       ignored: ["**/src/tests/**"],
     },
