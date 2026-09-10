@@ -17,8 +17,8 @@ const STATE_CONFIG = {
   idle: {
     label: 'En línea',
     sublabel: 'Listo para ayudarte',
-    color: '#10B981',
-    glow: 'rgba(16, 185, 129, 0.25)',
+    color: '#8B5CF6',
+    glow: 'rgba(139, 92, 246, 0.35)',
     icon: null
   },
   thinking: {

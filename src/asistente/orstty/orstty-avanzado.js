@@ -304,7 +304,7 @@ export function detectarIntencionAvanzada(text) {
   const norm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
   // Horarios de estudio (con tolerancia a typos)
-  if (norm.match(/\b(horario|horarios|horario de estudio|horario de estudios|como organizo mi tiempo|organizar mi tiempo|plan de estudio|plan de estudios|planifica|como estudio|rutina|rutina de estudio|quiero un horario|crea un horario|hazme un horario|genera un horario|generame un horario|generar un horario|quiero horario|dame un horario|dame horario|mi horario|organiza mi horario|crea mi horario|hazme un plan|quiero mi horario|quiero crear mi horario|quiero organizar|quiero estudiar|como me organizo|organizar estudio|planes de estudio|horario de studios|horarios de estudio|mi plan de estudio|organizar estudios|estudiar|planes de studios|plan de studios|horario de estudios|necesito un horario|arregla mi horario|organizame el tiempo|como distribuyo mi tiempo|cuanto estudio al dia|ayudame a organizar|ayudame con mi horario)\b/)) {
+  if (norm.match(/\b(horario|horarios|plan de estudio|plan de estudios|planificar mi estudio|rutina de estudio|cronograma|organizar mi tiempo|como me organizo|distribuir mi tiempo|organiza mi horario|crear horario|hazme un horario|dame un horario)\b/)) {
     return { tipo: 'horario', params: extraerParamsHorario(norm) };
   }
 

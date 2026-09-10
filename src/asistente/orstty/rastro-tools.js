@@ -39,6 +39,19 @@ import {
   getKnowledgeResponse, 
   getDesviationResponse 
 } from './orstty-knowledge.js';
+import { 
+  detectMateria, 
+  detectAcademia, 
+  detectSemana, 
+  detectResourceType, 
+  detectLiteratura, 
+  detectTema,
+  getMatrizInfo,
+  CANONICAL_MATERIAS,
+  LITERATURA_DATABASE,
+  TEMAS_DATABASE,
+  executeUniversalSearch
+} from './orstty-search-indexer.js';
 
 // -----------------------------------------------------------------------------
 // NORMALIZADORES Y VOCABULARIOS COMPLEMENTARIOS DE RASTRO
@@ -113,6 +126,14 @@ const MATERIA_CANONICAL = {
 export function matchesMateria(itemMateria, targetMateria) {
   if (!targetMateria) return true;
   if (!itemMateria) return false;
+
+  // Resolución canónica mediante indexador inteligente (tolerante a typos)
+  const canonTarget = detectMateria(targetMateria);
+  const canonItem = detectMateria(itemMateria);
+  if (canonTarget && canonItem && canonTarget === canonItem) {
+    return true;
+  }
+
   const cTarget = cleanText(targetMateria);
   const cItem = cleanText(itemMateria);
 
@@ -491,32 +512,44 @@ export async function toolBuscarCursos(params = {}) {
   const coursesList = [
     {
       id: 'briceno',
-      name: 'Academia Briceño 2027',
-      type: 'briceno',
+      name: 'Academia Briceño',
+      nombre: 'Academia Briceño',
+      title: 'Academia Briceño',
+      type: 'academia',
       path: '/cursos/briceno',
-      description: 'Ciclo intensivo 2027 organizado semana a semana con videos, materias y materiales.',
+      subtitulo: '2027 EN CURSO',
+      badge: '🎓 BRICEÑO',
+      description: 'Ciclo 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
+      desc: 'Ciclo 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
       icon: '🏛️',
-      badge: 'Ciclo 2027 Activo',
       tags: ['Semanas', 'Videos Drive', 'Material']
     },
     {
       id: 'esparta',
       name: 'Academia Esparta',
-      type: 'esparta',
+      nombre: 'Academia Esparta',
+      title: 'Academia Esparta',
+      type: 'academia',
       path: '/cursos/esparta',
+      subtitulo: '18 Materias',
+      badge: '⚔️ ESPARTA',
       description: '18 materias preuniversitarias completas con lecciones en video de YouTube.',
+      desc: '18 materias preuniversitarias completas con lecciones en video de YouTube.',
       icon: '🏛️',
-      badge: '18 Materias',
       tags: ['Biología', 'Química', 'Matemática', 'Física', 'Lenguaje']
     },
     {
       id: 'kelsen',
       name: 'Academia Kelsen',
-      type: 'kelsen',
+      nombre: 'Academia Kelsen',
+      title: 'Academia Kelsen',
+      type: 'academia',
       path: '/cursos/kelsen',
+      subtitulo: 'Letras y Leyes',
+      badge: '⚖️ KELSEN',
       description: 'Clases grabadas oficiales, horarios y banco de grabaciones en Drive.',
+      desc: 'Clases grabadas oficiales, horarios y banco de grabaciones en Drive.',
       icon: '🏛️',
-      badge: 'Clases Grabadas',
       tags: ['Grabaciones Oficiales', 'Horario']
     }
   ];
@@ -531,27 +564,35 @@ export async function toolBuscarCursos(params = {}) {
       coursesList.push({
         id: d.id,
         name: cd.name,
+        nombre: cd.name,
+        title: cd.name,
         type: 'custom',
         path: `/cursos/${d.id}`,
-        description: cd.descripcion || 'Módulo de preparación académica en RASTRO.',
-        icon: '📚',
+        subtitulo: 'Comunitario',
         badge: 'Comunitario',
+        description: cd.descripcion || 'Módulo de preparación académica en RASTRO.',
+        desc: cd.descripcion || 'Módulo de preparación académica en RASTRO.',
+        icon: '📚',
         tags: (cd.modules || []).map(m => m.nombre).slice(0, 3)
       });
     });
   } catch (e) {}
 
   const filtered = coursesList.filter(c => {
-    if (!cleanQ) return true;
-    return cleanText(c.name).includes(cleanQ) || cleanText(c.description).includes(cleanQ);
+    if (!cleanQ || cleanQ === 'academias' || cleanQ === 'academia' || cleanQ === 'cursos' || cleanQ === 'curso') return true;
+    return cleanText(c.name).includes(cleanQ) || cleanText(c.id).includes(cleanQ) || cleanText(c.description).includes(cleanQ);
   });
+
+  const followUpMsg = filtered.length === 1
+    ? `Encontré ${filtered[0].name} en RASTRO:`
+    : `En RASTRO tienes acceso a 3 academias principales con clases grabadas, materiales y lecciones organizadas:\n\n• 🎓 Academia Briceño: Ciclos 2027 y 2026 semana a semana.\n• ⚔️ Academia Esparta: 18 materias completas en YouTube.\n• ⚖️ Academia Kelsen: Grabaciones oficiales de alta exigencia en Drive.\n\nPuedes entrar a cualquiera desde aquí:`;
 
   return {
     success: true,
     toolName: 'buscarCursos',
     items: filtered,
     totalFound: filtered.length,
-    followUp: `Aquí tienes los cursos y academias disponibles en RASTRO:`,
+    followUp: followUpMsg,
     suggestions: ['Academia Briceño', 'Academia Esparta', 'Academia Kelsen']
   };
 }
@@ -1094,6 +1135,153 @@ export async function toolConocimiento(params = {}, context = {}) {
 }
 
 // -----------------------------------------------------------------------------
+// TOOL 13: CONSULTAR MATRIZ DE EVALUACIÓN OFICIAL (UNSA)
+// -----------------------------------------------------------------------------
+export async function toolConsultarMatriz(params = {}, context = {}) {
+  const queryText = params.query || '';
+  const materia = params.materia || context.materia || detectMateria(queryText);
+  const cleanQ = cleanText(queryText);
+
+  let area = null;
+  if (cleanQ.includes('biomedic') || cleanQ.includes('biomedica') || cleanQ.includes('medicina')) area = 'Biomédicas';
+  else if (cleanQ.includes('ingenier') || cleanQ.includes('inge')) area = 'Ingenierías';
+  else if (cleanQ.includes('social') || cleanQ.includes('letras')) area = 'Sociales';
+
+  const matName = materia ? (CANONICAL_MATERIAS[materia]?.name || materia) : null;
+  const list = getMatrizInfo({ area, materia: matName });
+
+  if (list.length === 0) {
+    return {
+      success: true,
+      toolName: 'consultarMatriz',
+      items: [],
+      totalFound: 0,
+      followUp: 'No encuentro esa información en los datos disponibles de la matriz de evaluación.',
+      suggestions: ['Ponderaciones Biomédicas', 'Ponderaciones Ingenierías', 'Ponderaciones Sociales']
+    };
+  }
+
+  const items = list.slice(0, 6).map((m, idx) => ({
+    id: `matriz-${idx}`,
+    title: `${m.asignatura} (${m.area})`,
+    materia: m.curso,
+    categoria: `${m.preguntas} preguntas · ${m.valor} pts c/u`,
+    desc: `Puntaje máximo que aporta: ${m.puntajeTotalAsignatura} puntos en el examen de admisión ${m.area}.`,
+    type: 'comparacion',
+    icon: '⚖️'
+  }));
+
+  const followUp = matName 
+    ? `En la matriz de evaluación oficial UNSA para ${matName}${area ? ` (${area})` : ''}:`
+    : `Aquí tienes la estructura y ponderaciones de la matriz oficial UNSA${area ? ` para ${area}` : ''}:`;
+
+  return {
+    success: true,
+    toolName: 'consultarMatriz',
+    items,
+    totalFound: list.length,
+    followUp,
+    suggestions: ['Área Biomédicas', 'Área Ingenierías', 'Área Sociales', 'Ver temario']
+  };
+}
+
+// -----------------------------------------------------------------------------
+// TOOL 14: CONSULTAR LITERATURA (Obras, Autores, Resúmenes)
+// -----------------------------------------------------------------------------
+export async function toolConsultarLiteratura(params = {}, context = {}) {
+  const queryText = params.query || '';
+  const lit = detectLiteratura(queryText) || (context.obra_literatura ? detectLiteratura(context.obra_literatura) : null);
+
+  if (!lit) {
+    const items = LITERATURA_DATABASE.map((item, idx) => ({
+      id: `lit-item-${idx}`,
+      title: item.obra,
+      materia: 'Literatura',
+      author: item.autor,
+      categoria: `${item.corriente} · ${item.genero}`,
+      desc: item.resumen,
+      type: 'material',
+      icon: '📜'
+    }));
+
+    return {
+      success: true,
+      toolName: 'consultarLiteratura',
+      items: items.slice(0, 4),
+      totalFound: items.length,
+      followUp: 'Estas son algunas de las obras cumbre de la literatura en el prospecto preuniversitario:',
+      suggestions: ['Werther', 'La Ilíada', 'Crimen y Castigo', 'Trilce', 'La ciudad y los perros']
+    };
+  }
+
+  const item = {
+    id: `lit-${cleanText(lit.obra)}`,
+    title: lit.obra,
+    materia: 'Literatura',
+    author: lit.autor,
+    categoria: `${lit.corriente} · ${lit.genero}`,
+    desc: `${lit.resumen}\n\n📌 Temas clave: ${lit.temasClave.join(', ')}.\n💡 Relevancia examen: ${lit.relevanciaExamen}`,
+    type: 'material',
+    icon: '📜'
+  };
+
+  return {
+    success: true,
+    toolName: 'consultarLiteratura',
+    items: [item],
+    totalFound: 1,
+    followUp: `Aquí tienes el análisis y resumen oficial de "${lit.obra}" (${lit.autor}):`,
+    suggestions: ['Videos de literatura', 'Temario de literatura', 'Crimen y castigo', 'La Ilíada']
+  };
+}
+
+// -----------------------------------------------------------------------------
+// TOOL 15: CONSULTAR TEMARIO OFICIAL
+// -----------------------------------------------------------------------------
+export async function toolConsultarTemario(params = {}, context = {}) {
+  const queryText = params.query || '';
+  const materia = params.materia || context.materia || detectMateria(queryText);
+  const matName = materia ? (CANONICAL_MATERIAS[materia]?.name || materia) : null;
+
+  let matchingTemas = TEMAS_DATABASE;
+  if (materia) {
+    matchingTemas = TEMAS_DATABASE.filter(t => t.materiaKey === materia);
+  }
+
+  if (matchingTemas.length === 0) {
+    return {
+      success: true,
+      toolName: 'consultarTemario',
+      items: [],
+      totalFound: 0,
+      followUp: matName 
+        ? `No encuentro temas específicos cargados en el temario para ${matName}.` 
+        : 'No encuentro esa información en los datos disponibles del temario.',
+      suggestions: ['Temario de física', 'Temario de química', 'Temario de biología', 'Matriz UNSA']
+    };
+  }
+
+  const items = matchingTemas.map((t, idx) => ({
+    id: `tema-${idx}`,
+    title: t.tema,
+    materia: CANONICAL_MATERIAS[t.materiaKey]?.name || t.materiaKey,
+    categoria: 'Temario Oficial UNSA',
+    desc: `Puntos clave: ${t.keywords.slice(0, 3).join(', ')}.`,
+    type: 'material',
+    icon: '📋'
+  }));
+
+  return {
+    success: true,
+    toolName: 'consultarTemario',
+    items,
+    totalFound: matchingTemas.length,
+    followUp: `Temas principales del temario de admisión para ${matName || 'el examen'}:`,
+    suggestions: ['Ver videos de estos temas', 'Prácticas y bancos', 'Matriz de ponderaciones']
+  };
+}
+
+// -----------------------------------------------------------------------------
 // REGISTRO DE TODAS LAS TOOLS EN EL MOTOR DE ORSTTY
 // -----------------------------------------------------------------------------
 export function registerAllRastroTools() {
@@ -1109,6 +1297,12 @@ export function registerAllRastroTools() {
   registerTool('compararRecursos', toolCompararRecursos);
   registerTool('abrirRecurso', toolAbrirRecurso);
   registerTool('conocimiento', toolConocimiento);
+  registerTool('consultarMatriz', toolConsultarMatriz);
+  registerTool('consultarLiteratura', toolConsultarLiteratura);
+  registerTool('consultarTemario', toolConsultarTemario);
+  registerTool('desambiguarRecurso', async (params, context) => {
+    return executeUniversalSearch(params, context);
+  });
 
   // Tool para 'filtrar': si el usuario aplica un filtro de semana o materia sobre un contexto anterior
   registerTool('filtrar', async (params, context) => {

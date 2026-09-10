@@ -263,8 +263,14 @@ let apodoActual = null;
 function initApodo() {
   try {
     const guardado = localStorage.getItem(APODO_STORAGE_KEY);
+    const invalidNicknames = ['rv', 'rm', 'rl', 'ver cursos', 'cursos', 'videos', 'necesito rv', 'necesito rm', 'simulador', 'material'];
     if (guardado && guardado.trim().length > 0 && guardado.trim().length <= 20) {
-      apodoActual = guardado.trim();
+      if (invalidNicknames.includes(guardado.trim().toLowerCase())) {
+        localStorage.removeItem(APODO_STORAGE_KEY);
+        apodoActual = 'ORSTTY';
+      } else {
+        apodoActual = guardado.trim();
+      }
     }
   } catch {}
 }
@@ -315,41 +321,25 @@ export function detectarApodo(text) {
     return { esApodo: false, apodo: null, esRecuperar: true };
   }
 
-  // Patrones de apodo MÁS amplios y con tolerancia a errores
+  // Patrones estrictos y explícitos para cambiar el apodo (NUNCA capturar palabras sueltas ni verbos comunes)
   const patronesApodo = [
-    // "quiero darte un apodo", "quiero ponerte un nombre"
-    /\b(?:quiero|me gustaria|deseo|voy a|puedo|debo)\s+(?:darte|ponerte|ponerle|darle)\s+(?:un\s+)?(?:apodo|nombre|alias)\s+(.+?)(?:\s*$)/i,
-    // "te llamo X", "te dire X" (con tolerancia a typos: llamo/llamr/llamo/llamar)
-    /\b(?:te llamo|te dire|te llamare|voy a llamarte|te voy a llamar|puedo llamarte|te digo|te pongo de)\s+(.+?)(?:\s*(?:de ahora|por favor|ami|please|\?|$))/i,
-    // "te llamo X" con typo en "llamo" (llamr, llamr, etc)
-    /\b(?:te llamo|te llamr|te llamro|te llamar|te llamo)\s+(.+?)(?:\s*$)/i,
-    // "tu nombre es X"
-    /\b(?:tu nombre es|tu nombre es ahora|tu nuevo nombre|eres)\s+(.+?)(?:\s*$)/i,
-    // "te pongo X"
-    /\b(?:te pongo|poner|ponerle|pongo)\s+(.+?)(?:\s*$)/i,
-    // "a partir de ahora te llamo X"
-    /\b(?:a partir de ahora|de ahora en adelante|desde ahora|para mi eres|mi)\s+(?:te llamo|eres|seras|seras)\s+(.+?)(?:\s*$)/i,
-    // "eres mi X"
-    /\b(?:eres mi|eres el|eres la)\s+(.+?)(?:\s*$)/i,
-    // "seras X"
-    /\b(?:seras|sera|ahora eres|pasas a ser)\s+(.+?)(?:\s*$)/i,
-    // "tu eres X"
-    /\b(?:tu eres|tu estas|tu te llamas)\s+(.+?)(?:\s*$)/i,
+    /^(?:cambia(?:r)? tu nombre a|ponte de nombre|tu nuevo nombre es|de ahora en adelante te llamas|quiero que te llames)\s+([a-záéíóúñA-ZÁÉÍÓÚÑ ]{2,15})$/i,
+    /^(?:te voy a llamar|te llamare|te llamaré)\s+([a-záéíóúñA-ZÁÉÍÓÚÑ ]{2,15})$/i
   ];
 
-  // Verificar patrones de apodo
+  // Verificar patrones de apodo explícitos
   for (const patron of patronesApodo) {
-    const match = text.match(patron);
+    const match = text.trim().match(patron);
     if (match) {
       const posiblesApodo = match[1] ? match[1].trim() : '';
       
       // Filtrar palabras que no deberían ser apodos
       const noApodo = [
-        'videos', 'material', 'clases', 'libros', 'cursos', 'ayuda', 'biologia', 
+        'videos', 'video', 'material', 'clases', 'libros', 'libro', 'cursos', 'curso', 'ayuda', 'biologia', 
         'quimica', 'fisica', 'matematica', 'historia', 'filosofia', 'psicologia', 
-        'literatura', 'geografia', 'anatomia', 'economia', 'civica', 'ingles', 
-        'todo', 'algo', 'nada', 'ayuda', 'hora', 'horario', 'estudio',
-        'un', 'una', 'el', 'la', 'lo', 'los', 'las', 'este', 'esta',
+        'literatura', 'geografia', 'anatomia', 'economia', 'civica', 'ingles', 'rm', 'rv', 'rl',
+        'todo', 'algo', 'nada', 'ayuda', 'hora', 'horario', 'estudio', 'ver', 'ver cursos', 'ver videos',
+        'un', 'una', 'el', 'la', 'lo', 'los', 'las', 'este', 'esta', 'simulador', 'cepreunsa', 'unsa'
       ];
       const normApodo = posiblesApodo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       
@@ -359,58 +349,16 @@ export function detectarApodo(text) {
     }
   }
 
-  // Patrones especiales para nombres específicos (incluyendo errores)
+  // Nombres cariñosos directos muy específicos (solo si el mensaje completo es el término)
   const nombresEspeciales = {
     'mi amor': 'Amor',
-    'mi vida': 'Vida',
     'mi cielo': 'Cielo',
-    'mi rey': 'Rey',
     'mi reina': 'Reina',
-    'mi prince': 'Princesa',
-    'mi princesa': 'Princesa',
-    'mi gatita': 'Gatita',
-    'mi gato': 'Gato',
-    'mi osito': 'Osito',
-    'mi osa': 'Osa',
-    'mi sol': 'Sol',
-    'mi estrella': 'Estrella',
-    'mi bebé': 'Bebé',
-    'mi bebe': 'Bebe',
-    'mi novia': 'Novia',
-    'mi novio': 'Novio',
-    'mi cariño': 'Cariño',
-    'mi carino': 'Cariño',
-    'mi darling': 'Darling',
-    'mi honey': 'Honey',
-    'mi sweet': 'Sweet',
-    'amor': 'Amor',
-    'amor mio': 'Amor',
-    'cariño': 'Cariño',
-    'cielo': 'Cielo',
-    'rey': 'Rey',
-    'reina': 'Reina',
-    'bebé': 'Bebe',
-    'bebe': 'Bebe',
-    'sol': 'Sol',
-    'estrella': 'Estrella',
+    'mi princesa': 'Princesa'
   };
 
-  for (const [patron, apodo] of Object.entries(nombresEspeciales)) {
-    if (norm.includes(patron.replace(/\s+/g, ' ')) || norm === patron.replace(/\s+/g, ' ')) {
-      return { esApodo: true, apodo, esRecuperar: false };
-    }
-  }
-
-  // Detectar si el usuario solo escribió un nombre/apodo (1-2 palabras, sin signos de pregunta)
-  // Solo si no tiene signos de interrogación (que indican pregunta, no apodo)
-  const words = norm.split(' ').filter(w => w.length > 0);
-  if (words.length >= 1 && words.length <= 2 && !text.includes('?') && !text.includes('¿')) {
-    const word = words.join(' ');
-    // Si no es una palabra común de búsqueda y tiene sentido como apodo
-    const palabrasComunes = ['hola', 'buenas', 'ayuda', 'video', 'videos', 'clase', 'clases', 'material', 'curso', 'cursos', 'libro', 'libros', 'examen', 'examenes', 'simulacro', 'simulacros', 'biologia', 'quimica', 'fisica', 'matematica', 'historia', 'filosofia', 'psicologia', 'literatura', 'geografia', 'anatomia', 'economia', 'civica', 'ingles', 'horario', 'horarios', 'consejo', 'consejos', 'chiste', 'chistes', 'rasstro', 'rastro', 'orstty'];
-    if (!palabrasComunes.includes(word) && word.length >= 3) {
-      return { esApodo: true, apodo: words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), esRecuperar: false };
-    }
+  if (nombresEspeciales[norm]) {
+    return { esApodo: true, apodo: nombresEspeciales[norm], esRecuperar: false };
   }
 
   return null;

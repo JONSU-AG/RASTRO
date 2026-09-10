@@ -736,11 +736,11 @@ export const LiquidNavbar = () => {
                   to={item.path}
                   onClick={handleItemClick}
                   end={item.path === '/'}
-                  className={`nav-item ${item.isOrstty ? 'desktop-admin-pill' : ''} ${item.desktopOnly ? 'desktop-only-nav-item' : ''} ${
+                  className={`nav-item ${item.isOrstty ? 'nav-item-orstty' : ''} ${item.desktopOnly ? 'desktop-only-nav-item' : ''} ${
                     isActive ? 'active' : ''
                   }`}
                   style={item.isOrstty ? {
-                    color: isActive ? 'var(--pill-active-text)' : '#000000'
+                    color: isActive ? 'var(--pill-active-text)' : 'inherit'
                   } : undefined}
                 >
                   {isActive && (

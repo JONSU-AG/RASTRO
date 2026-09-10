@@ -559,12 +559,26 @@ body {
   display: none !important;
 }
 
+/* Orstty en barra de navegación: visible en PC, Laptop y Tablet; oculto en bottom nav de móviles */
+.nav-item-orstty {
+  display: flex !important;
+}
+
+@media (max-width: 767px) {
+  .desktop-only-nav-item.nav-item-orstty {
+    display: none !important;
+  }
+}
+
 /* Responsive Navbar for Tablet & Desktop */
 @media (min-width: 768px) {
   .mobile-header {
     display: none !important;
   }
   .desktop-only-nav-item {
+    display: flex !important;
+  }
+  .nav-item-orstty {
     display: flex !important;
   }
   .desktop-logo-container {

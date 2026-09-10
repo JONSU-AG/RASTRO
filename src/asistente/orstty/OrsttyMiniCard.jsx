@@ -25,7 +25,7 @@ export function OrsttyMiniCard({
   const isDocument = item.type === 'pdf' || item.type === 'material' || item.icon === '📄' || item.icon === '✨';
   const isBook = item.type === 'libro' || item.icon === '📚';
   const isExam = item.type === 'examen' || item.icon === '📝';
-  const isCourse = item.type === 'curso' || item.icon === '🏛️';
+  const isCourse = item.type === 'curso' || item.type === 'academia' || item.type === 'briceno' || item.type === 'esparta' || item.type === 'kelsen' || item.icon === '🏛️';
   const isProfile = item.type === 'perfil' || item.icon === '👤';
   const isWeek = item.type === 'semana' || item.icon === '📅';
 
@@ -41,8 +41,16 @@ export function OrsttyMiniCard({
   if (item.author && !metaParts.includes(item.author)) metaParts.push(`Por ${item.author}`);
   if (item.autor && !metaParts.includes(item.autor)) metaParts.push(`Autor: ${item.autor}`);
   if (item.preguntasCount) metaParts.push(`${item.preguntasCount} preguntas`);
+  if (isCourse && item.subtitulo) metaParts.push(item.subtitulo);
+  if (isCourse && item.badge && !metaParts.includes(item.badge)) metaParts.push(item.badge);
 
-  const subtitle = metaParts.join(' · ') || (item.categoria || 'Recurso académico');
+  const subtitle = metaParts.length > 0
+    ? metaParts.join(' · ')
+    : (item.categoria || (isCourse ? 'Academia de preparación' : 'Recurso académico'));
+
+  // Title line - robust resolution across all real property names (name, nombre, title, academyName)
+  const title = item.title || item.titulo || item.nombre || item.name || item.academyName || item.obra || (isCourse && item.id ? `Academia ${item.id.charAt(0).toUpperCase() + item.id.slice(1)}` : 'Recurso sin título');
+  const description = item.desc || item.descripcion || item.description || null;
 
   return (
     <motion.div
@@ -104,7 +112,7 @@ export function OrsttyMiniCard({
               wordBreak: 'break-word'
             }}
           >
-            {item.title || item.titulo || item.nombre || 'Recurso sin título'}
+            {title}
           </h4>
 
           <p
@@ -121,6 +129,21 @@ export function OrsttyMiniCard({
           >
             {subtitle}
           </p>
+
+          {description && (
+            <p
+              style={{
+                margin: '6px 0 0',
+                fontSize: '0.78rem',
+                color: 'var(--text-main, #374151)',
+                lineHeight: 1.4,
+                whiteSpace: 'pre-line',
+                opacity: 0.92
+              }}
+            >
+              {description}
+            </p>
+          )}
         </div>
       </div>
 
@@ -292,7 +315,7 @@ export function OrsttyMiniCard({
         )}
 
         {/* Case 4: Exam / Simulador */}
-        {isExam && (
+        {(isExam || item.type === 'comparacion') && (
           <Link
             to="/simulador"
             style={{
@@ -302,23 +325,23 @@ export function OrsttyMiniCard({
               padding: '6px 12px',
               borderRadius: '10px',
               border: 'none',
-              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+              background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
               color: '#FFFFFF',
               fontSize: '0.74rem',
               fontWeight: 700,
               textDecoration: 'none',
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
+              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
             }}
           >
             <Cpu size={13} />
-            <span>Ir al Simulador</span>
+            <span>{item.type === 'comparacion' ? 'Simular puntaje en Simulador' : 'Ir al Simulador'}</span>
           </Link>
         )}
 
-        {/* Case 5: Course */}
+        {/* Case 5: Course / Academia */}
         {isCourse && (
           <Link
-            to={`/cursos/${item.id || ''}`}
+            to={item.path || `/cursos/${item.id || ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

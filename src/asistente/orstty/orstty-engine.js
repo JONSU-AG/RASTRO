@@ -2,14 +2,16 @@
 // ORSTTY ENGINE
 // Cerebro local de ORSTTY. 100% JavaScript, sin APIs de IA, sin dependencias
 // externas. Autocontenido: no importa nada de RASTRO ni asume su estructura.
-//
-// RASTRO (u otra IA que lo integre) debe:
-//   1. Copiar esta carpeta a src/asistente/orstty/
-//   2. Importar lo que necesite desde orstty-engine.js
-//   3. Cargar orstty-training.js una vez al iniciar la app (para entrenar)
-//   4. Registrar sus propias tools reales con registerTool(...)
-//   5. Llamar a process(mensajeDelUsuario) por cada mensaje del chat
 // =============================================================================
+
+import { 
+  detectMateria, 
+  detectAcademia, 
+  detectSemana, 
+  detectResourceType, 
+  detectLiteratura, 
+  detectTema 
+} from './orstty-search-indexer.js';
 
 // ---------------------------------------------------------------------------
 // 1. NORMALIZACIÓN DE TEXTO - MUY AGRESIVA
@@ -57,7 +59,7 @@ const CORRECCIONES = {
   'clasee': 'clase', 'clasees': 'clase',
   'videos': 'videos', 'vidio': 'video', 'vidios': 'videos',
   'mateial': 'material', 'matrial': 'material',
-  'cursho': 'curso', 'curshos': 'cursos',
+  'cursoo': 'curso', 'cursoos': 'cursos', 'curssos': 'cursos', 'cursho': 'curso', 'curshos': 'cursos',
   'libroo': 'libro', 'libros': 'libros',
   'simulacro': 'simulacro', 'simualcro': 'simulacro',
   'historiaa': 'historia', 'fisicaa': 'fisica',
@@ -253,21 +255,47 @@ function extractEntities(rawText) {
   const norm = normalizeText(rawText);
   const entities = {};
 
-  const materia = matchVocab(norm, 'materia');
+  // 1. Detección potenciada con indexer y tolerancia a typos/fonética
+  const materia = detectMateria(rawText) || matchVocab(norm, 'materia');
   if (materia) entities.materia = materia;
 
-  const tipo = matchVocab(norm, 'tipo_recurso');
+  const tipo = detectResourceType(rawText) || matchVocab(norm, 'tipo_recurso');
   if (tipo) entities.tipo_recurso = tipo;
 
-  const semanaMatch = norm.match(/(?:semana|sem|clase|la|s)\s*(\d{1,2})\b/) || norm.match(/^(\d{1,2})$/);
-  if (semanaMatch) entities.semana = parseInt(semanaMatch[1], 10);
+  const semana = detectSemana(rawText);
+  if (semana !== null) {
+    entities.semana = semana;
+  } else {
+    const semanaMatch = norm.match(/(?:semana|sem|clase|la|s)\s*(\d{1,2})\b/) || norm.match(/^(\d{1,2})$/);
+    if (semanaMatch) entities.semana = parseInt(semanaMatch[1], 10);
+  }
 
-  // heurísticas simples, "curso de X" / "academia X"
-  const cursoMatch = norm.match(/curso de ([a-z0-9]+(?:\s[a-z0-9]+){0,3})/);
-  if (cursoMatch) entities.curso = cursoMatch[1].trim();
+  const academia = detectAcademia(rawText);
+  if (academia) {
+    entities.academia = academia;
+  } else {
+    const academiaMatch = norm.match(/academia ([a-z0-9]+(?:\s[a-z0-9]+){0,3})/);
+    if (academiaMatch) entities.academia = academiaMatch[1].trim();
+  }
 
-  const academiaMatch = norm.match(/academia ([a-z0-9]+(?:\s[a-z0-9]+){0,3})/);
-  if (academiaMatch) entities.academia = academiaMatch[1].trim();
+  const obraLiteratura = detectLiteratura(rawText);
+  if (obraLiteratura) {
+    entities.obra_literatura = obraLiteratura.obra;
+    entities.autor_literatura = obraLiteratura.autor;
+    if (!entities.materia) entities.materia = 'LITERATURA';
+  }
+
+  const tema = detectTema(rawText);
+  if (tema) {
+    entities.tema = tema.tema;
+    if (!entities.materia) entities.materia = tema.materiaKey;
+  }
+
+  // heurísticas adicionales si no se detectó
+  if (!entities.curso) {
+    const cursoMatch = norm.match(/curso de ([a-z0-9]+(?:\s[a-z0-9]+){0,3})/);
+    if (cursoMatch) entities.curso = cursoMatch[1].trim();
+  }
 
   return entities;
 }
@@ -303,6 +331,7 @@ const KNOWN_INTENTS = new Set([
   'buscar_semanas', 'buscar_nuevos', 'comparar_recursos', 'filtrar',
   'abrir_recurso', 'volver', 'no_entendido',
   'pregunta_conocimiento', 'desviar_recurso', 'conversacion',
+  'consultar_matriz', 'consultar_literatura', 'consultar_temario', 'desambiguar_recurso'
 ]);
 
 /**
@@ -328,6 +357,56 @@ function jaccard(setA, setB) {
 const CONFIDENCE_THRESHOLD = 0.2;
 
 function matchIntent(rawText) {
+  const norm = normalizeText(rawText);
+
+  // 1. Detección directa de alta prioridad para Matriz de evaluación
+  if (norm.match(/\b(matriz|ponderacion|ponderaciones|cuanto vale|peso de materias|puntaje por materia|valor de materia|estructura examen)\b/)) {
+    return { intent: 'consultar_matriz', confidence: 0.96 };
+  }
+
+  // 2. Detección directa de obras de Literatura
+  if (detectLiteratura(rawText)) {
+    return { intent: 'consultar_literatura', confidence: 0.95 };
+  }
+
+  // 3. Detección directa de Temario / Qué entra / Qué viene
+  if (norm.match(/\b(temario|que entra|que viene|silabo|syllabus|contenido de|temas de)\b/)) {
+    return { intent: 'consultar_temario', confidence: 0.94 };
+  }
+
+  // 4. Detección explícita de videos vs material
+  const resType = detectResourceType(rawText);
+  if (resType === 'VIDEO') {
+    return { intent: 'buscar_videos', confidence: 0.92 };
+  }
+  if (resType === 'MATERIAL') {
+    return { intent: 'buscar_material', confidence: 0.92 };
+  }
+  if (resType === 'LIBRO') {
+    return { intent: 'buscar_libros', confidence: 0.92 };
+  }
+  if (resType === 'EXAMEN') {
+    return { intent: 'buscar_examenes', confidence: 0.92 };
+  }
+
+  // 5. Detección directa de academias o cursos cuando no se pide un recurso específico
+  const detectedAcad = detectAcademia(rawText);
+  if (!resType && (detectedAcad || norm.match(/\b(academias?|cursos?|cursoos?|curssos?|que cursos hay|ver cursos?|ver cursoo)\b/))) {
+    return { intent: 'buscar_cursos', confidence: 0.98 };
+  }
+
+  // 6. Detección de materia o tema para desambiguación si no se especificó tipo de recurso
+  const detectedMat = detectMateria(rawText);
+  const detectedTemaEntry = detectTema(rawText);
+  if (!resType && (detectedMat || detectedTemaEntry)) {
+    const hasSem = detectSemana(rawText);
+    if (hasSem !== null) {
+      return { intent: 'buscar_videos', confidence: 0.90 };
+    }
+    return { intent: 'desambiguar_recurso', confidence: 0.95 };
+  }
+
+  // 7. Comparación vectorial con el conjunto de entrenamiento
   const inputTokens = new Set(tokenize(rawText));
   let best = { intent: 'no_entendido', confidence: 0 };
 
@@ -339,6 +418,12 @@ function matchIntent(rawText) {
   }
 
   if (best.confidence < CONFIDENCE_THRESHOLD) {
+    // Si contiene una materia conocida y un número de semana, clasificar como búsqueda de videos por defecto
+    const hasMat = detectMateria(rawText);
+    const hasSem = detectSemana(rawText);
+    if (hasMat && hasSem !== null) {
+      return { intent: 'buscar_videos', confidence: 0.85 };
+    }
     return { intent: 'no_entendido', confidence: best.confidence };
   }
   return best;
@@ -350,7 +435,16 @@ function matchIntent(rawText) {
 
 let context = {};
 
-const CONTEXT_ENTITY_KEYS = ['materia', 'tipo_recurso', 'semana', 'curso', 'academia'];
+const CONTEXT_ENTITY_KEYS = [
+  'materia', 
+  'tipo_recurso', 
+  'semana', 
+  'curso', 
+  'academia', 
+  'obra_literatura', 
+  'autor_literatura', 
+  'tema'
+];
 
 export function getContext() {
   return { ...context };
@@ -399,6 +493,10 @@ const intentToolMap = {
   abrir_recurso: 'abrirRecurso',
   pregunta_conocimiento: 'conocimiento',
   desviar_recurso: 'buscarVideos',
+  consultar_matriz: 'consultarMatriz',
+  consultar_literatura: 'consultarLiteratura',
+  consultar_temario: 'consultarTemario',
+  desambiguar_recurso: 'desambiguarRecurso',
 };
 
 export function registerIntentTool(intent, toolName) {

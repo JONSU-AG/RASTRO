@@ -24,6 +24,8 @@ import { getConversationalResponse, detectarApodo, getApodoResponse, getRecupera
 import { procesarIntencionAvanzada, detectarEstadoEmocional } from './orstty-avanzado.js';
 import { getLocalAIResponse } from './orstty-ai-local.js';
 import { getGroqResponse, hasApiKey, getKeyCount } from './orstty-groq-free.js';
+import { executeUniversalSearch } from './orstty-search-indexer.js';
+import { reasonAboutQuery } from './orstty-reasoning.js';
 import { OrsttyAvatar, ORSTTY_STATES } from './OrsttyAvatar';
 import { OrsttyMiniCard } from './OrsttyMiniCard';
 import { InChatVideoModal, InChatPreviewModal } from './OrsttyModals';
@@ -33,19 +35,20 @@ import { useAuth } from '../../context/AuthContext';
 registerAllRastroTools();
 
 const QUICK_STARTERS = [
+  '🏛️ Ver cursos y academias',
   '🎬 Videos de biología semana 3',
   '📄 Separatas y tomos de química',
   '📚 Libros preuniversitarios',
   '📝 Simulador de examen',
-  '🏛️ Academias y cursos',
-  '✨ ¿Qué hay de nuevo?'
+  '🧬 Explicar fases de mitosis',
+  '🎯 Orientación para Medicina'
 ];
 
 const INITIAL_MESSAGE = {
   id: 'welcome',
   sender: 'orstty',
-  text: '¡Hola! Soy ORSTTY 👋 Tu asistente de RASTRO. Puedo buscar videos, materiales, cursos, libros y simulacros. También puedo generarte horarios de estudio, darte consejos, o simplemente charlar contigo. ¿Qué necesitas?',
-  suggestions: ['Videos de biología', 'Horario de estudio', '¿Qué es RM?', 'Consejos'],
+  text: '¡Hola! Soy ORSTTY 👋 Tu asistente inteligente de RASTRO. Puedo buscar videos, materiales, cursos de academias (Briceño, Esparta, Kelsen), libros oficiales y simulacros UNSA. También te explico conceptos de materias y te oriento según tu carrera. ¿Qué deseas estudiar hoy?',
+  suggestions: ['Ver cursos', 'Simulador de examen', 'Tomos CEPREUNSA', 'Explicar mitosis'],
   timestamp: Date.now()
 };
 
@@ -53,8 +56,8 @@ const INITIAL_MESSAGE = {
 const OLLAMA_WELCOME = {
   id: 'welcome-ollama',
   sender: 'orstty',
-  text: '¡Hola! Soy ORSTTY 👋 Tu asistente de RASTRO con IA avanzada. Puedo buscar videos, materiales, cursos, libros y simulacros. También puedo explicar conceptos, darte consejos de estudio, o charlar contigo. ¿Qué necesitas?',
-  suggestions: ['Explica RM', 'Consejos de estudio', 'Videos de biología', '¿Qué es la academia?'],
+  text: '¡Hola! Soy ORSTTY 👋 Tu asistente inteligente de RASTRO. Puedo buscar videos, materiales, cursos, libros y simulacros. También puedo explicar conceptos con profundidad y darte consejos para tu postulación. ¿Qué necesitas?',
+  suggestions: ['Ver cursos', 'Simulador', 'Videos de biología', 'Orientación Medicina'],
   timestamp: Date.now()
 };
 
@@ -239,11 +242,35 @@ export function OrsttyChat({
           responseText = 'Déjame buscar lo que tenemos para ti...';
           finalState = ORSTTY_STATES.SEARCHING;
         } else {
-          finalState = ORSTTY_STATES.NO_RESULTS;
+          // Búsqueda universal inteligente como fallback de alta precisión
+          const universal = await executeUniversalSearch({ query: text, ...result.parameters }, result.context);
+          if (universal && (universal.items?.length > 0 || universal.disambiguation || universal.followUp)) {
+            items = universal.items || [];
+            responseText = universal.followUp || responseText;
+            suggestions = universal.suggestions || suggestions;
+            finalState = items.length > 0 ? ORSTTY_STATES.FOUND : ORSTTY_STATES.HAPPY;
+          } else {
+            finalState = ORSTTY_STATES.NO_RESULTS;
+          }
         }
       } else {
-        // Sin tool - Usar IA para preguntas informativas
-        const esPreguntaInformativa = /que es|que son|como funciona|explica|definicion|significa|dime sobre|hablame de|quien fue|quien es|quien descubrio|cuando fue|donde esta|por que|cuanto es|cual es|como se hace|historia de|ciencia/i.test(text);
+        // Intento directo con Superbuscador Universal antes de IA
+        const universalDirect = await executeUniversalSearch({ query: text, ...result.parameters }, result.context);
+        if (universalDirect && (universalDirect.items?.length > 0 || universalDirect.disambiguation)) {
+          items = universalDirect.items || [];
+          responseText = universalDirect.followUp || 'Aquí tienes los resultados encontrados:';
+          suggestions = universalDirect.suggestions || ['Ver videos', 'Ver material', 'Simulador'];
+          finalState = items.length > 0 ? ORSTTY_STATES.FOUND : ORSTTY_STATES.HAPPY;
+        } else {
+          // Razonamiento y Comprensión Cognitiva de RASTRO y UNSA
+          const reasoned = reasonAboutQuery(text, activeContext);
+          if (reasoned.handled) {
+            responseText = reasoned.text;
+            suggestions = reasoned.suggestions || ['Ver cursos', 'Simulador', 'Tomos CEPREUNSA'];
+            finalState = ORSTTY_STATES.HAPPY;
+          } else {
+            // Sin tool ni razonamiento directo - Usar IA para preguntas informativas
+            const esPreguntaInformativa = /que es|que son|como funciona|explica|definicion|significa|dime sobre|hablame de|quien fue|quien es|quien descubrio|cuando fue|donde esta|por que|cuanto es|cual es|como se hace|historia de|ciencia/i.test(text);
         
         if (esPreguntaInformativa) {
           let aiUsed = false;
@@ -325,6 +352,8 @@ export function OrsttyChat({
           }
         }
       }
+    }
+  }
 
       const botMsgId = `orstty-${Date.now()}`;
       const botMsg = {
@@ -388,72 +417,107 @@ export function OrsttyChat({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: isDrawer ? '86vh' : '720px',
-        maxHeight: 'calc(100vh - 120px)',
+        height: isDrawer ? '86vh' : '100%',
+        maxHeight: isDrawer ? '86vh' : '100%',
+        flex: 1,
+        minHeight: 0,
         width: '100%',
         maxWidth: '860px',
         margin: '0 auto',
-        background: 'var(--card-bg, #18181B)',
-        border: '1px solid var(--card-border, rgba(255, 255, 255, 0.12))',
-        borderRadius: '24px',
-        boxShadow: '0 16px 40px rgba(0, 0, 0, 0.14)',
+        background: 'var(--card-bg, rgba(255, 255, 255, 0.9))',
+        border: '1px solid rgba(124, 58, 237, 0.25)',
+        borderRadius: '20px',
+        boxShadow: '0 16px 40px rgba(124, 58, 237, 0.12), 0 0 0 1px rgba(124, 58, 237, 0.15)',
         overflow: 'hidden',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         position: 'relative'
       }}
     >
+      <style>{`
+        @media (max-width: 540px) {
+          .hide-on-mobile {
+            display: none !important;
+          }
+          .orstty-chat-container {
+            height: 100% !important;
+            max-height: 100% !important;
+            border-radius: 16px !important;
+          }
+          .orstty-badge-tag {
+            font-size: 0.6rem !important;
+            padding: 1px 5px !important;
+          }
+          .orstty-subtitle {
+            font-size: 0.68rem !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .orstty-badge-tag {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* Header del Asistente */}
       <div 
         style={{
-          padding: '12px 18px',
-          borderBottom: '1px solid var(--card-border, rgba(255, 255, 255, 0.1))',
+          padding: '10px 14px',
+          borderBottom: '1px solid rgba(124, 58, 237, 0.18)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(255, 255, 255, 0.03)',
-          gap: '12px'
+          background: 'linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.02) 100%)',
+          gap: '8px',
+          flexShrink: 0
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-          <OrsttyAvatar 
-            state={engineState} 
-            size={42} 
-            showBadge={true} 
-            showStatusText={false} 
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+          <div style={{ flexShrink: 0 }}>
+            <OrsttyAvatar 
+              state={engineState} 
+              size={36} 
+              showBadge={true} 
+              showStatusText={false} 
+            />
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main, #FFFFFF)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+              <span style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-main, #1F2937)', whiteSpace: 'nowrap' }}>
                 {apodoActual}
               </span>
               <span 
+                className="orstty-badge-tag"
                 style={{
-                  fontSize: '0.66rem',
+                  fontSize: '0.64rem',
                   fontWeight: 800,
                   textTransform: 'uppercase',
-                  background: 'linear-gradient(135deg, rgba(0,122,255,0.2), rgba(139,92,246,0.2))',
-                  color: 'var(--accent-color, #007AFF)',
-                  border: '1px solid rgba(0,122,255,0.3)',
+                  background: 'rgba(124, 58, 237, 0.12)',
+                  color: '#7C3AED',
+                  border: '1px solid rgba(124, 58, 237, 0.28)',
                   padding: '2px 7px',
-                  borderRadius: '99px'
+                  borderRadius: '99px',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.02em',
+                  flexShrink: 0
                 }}
               >
                 Cerebro RASTRO
               </span>
-
             </div>
             <span 
+              className="orstty-subtitle"
               style={{ 
-                fontSize: '0.74rem', 
-                color: 'var(--text-secondary, #9CA3AF)', 
+                fontSize: '0.72rem', 
+                color: 'var(--text-secondary, #6B7280)',
+                opacity: 0.9, 
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis' 
               }}
             >
-              Consultas en lenguaje natural sobre videos, materiales y cursos
+              Consultas en lenguaje natural · Academias y temarios UNSA
             </span>
           </div>
         </div>
@@ -464,20 +528,21 @@ export function OrsttyChat({
             <div
               title={`${keyCount} API keys activas - Rotación automática`}
               style={{
-                padding: '6px 10px',
-                borderRadius: '12px',
-                border: '1px solid rgba(34,197,94,0.3)',
-                background: 'rgba(34,197,94,0.1)',
-                color: '#22C55E',
-                fontSize: '0.74rem',
-                fontWeight: 700,
+                padding: '5px 9px',
+                borderRadius: '10px',
+                border: '1px solid rgba(124, 58, 237, 0.28)',
+                background: 'rgba(124, 58, 237, 0.1)',
+                color: '#7C3AED',
+                fontSize: '0.72rem',
+                fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px'
+                gap: '4px',
+                whiteSpace: 'nowrap'
               }}
             >
-              <Power size={13} />
-              <span className="hide-on-xs">IA ✓</span>
+              <Sparkles size={13} color="#7C3AED" />
+              <span className="hide-on-mobile">IA Activa</span>
             </div>
           )}
 
@@ -486,21 +551,23 @@ export function OrsttyChat({
             onClick={handleClearChat}
             title="Reiniciar conversación y contexto"
             style={{
-              padding: '6px 10px',
-              borderRadius: '12px',
-              border: '1px solid var(--card-border, rgba(255, 255, 255, 0.1))',
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: 'var(--text-secondary, #9CA3AF)',
-              fontSize: '0.74rem',
+              padding: '5px 9px',
+              borderRadius: '10px',
+              border: '1px solid rgba(124, 58, 237, 0.25)',
+              background: 'rgba(124, 58, 237, 0.08)',
+              color: '#7C3AED',
+              fontSize: '0.72rem',
               fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px'
+              gap: '4px',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
             }}
           >
-            <RotateCcw size={13} />
-            <span className="hide-on-xs">Reiniciar</span>
+            <RotateCcw size={13} color="#7C3AED" />
+            <span className="hide-on-mobile">Reiniciar</span>
           </button>
 
           {onClose && (
@@ -511,7 +578,7 @@ export function OrsttyChat({
                 height: '32px',
                 borderRadius: '50%',
                 border: 'none',
-                background: 'rgba(255, 255, 255, 0.08)',
+                background: 'rgba(139, 92, 246, 0.15)',
                 color: 'var(--text-main, #FFFFFF)',
                 display: 'flex',
                 alignItems: 'center',
@@ -533,18 +600,18 @@ export function OrsttyChat({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             style={{
-              background: 'rgba(0, 122, 255, 0.08)',
-              borderBottom: '1px solid rgba(0, 122, 255, 0.15)',
+              background: 'rgba(139, 92, 246, 0.12)',
+              borderBottom: '1px solid rgba(139, 92, 246, 0.22)',
               padding: '5px 16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               fontSize: '0.74rem',
-              color: 'var(--text-main, #FFFFFF)'
+              color: '#E9D5FF'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 700, color: 'var(--accent-color, #007AFF)' }}>
+              <span style={{ fontWeight: 700, color: '#C4B5FD' }}>
                 📌 Contexto activo:
               </span>
               <span>
@@ -560,15 +627,15 @@ export function OrsttyChat({
               onClick={handleClearContext}
               title="Borrar tema previo para consultar libremente"
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary, #9CA3AF)',
+                background: 'rgba(139, 92, 246, 0.15)',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                color: '#C4B5FD',
                 fontSize: '0.72rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '3px',
-                padding: '2px 6px',
+                padding: '2px 8px',
                 borderRadius: '6px'
               }}
             >
@@ -627,7 +694,7 @@ export function OrsttyChat({
                       width: '28px',
                       height: '28px',
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #007AFF, #6366F1)',
+                      background: 'linear-gradient(135deg, #7C3AED, #9333EA)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -648,13 +715,13 @@ export function OrsttyChat({
                     padding: '12px 16px',
                     borderRadius: isOrstty ? '18px 18px 18px 4px' : '18px 18px 4px 18px',
                     background: isOrstty
-                      ? 'var(--card-bg, #FFFFFF)'
-                      : 'linear-gradient(135deg, #007AFF, #0056B3)',
-                    color: isOrstty ? 'var(--text-main, #111827)' : '#FFFFFF',
-                    border: isOrstty ? '1px solid var(--card-border, rgba(0, 0, 0, 0.12))' : 'none',
+                      ? 'var(--card-bg, #1a152d)'
+                      : 'linear-gradient(135deg, #7C3AED 0%, #9333EA 100%)',
+                    color: isOrstty ? 'var(--text-main, #FFFFFF)' : '#FFFFFF',
+                    border: isOrstty ? '1px solid rgba(139, 92, 246, 0.22)' : 'none',
                     fontSize: '0.88rem',
                     lineHeight: 1.45,
-                    boxShadow: isOrstty ? '0 2px 8px rgba(0, 0, 0, 0.06)' : '0 4px 14px rgba(0, 122, 255, 0.28)',
+                    boxShadow: isOrstty ? '0 2px 10px rgba(0, 0, 0, 0.08)' : '0 4px 16px rgba(124, 58, 237, 0.35)',
                     wordBreak: 'break-word'
                   }}
                 >
@@ -679,7 +746,12 @@ export function OrsttyChat({
                     <OrsttyMiniCard
                       key={item.id || idx}
                       item={item}
-                      onPlayVideo={(vid) => setActiveVideoModal(vid)}
+                      onPlayVideo={(vid) => {
+                        const targetUrl = vid.url || (vid.ytId ? `https://www.youtube.com/watch?v=${vid.ytId}` : null);
+                        if (targetUrl) {
+                          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
                       onPreviewResource={(res) => setActivePreviewModal(res)}
                     />
                   ))}
@@ -698,9 +770,9 @@ export function OrsttyChat({
                         marginTop: '4px',
                         padding: '6px 14px',
                         borderRadius: '12px',
-                        border: '1px solid var(--card-border, rgba(255, 255, 255, 0.15))',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        color: 'var(--accent-color, #007AFF)',
+                        border: '1px solid rgba(124, 58, 237, 0.25)',
+                        background: 'rgba(124, 58, 237, 0.08)',
+                        color: '#6D28D9',
                         fontSize: '0.76rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -744,9 +816,9 @@ export function OrsttyChat({
                       style={{
                         padding: '5px 12px',
                         borderRadius: '99px',
-                        border: '1px solid rgba(0, 122, 255, 0.3)',
-                        background: 'rgba(0, 122, 255, 0.08)',
-                        color: 'var(--accent-color, #007AFF)',
+                        border: '1px solid rgba(124, 58, 237, 0.25)',
+                        background: 'rgba(124, 58, 237, 0.08)',
+                        color: '#6D28D9',
                         fontSize: '0.74rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -770,10 +842,10 @@ export function OrsttyChat({
               style={{
                 padding: '8px 14px',
                 borderRadius: '16px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--card-border, rgba(255, 255, 255, 0.1))',
+                background: 'rgba(124, 58, 237, 0.08)',
+                border: '1px solid rgba(124, 58, 237, 0.2)',
                 fontSize: '0.78rem',
-                color: 'var(--text-secondary, #9CA3AF)',
+                color: '#6D28D9',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px'
@@ -796,13 +868,14 @@ export function OrsttyChat({
       {messages.length <= 1 && (
         <div
           style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '6px',
             overflowX: 'auto',
             whiteSpace: 'nowrap',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+            borderTop: '1px solid rgba(124, 58, 237, 0.15)',
+            flexShrink: 0
           }}
         >
           {QUICK_STARTERS.map((qs, qIdx) => (
@@ -810,11 +883,11 @@ export function OrsttyChat({
               key={qIdx}
               onClick={() => handleSendMessage(qs.replace(/^[^\w]+/, '').trim())}
               style={{
-                padding: '6px 12px',
-                borderRadius: '14px',
-                background: 'rgba(120, 120, 128, 0.08)',
-                border: '1px solid var(--card-border, rgba(0, 0, 0, 0.1))',
-                color: 'var(--text-main, #111827)',
+                padding: '5px 11px',
+                borderRadius: '12px',
+                background: 'rgba(124, 58, 237, 0.08)',
+                border: '1px solid rgba(124, 58, 237, 0.22)',
+                color: 'var(--text-main, #1F2937)',
                 fontSize: '0.74rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -834,12 +907,13 @@ export function OrsttyChat({
           handleSendMessage();
         }}
         style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--card-border, rgba(0, 0, 0, 0.1))',
+          padding: '8px 12px',
+          borderTop: '1px solid rgba(124, 58, 237, 0.18)',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          background: 'rgba(120, 120, 128, 0.03)'
+          gap: '8px',
+          background: 'rgba(124, 58, 237, 0.03)',
+          flexShrink: 0
         }}
       >
         <input
@@ -847,16 +921,16 @@ export function OrsttyChat({
           type="text"
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          placeholder={`Pregunta a ${apodoActual} (videos, material, cursos...) o dime "te llamo X"`}
+          placeholder={`Pregunta a ${apodoActual} (cursos, videos, simulación...)`}
           disabled={isProcessing}
           style={{
             flex: 1,
-            padding: '12px 16px',
-            borderRadius: '16px',
-            border: '1.5px solid var(--card-border, rgba(0, 0, 0, 0.15))',
-            background: 'var(--card-bg, #FFFFFF)',
-            color: 'var(--text-main, #111827)',
-            fontSize: '0.88rem',
+            padding: '10px 14px',
+            borderRadius: '14px',
+            border: '1.5px solid rgba(124, 58, 237, 0.25)',
+            background: 'var(--card-bg, rgba(255, 255, 255, 0.95))',
+            color: 'var(--text-main, #1F2937)',
+            fontSize: '0.86rem',
             outline: 'none',
             boxSizing: 'border-box'
           }}
@@ -867,24 +941,24 @@ export function OrsttyChat({
           type="submit"
           disabled={!inputVal.trim() || isProcessing}
           style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '14px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
             border: 'none',
             background: inputVal.trim() && !isProcessing
-              ? 'linear-gradient(135deg, var(--accent-color, #007AFF), #6366F1)'
-              : 'rgba(255, 255, 255, 0.1)',
+              ? 'linear-gradient(135deg, #7C3AED, #9333EA)'
+              : 'rgba(124, 58, 237, 0.15)',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: inputVal.trim() && !isProcessing ? 'pointer' : 'default',
             flexShrink: 0,
-            boxShadow: inputVal.trim() && !isProcessing ? '0 4px 14px rgba(0, 122, 255, 0.35)' : 'none',
+            boxShadow: inputVal.trim() && !isProcessing ? '0 4px 14px rgba(124, 58, 237, 0.35)' : 'none',
             transition: 'all 0.15s ease'
           }}
         >
-          <Send size={18} />
+          <Send size={16} />
         </button>
       </form>
 
