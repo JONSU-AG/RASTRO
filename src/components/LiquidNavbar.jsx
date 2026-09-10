@@ -1455,7 +1455,7 @@ export const LiquidNavbar = () => {
               }}
             >
               <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--card-bg)', border: '1.5px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', overflow: 'hidden' }}>
-                <img src="/assets/rastro-pwa-icon.png" alt="RASTRO" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '12px' }} />
+                <img src="./assets/rastro-pwa-icon.png" alt="RASTRO" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '12px' }} />
               </div>
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-main)' }}>Instalar RASTRO</h3>
               <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>Accede más rápido, funciona sin conexión y recibe novedades. Instala RASTRO como app en tu dispositivo.</p>
