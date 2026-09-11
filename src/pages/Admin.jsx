@@ -786,7 +786,7 @@ Aquí está la lista de archivos:
                 )}
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '6px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                     <button
                       type="button"
                       disabled={idx === 0}
@@ -825,6 +825,43 @@ Aquí está la lista de archivos:
                     >
                       ▼
                     </button>
+
+                    {/* Selector directo de Posición Numérica (1, 2, 3...) */}
+                    <select
+                      value={idx + 1}
+                      onChange={async (e) => {
+                        const targetPos = parseInt(e.target.value, 10) - 1; // 0-indexed
+                        if (isNaN(targetPos) || targetPos === idx) return;
+
+                        const newList = [...libros];
+                        const [movedItem] = newList.splice(idx, 1);
+                        newList.splice(targetPos, 0, movedItem);
+
+                        // Actualizar en batch/promesas todos los ordenes ajustados
+                        const promises = newList.map((item, newIdx) => {
+                          return updateDoc(doc(db, 'libros', item.id), { orden: newIdx });
+                        });
+                        await Promise.all(promises);
+                      }}
+                      style={{
+                        padding: '4px 6px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--card-border)',
+                        background: 'rgba(168, 85, 247, 0.15)',
+                        color: '#A855F7',
+                        fontWeight: 800,
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                      title="Cambiar posición directa"
+                    >
+                      {libros.map((_, pIdx) => (
+                        <option key={pIdx} value={pIdx + 1} style={{ background: '#1e1b4b', color: '#fff' }}>
+                          #{pIdx + 1}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <button

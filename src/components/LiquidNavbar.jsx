@@ -587,7 +587,10 @@ export const LiquidNavbar = () => {
                 padding: '4px 6px',
                 borderRadius: '9px',
                 border: 'none',
-                background: 'transparent',
+                background: isNotifOpen || unreadCount > 0
+                  ? 'rgba(168, 85, 247, 0.15)'
+                  : 'transparent',
+                color: isNotifOpen || unreadCount > 0 ? 'var(--accent-color)' : 'var(--text-secondary)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -597,10 +600,11 @@ export const LiquidNavbar = () => {
                 fontWeight: 800,
                 cursor: 'pointer',
                 position: 'relative',
-                minWidth: '34px'
+                minWidth: '34px',
+                transition: 'all 0.15s ease'
               }}
             >
-              <Bell size={16} />
+              <Bell size={16} color={isNotifOpen || unreadCount > 0 ? 'var(--accent-color)' : 'currentColor'} />
 
               <span style={{ lineHeight: 1 }}>
                 Avisos
@@ -612,7 +616,7 @@ export const LiquidNavbar = () => {
                     position: 'absolute',
                     top: '-2px',
                     right: '1px',
-                    background: '#EF4444',
+                    background: 'var(--accent-color, #EF4444)',
                     color: '#FFFFFF',
                     fontSize: '0.52rem',
                     fontWeight: 800,

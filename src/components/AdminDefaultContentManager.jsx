@@ -1,17 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Trash2, RotateCcw, Sparkles, BookOpen, Layers, HelpCircle, Check, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Trash2, RotateCcw, Sparkles, BookOpen, Layers, HelpCircle, Check, AlertCircle, Plus, FileText, UploadCloud, X, Folder, Link as LinkIcon } from 'lucide-react';
 import { DEFAULT_FLASHCARDS, DEFAULT_EXAM_QUESTIONS } from '../data/simuladorData';
 import { TOMOS, PRACTICAS } from '../data/legacyData';
 import { subscribeToSiteSettings, toggleHideDefaultItem, isDefaultItemHidden, getCachedSiteSettings } from '../lib/siteSettings';
+import { db } from '../lib/firebase';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { uploadFileReliable } from '../lib/storageHelper';
 
 export const AdminDefaultContentManager = () => {
   const [siteSettings, setSiteSettings] = useState(getCachedSiteSettings);
-  const [subTab, setSubTab] = useState('flashcards'); // 'flashcards' | 'exam' | 'tomos' | 'practicas'
+  const [subTab, setSubTab] = useState('tomos'); // 'tomos' | 'practicas' | 'flashcards' | 'exam'
   const [actionSuccess, setActionSuccess] = useState('');
 
+  // Firestore custom official items state
+  const [customOficiales, setCustomOficiales] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newLink, setNewLink] = useState('');
+  const [newType, setNewType] = useState('tomo'); // 'tomo' | 'practica'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+
   useEffect(() => {
-    const unsub = subscribeToSiteSettings((s) => setSiteSettings(s));
-    return () => unsub();
+    const unsubSettings = subscribeToSiteSettings((s) => setSiteSettings(s));
+    
+    let unsubDocs = () => {};
+    try {
+      const q = query(collection(db, 'oficiales'), orderBy('createdAt', 'desc'));
+      unsubDocs = onSnapshot(q, (snapshot) => {
+        setCustomOficiales(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        console.warn("Firestore 'oficiales' listener error:", err);
+      });
+    } catch (e) {
+      console.warn("Error subscribing to 'oficiales':", e);
+    }
+
+    return () => {
+      unsubSettings();
+      unsubDocs();
+    };
   }, []);
 
   const showNotification = (msg) => {
@@ -26,6 +55,61 @@ export const AdminDefaultContentManager = () => {
       showNotification(isCurrentlyHidden ? `"${itemName}" restaurado y visible para todos.` : `"${itemName}" ocultado para todos.`);
     } catch (err) {
       alert("Error al cambiar visibilidad: " + err.message);
+    }
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPdf(true);
+    try {
+      const url = await uploadFileReliable(file, null, 'oficiales_pdfs');
+      if (url) {
+        setNewLink(url);
+        showNotification("PDF subido correctamente.");
+      }
+    } catch (err) {
+      alert("Error al subir archivo: " + err.message);
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleCreateOficial = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim()) {
+      alert("El título es obligatorio.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'oficiales'), {
+        titulo: newTitle.trim(),
+        descripcion: newDesc.trim(),
+        link: newLink.trim(),
+        type: newType, // 'tomo' | 'practica'
+        isOfficial: true,
+        createdAt: serverTimestamp()
+      });
+      showNotification(`NUEVO MATERIAL OFICIAL AGREGADO: "${newTitle.trim()}"`);
+      setNewTitle('');
+      setNewDesc('');
+      setNewLink('');
+      setShowAddModal(false);
+    } catch (err) {
+      alert("Error al agregar material oficial: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCustomOficial = async (id, title) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el material oficial "${title}"?`)) return;
+    try {
+      await deleteDoc(doc(db, 'oficiales', id));
+      showNotification(`"${title}" eliminado del material oficial.`);
+    } catch (err) {
+      alert("Error al eliminar: " + err.message);
     }
   };
 
@@ -53,31 +137,59 @@ export const AdminDefaultContentManager = () => {
     };
   });
 
-  const tomosList = TOMOS.map((tomo, idx) => {
-    const title = tomo[0];
-    const tomoId = `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
-    const hidden = isDefaultItemHidden(tomoId, siteSettings) || isDefaultItemHidden(`default_tomo_${idx}`, siteSettings);
-    return {
-      id: tomoId,
-      originalId: idx,
-      title: title,
-      subtitle: tomo[1],
-      hidden
-    };
-  });
+  const customTomos = customOficiales.filter(c => (c.type || 'tomo') === 'tomo').map(c => ({
+    id: c.id,
+    originalId: 'OFICIAL_NUEVO',
+    title: c.titulo,
+    subtitle: c.descripcion || c.link || 'Material Oficial personalizado',
+    hidden: false,
+    isCustom: true,
+    link: c.link
+  }));
 
-  const practicasList = PRACTICAS.map((practica, idx) => {
-    const title = practica.titulo || practica[0];
-    const practicaId = `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
-    const hidden = isDefaultItemHidden(practicaId, siteSettings) || isDefaultItemHidden(`default_practica_${idx}`, siteSettings);
-    return {
-      id: practicaId,
-      originalId: idx,
-      title: title,
-      subtitle: practica.descripcion || practica[1],
-      hidden
-    };
-  });
+  const customPracticas = customOficiales.filter(c => c.type === 'practica').map(c => ({
+    id: c.id,
+    originalId: 'OFICIAL_NUEVO',
+    title: c.titulo,
+    subtitle: c.descripcion || c.link || 'Material Oficial personalizado',
+    hidden: false,
+    isCustom: true,
+    link: c.link
+  }));
+
+  const tomosList = [
+    ...customTomos,
+    ...TOMOS.map((tomo, idx) => {
+      const title = tomo[0];
+      const tomoId = `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
+      const hidden = isDefaultItemHidden(tomoId, siteSettings) || isDefaultItemHidden(`default_tomo_${idx}`, siteSettings);
+      return {
+        id: tomoId,
+        originalId: idx,
+        title: title,
+        subtitle: tomo[1],
+        hidden,
+        isCustom: false
+      };
+    })
+  ];
+
+  const practicasList = [
+    ...customPracticas,
+    ...PRACTICAS.map((practica, idx) => {
+      const title = practica.titulo || practica[0];
+      const practicaId = `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
+      const hidden = isDefaultItemHidden(practicaId, siteSettings) || isDefaultItemHidden(`default_practica_${idx}`, siteSettings);
+      return {
+        id: practicaId,
+        originalId: idx,
+        title: title,
+        subtitle: practica.descripcion || practica[1],
+        hidden,
+        isCustom: false
+      };
+    })
+  ];
 
   const getActiveList = () => {
     switch (subTab) {
@@ -102,30 +214,57 @@ export const AdminDefaultContentManager = () => {
         padding: '20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px'
+        gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ 
-            width: '38px', 
-            height: '38px', 
-            borderRadius: '12px', 
-            background: 'rgba(239, 68, 68, 0.15)', 
-            color: '#EF4444', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <EyeOff size={20} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ 
+              width: '38px', 
+              height: '38px', 
+              borderRadius: '12px', 
+              background: 'rgba(239, 68, 68, 0.15)', 
+              color: '#EF4444', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <EyeOff size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Gestión de Contenido Predeterminado y Material Oficial
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                Agrega nuevo Material Oficial (Tomos y Prácticas/Exámenes) u oculta contenido por defecto de la plataforma.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
-              Gestión de Contenido Predeterminado del Sistema
-            </h3>
-            <p style={{ margin: '2px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-              Controla qué elementos por defecto (Flashcards, Exámenes rápidos, Tomos y Prácticas oficiales) se muestran u ocultan a los estudiantes en toda la plataforma.
-            </p>
-          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewType(subTab === 'practicas' ? 'practica' : 'tomo');
+              setShowAddModal(true);
+            }}
+            style={{
+              padding: '10px 18px',
+              borderRadius: '14px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #007AFF 0%, #34C759 100%)',
+              color: '#FFF',
+              fontWeight: 800,
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 14px rgba(0,122,255,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Plus size={18} /> Agregar Material Oficial
+          </button>
         </div>
 
         {actionSuccess && (
@@ -292,42 +431,282 @@ export const AdminDefaultContentManager = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--card-border)' }}>
-              <button
-                type="button"
-                onClick={() => handleToggle(item.id, item.title)}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  background: item.hidden 
-                    ? 'linear-gradient(135deg, #34C759, #30D158)' 
-                    : 'rgba(239, 68, 68, 0.12)',
-                  color: item.hidden ? '#FFFFFF' : '#EF4444',
-                  fontWeight: 800,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {item.hidden ? (
-                  <>
-                    <RotateCcw size={14} /> Restaurar y Mostrar
-                  </>
-                ) : (
-                  <>
-                    <EyeOff size={14} /> Ocultar / Eliminar de Vista
-                  </>
-                )}
-              </button>
+              {item.isCustom ? (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteCustomOficial(item.id, item.title)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#EF4444',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Trash2 size={14} /> Eliminar Definitivamente
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleToggle(item.id, item.title)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: item.hidden 
+                      ? 'linear-gradient(135deg, #34C759, #30D158)' 
+                      : 'rgba(239, 68, 68, 0.12)',
+                    color: item.hidden ? '#FFFFFF' : '#EF4444',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {item.hidden ? (
+                    <>
+                      <RotateCcw size={14} /> Restaurar y Mostrar
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={14} /> Ocultar / Eliminar de Vista
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Modal: Agregar Nuevo Material Oficial */}
+      {showAddModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '520px',
+            borderRadius: '24px',
+            padding: '24px',
+            background: 'var(--card-bg)',
+            border: '1.5px solid var(--card-border)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'rgba(0,122,255,0.15)', color: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BookOpen size={20} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Nuevo Material Oficial
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOficial} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Tipo de Material Oficial *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewType('tomo')}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '12px',
+                      border: newType === 'tomo' ? 'none' : '1.5px solid var(--card-border)',
+                      background: newType === 'tomo' ? 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%)' : 'rgba(120, 120, 128, 0.06)',
+                      color: newType === 'tomo' ? '#FFF' : 'var(--text-main)',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📕 Tomo Oficial
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewType('practica')}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '12px',
+                      border: newType === 'practica' ? 'none' : '1.5px solid var(--card-border)',
+                      background: newType === 'practica' ? 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' : 'rgba(120, 120, 128, 0.06)',
+                      color: newType === 'practica' ? '#FFF' : 'var(--text-main)',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📝 Práctica / Examen
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Título del Material *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Tomo V - Razonamiento Verbal CEPREUNSA 2026"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'rgba(120, 120, 128, 0.06)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Descripción / Detalles (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Banco oficial con 100 preguntas resueltas y explicadas..."
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'rgba(120, 120, 128, 0.06)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Enlace de Google Drive / PDF *
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/file/d/... o https://..."
+                    value={newLink}
+                    onChange={(e) => setNewLink(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--card-border)',
+                      background: 'rgba(120, 120, 128, 0.06)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <label style={{
+                    padding: '0 14px',
+                    borderRadius: '12px',
+                    background: 'rgba(52, 199, 89, 0.15)',
+                    color: '#34C759',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}>
+                    <UploadCloud size={16} />
+                    {uploadingPdf ? 'Subiendo...' : 'PDF'}
+                    <input type="file" accept="application/pdf" onChange={handlePdfUpload} style={{ display: 'none' }} disabled={uploadingPdf} />
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'transparent',
+                    color: 'var(--text-main)',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || uploadingPdf}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #007AFF 0%, #34C759 100%)',
+                    color: '#FFF',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    opacity: isSubmitting ? 0.7 : 1
+                  }}
+                >
+                  {isSubmitting ? 'Guardando...' : 'Guardar y Publicar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

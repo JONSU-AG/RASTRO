@@ -56,6 +56,10 @@ export const Biblioteca = () => {
   const [showAllBookPreviews, setShowAllBookPreviews] = useState(true);
   const [selectedBookCollection, setSelectedBookCollection] = useState(null);
   useEffect(()=>{ try{ const q=query(collection(db,'libros'), orderBy('orden','asc')); const unsub=onSnapshot(q,(s)=> setLibros(s.docs.map(d=>({id:d.id,...d.data()})))); return ()=>unsub(); }catch{} },[]);
+  
+  const [customOficiales, setCustomOficiales] = useState([]);
+  useEffect(()=>{ try{ const q=query(collection(db,'oficiales'), orderBy('createdAt','desc')); const unsub=onSnapshot(q,(s)=> setCustomOficiales(s.docs.map(d=>({id:d.id,...d.data()})))); return ()=>unsub(); }catch{} },[]);
+
   const [activeDocTab, setActiveDocTab] = useState('tomos'); // 'tomos' | 'practicas'
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState({ id: null, title: '' });
@@ -192,18 +196,38 @@ export const Biblioteca = () => {
     return searchMatches([item.title, item.author, item.desc, item.category], searchQuery);
   });
 
-  const filteredTomos = TOMOS.filter((tomo, idx) => {
+  const customTomosFormatted = customOficiales
+    .filter(c => (c.type || 'tomo') === 'tomo')
+    .map(c => [c.titulo, c.descripcion || c.link, c.link, true, c.id]);
+
+  const customPracticasFormatted = customOficiales
+    .filter(c => c.type === 'practica')
+    .map(c => ({
+      titulo: c.titulo,
+      descripcion: c.descripcion || c.link,
+      carpeta: c.link,
+      isCustom: true,
+      id: c.id
+    }));
+
+  const filteredTomos = [
+    ...customTomosFormatted,
+    ...TOMOS
+  ].filter((tomo, idx) => {
     const title = tomo[0];
-    const tomoId = `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
+    const tomoId = tomo[4] || `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
     if (isDefaultItemHidden(tomoId, siteSettings) || isDefaultItemHidden(`default_tomo_${idx}`, siteSettings)) {
       return false;
     }
     return searchMatches([tomo[0], tomo[1]], searchQuery);
   });
 
-  const filteredPracticas = PRACTICAS.filter((practica, idx) => {
+  const filteredPracticas = [
+    ...customPracticasFormatted,
+    ...PRACTICAS
+  ].filter((practica, idx) => {
     const title = practica.titulo || practica[0];
-    const practicaId = `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
+    const practicaId = practica.id || `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
     if (isDefaultItemHidden(practicaId, siteSettings) || isDefaultItemHidden(`default_practica_${idx}`, siteSettings)) {
       return false;
     }
@@ -224,29 +248,42 @@ export const Biblioteca = () => {
           {getText('biblio_subtitle', 'Tomos, libros y bancos de preguntas oficiales compartidos por estudiantes y docentes.')}
         </p>
 
-        {/* Main Tab Switcher */}
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Navegación Horizontal Lineal de 3 Botones Principales */}
+        <div 
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '8px', 
+            maxWidth: '680px', 
+            margin: '20px auto 0',
+            width: '100%'
+          }}
+        >
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setMainTab('documentos')}
             style={{ 
-              padding: '10px 18px', 
+              padding: '10px 8px', 
               borderRadius: '16px', 
               fontWeight: 800, 
-              fontSize: '0.88rem',
+              fontSize: 'clamp(0.74rem, 2.2vw, 0.86rem)',
               border: mainTab === 'documentos' ? 'none' : '1.5px solid var(--card-border)',
-              background: mainTab === 'documentos' ? 'linear-gradient(135deg, #007AFF 0%, #00C6FF 100%)' : 'var(--card-bg)',
+              background: mainTab === 'documentos' ? 'linear-gradient(135deg, #007AFF 0%, #34C759 100%)' : 'var(--card-bg)',
               color: mainTab === 'documentos' ? '#FFFFFF' : 'var(--text-main)',
               cursor: 'pointer',
-              boxShadow: mainTab === 'documentos' ? '0 6px 20px rgba(0, 122, 255, 0.35)' : 'none',
+              boxShadow: mainTab === 'documentos' ? '0 6px 18px rgba(0, 122, 255, 0.35)' : 'none',
               transition: 'all 0.2s ease',
-              display: 'inline-flex',
+              display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              textAlign: 'center',
+              lineHeight: '1.2'
             }}
           >
-            📚 Material Oficial ({filteredTomos.length + filteredPracticas.length})
+            <span>📜 Material Oficial</span>
+            <span style={{ fontSize: '0.68rem', opacity: 0.85, fontWeight: 600 }}>({filteredTomos.length + filteredPracticas.length})</span>
           </motion.button>
 
           <motion.button 
@@ -254,43 +291,71 @@ export const Biblioteca = () => {
             whileTap={{ scale: 0.98 }}
             onClick={() => setMainTab('comunidad')}
             style={{ 
-              padding: '10px 18px', 
+              padding: '10px 8px', 
               borderRadius: '16px', 
               fontWeight: 800, 
-              fontSize: '0.88rem',
+              fontSize: 'clamp(0.74rem, 2.2vw, 0.86rem)',
               border: mainTab === 'comunidad' ? 'none' : '1.5px solid var(--card-border)',
               background: mainTab === 'comunidad' ? 'linear-gradient(135deg, #F59E0B 0%, #EC4899 100%)' : 'var(--card-bg)',
               color: mainTab === 'comunidad' ? '#FFFFFF' : 'var(--text-main)',
               cursor: 'pointer',
-              boxShadow: mainTab === 'comunidad' ? '0 6px 20px rgba(245, 158, 11, 0.35)' : 'none',
+              boxShadow: mainTab === 'comunidad' ? '0 6px 18px rgba(245, 158, 11, 0.35)' : 'none',
               transition: 'all 0.2s ease',
-              display: 'inline-flex',
+              display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              textAlign: 'center',
+              lineHeight: '1.2'
             }}
           >
-            🤝 Aportes de la Comunidad ({filteredCommunity.length})
+            <span>🤝 Aportes</span>
+            <span style={{ fontSize: '0.68rem', opacity: 0.85, fontWeight: 600 }}>({filteredCommunity.length})</span>
           </motion.button>
 
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setMainTab('libros')} style={{ padding: '10px 18px', borderRadius: '16px', fontWeight: 800, fontSize: '0.88rem', border: mainTab==='libros' ? 'none' : '1.5px solid var(--card-border)', background: mainTab==='libros' ? 'linear-gradient(135deg, #A855F7, #6366F1)' : 'var(--card-bg)', color: mainTab==='libros' ? '#fff' : 'var(--text-main)', cursor:'pointer', boxShadow: mainTab==='libros' ? '0 6px 20px rgba(168,85,247,0.35)' : 'none' }}>📚 Libros ({libros.reduce((acc, l) => acc + (l.recursos?.length || 0), 0)})</motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }} 
+            whileTap={{ scale: 0.98 }} 
+            onClick={() => setMainTab('libros')} 
+            style={{ 
+              padding: '10px 8px', 
+              borderRadius: '16px', 
+              fontWeight: 800, 
+              fontSize: 'clamp(0.74rem, 2.2vw, 0.86rem)', 
+              border: mainTab === 'libros' ? 'none' : '1.5px solid var(--card-border)', 
+              background: mainTab === 'libros' ? 'linear-gradient(135deg, #A855F7, #6366F1)' : 'var(--card-bg)', 
+              color: mainTab === 'libros' ? '#fff' : 'var(--text-main)', 
+              cursor: 'pointer', 
+              boxShadow: mainTab === 'libros' ? '0 6px 18px rgba(168,85,247,0.35)' : 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              lineHeight: '1.2'
+            }}
+          >
+            <span>📚 Libros</span>
+            <span style={{ fontSize: '0.68rem', opacity: 0.85, fontWeight: 600 }}>({libros.reduce((acc, l) => acc + (l.recursos?.length || 0), 0)})</span>
+          </motion.button>
         </div>
 
         {/* Global Accent-Insensitive Search Bar */}
-        <div style={{ position: 'relative', maxWidth: '640px', margin: '24px auto 0' }}>
+        <div style={{ position: 'relative', maxWidth: '640px', margin: '20px auto 0' }}>
           <Search size={18} style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-color)' }} />
           <input
             type="text"
-            placeholder="🔍 Buscar tomo, libro, práctica, tema o autor (sin importar tildes o mayúsculas)..."
+            placeholder="🔍 Buscar tomo, libro, práctica o tema..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               width: '100%',
-              padding: '15px 44px 15px 48px',
+              padding: '14px 44px 14px 48px',
               borderRadius: '20px',
               border: '1.5px solid var(--card-border)',
               background: 'var(--card-bg)',
               color: 'var(--text-main)',
-              fontSize: '0.95rem',
+              fontSize: '0.92rem',
               outline: 'none',
               boxSizing: 'border-box',
               boxShadow: '0 6px 20px rgba(0,0,0,0.04)'
@@ -327,629 +392,307 @@ export const Biblioteca = () => {
       {/* ──────────────── SECTION 1: MATERIAL OFICIAL ──────────────── */}
       {mainTab === 'documentos' && (
         <>
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '4px', justifyContent: 'center', alignItems: 'center', maxWidth: '100%', flexWrap: 'wrap' }}>
-            <motion.button 
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setActiveDocTab('tomos')}
-              style={{ 
-                padding: '12px 28px', 
-                borderRadius: '999px', 
-                fontWeight: 800, 
-                fontSize: '0.9rem',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                border: activeDocTab === 'tomos' ? 'none' : '2px solid rgba(255, 59, 48, 0.3)',
-                background: activeDocTab === 'tomos' ? 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%)' : 'var(--card-bg)',
-                color: activeDocTab === 'tomos' ? '#FFFFFF' : '#FF3B30',
-                cursor: 'pointer',
-                boxShadow: activeDocTab === 'tomos' ? '0 6px 20px rgba(255, 59, 48, 0.4)' : '0 2px 8px rgba(0,0,0,0.06)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              📕 Tomos Académicos ({filteredTomos.length})
-            </motion.button>
-
-            <motion.button 
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setActiveDocTab('practicas')}
-              style={{ 
-                padding: '12px 28px', 
-                borderRadius: '999px', 
-                fontWeight: 800, 
-                fontSize: '0.9rem',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                border: activeDocTab === 'practicas' ? 'none' : '2px solid rgba(52, 199, 89, 0.3)',
-                background: activeDocTab === 'practicas' ? 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' : 'var(--card-bg)',
-                color: activeDocTab === 'practicas' ? '#FFFFFF' : '#34C759',
-                cursor: 'pointer',
-                boxShadow: activeDocTab === 'practicas' ? '0 6px 20px rgba(52, 199, 89, 0.4)' : '0 2px 8px rgba(0,0,0,0.06)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              📗 Prácticas y Exámenes ({filteredPracticas.length})
-            </motion.button>
-          </div>
-
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '22px' }}>
             <AnimatePresence mode="popLayout">
-              {activeDocTab === 'tomos' ? (
-                filteredTomos.length === 0 ? (
-                  <div className="glass-card" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', gridColumn: '1 / -1' }}>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>
-                      No se encontraron tomos para "{searchQuery}". Puedes buscar en "Prácticas" o en "Aportes de la Comunidad".
-                    </p>
-                  </div>
-                ) : (
-                  filteredTomos.map((tomo, idx) => {
-                    const title = tomo[0];
-                    const tomoId = `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
-                    const desc = tomo[1];
-                    const link = tomo[2];
-                    const previewUrl = getPreviewUrl(link);
-                    const isPreviewOpen = !!expandedPreviews[tomoId];
+              {(() => {
+                const allOfficialItems = [
+                  ...filteredTomos.map(t => ({ ...t, officialType: 'tomo' })),
+                  ...filteredPracticas.map(p => ({ ...p, officialType: 'practica' }))
+                ];
 
-                    return (
-                      <motion.div 
-                        key={tomoId} 
-                        initial={{ opacity: 0, y: 15 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        className="glass-card" 
-                        style={{ 
-                          padding: '22px', 
-                          borderRadius: '24px', 
-                          position: 'relative', 
-                          display: 'flex', 
-                          flexDirection: 'column',
-                          border: '1.5px solid rgba(255, 59, 48, 0.25)',
-                          boxShadow: '0 10px 26px rgba(255, 59, 48, 0.08)',
-                          gridColumn: isPreviewOpen ? '1 / -1' : 'auto'
+                if (allOfficialItems.length === 0) {
+                  return (
+                    <div className="glass-card" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', gridColumn: '1 / -1' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>
+                        No se encontró material oficial para "{searchQuery}".
+                      </p>
+                    </div>
+                  );
+                }
+
+                return allOfficialItems.map((item, idx) => {
+                  const isTomo = item.officialType === 'tomo';
+                  const title = isTomo ? item[0] : (item.titulo || item[0]);
+                  const itemId = isTomo 
+                    ? `official-tomo-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`
+                    : `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
+                  const desc = isTomo ? item[1] : (item.descripcion || item[1]);
+                  const link = isTomo ? item[2] : (item.carpeta || item[2]);
+                  const previewUrl = getPreviewUrl(link);
+                  const isPreviewOpen = !!expandedPreviews[itemId];
+                  const accentThemeColor = isTomo ? '#FF3B30' : '#34C759';
+
+                  return (
+                    <motion.div 
+                      key={itemId} 
+                      initial={{ opacity: 0, y: 15 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      className="glass-card" 
+                      style={{ 
+                        padding: '22px', 
+                        borderRadius: '24px', 
+                        position: 'relative', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        border: `1.5px solid ${isTomo ? 'rgba(255, 59, 48, 0.25)' : 'rgba(52, 199, 89, 0.25)'}`,
+                        boxShadow: `0 10px 26px ${isTomo ? 'rgba(255, 59, 48, 0.08)' : 'rgba(52, 199, 89, 0.08)'}`,
+                        gridColumn: isPreviewOpen ? '1 / -1' : 'auto'
+                      }}
+                    >
+                      {/* Encabezado e Info */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: `${accentThemeColor}1F`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <FileText color={accentThemeColor} size={22} />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 800, color: accentThemeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            👑 Material Oficial CEPRE / UNSA
+                          </span>
+                          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{title}</h3>
+                        </div>
+                      </div>
+
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '14px', lineHeight: 1.5, flex: 1 }}>{desc}</p>
+
+                      {/* Banner Recuadro de Vista Previa */}
+                      <div 
+                        onClick={() => togglePreview(itemId)}
+                        style={{
+                          width: '100%',
+                          height: '140px',
+                          borderRadius: '16px',
+                          border: isPreviewOpen ? `2px solid ${accentThemeColor}` : '1.5px solid var(--card-border)',
+                          background: 'rgba(15, 23, 42, 0.05)',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          marginBottom: '14px',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '6px'
                         }}
+                        title="Toca para ver / ocultar vista previa"
                       >
-                        {/* Encabezado e Info */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'rgba(255, 59, 48, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <FileText color="#FF3B30" size={22} />
+                        {getDriveFileId(link) ? (
+                          <img
+                            src={getDriveThumbnailUrl(link, 'w600')}
+                            alt={title}
+                            referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
+                            draggable={false}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w400`;
+                            }}
+                            style={{
+                              maxHeight: '100%',
+                              maxWidth: '100%',
+                              width: 'auto',
+                              height: 'auto',
+                              objectFit: 'contain',
+                              display: 'block',
+                              margin: '0 auto',
+                              borderRadius: '6px',
+                              background: '#FFFFFF',
+                              boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+                              pointerEvents: 'none',
+                              userSelect: 'none',
+                              touchAction: 'pan-y'
+                            }}
+                          />
+                        ) : previewUrl ? (
+                          <iframe
+                            src={previewUrl}
+                            title={title}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              border: 'none',
+                              pointerEvents: 'none',
+                              background: '#ffffff',
+                              opacity: 0.9
+                            }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentThemeColor }}>
+                            <FileText size={36} />
                           </div>
-                          <div>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#FF3B30', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              👑 Material Oficial CEPRE / UNSA
-                            </span>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{title}</h3>
-                          </div>
-                        </div>
-
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '14px', lineHeight: 1.5, flex: 1 }}>{desc}</p>
-
-                        {/* Banner Recuadro de Vista Previa Responsive - Hoja Centrada Estática */}
-                        <div 
-                          onClick={() => togglePreview(tomoId)}
-                          style={{
-                            width: '100%',
-                            height: '140px',
-                            borderRadius: '16px',
-                            border: isPreviewOpen ? '2px solid #FF3B30' : '1.5px solid var(--card-border)',
-                            background: 'rgba(15, 23, 42, 0.05)',
-                            position: 'relative',
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            marginBottom: '14px',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '6px'
-                          }}
-                          title="Toca para ver / ocultar vista previa"
-                        >
-                          {getDriveFileId(link) ? (
-                            <img
-                              src={getDriveThumbnailUrl(link, 'w600')}
-                              alt={title}
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              draggable={false}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w400`;
-                              }}
-                              style={{
-                                maxHeight: '100%',
-                                maxWidth: '100%',
-                                width: 'auto',
-                                height: 'auto',
-                                objectFit: 'contain',
-                                display: 'block',
-                                margin: '0 auto',
-                                borderRadius: '6px',
-                                background: '#FFFFFF',
-                                boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
-                                pointerEvents: 'none',
-                                userSelect: 'none',
-                                touchAction: 'pan-y'
-                              }}
-                            />
-                          ) : previewUrl ? (
-                            <iframe
-                              src={previewUrl}
-                              title={title}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                border: 'none',
-                                pointerEvents: 'none',
-                                background: '#ffffff',
-                                opacity: 0.9
-                              }}
-                            />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF3B30' }}>
-                              <FileText size={36} />
-                            </div>
-                          )}
-                          <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.65) 100%)',
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            justifyContent: 'center',
-                            padding: '10px',
-                            pointerEvents: 'none'
+                        )}
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.65) 100%)',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: 'center',
+                          padding: '10px',
+                          pointerEvents: 'none'
+                        }}>
+                          <span style={{
+                            background: isPreviewOpen ? accentThemeColor : 'rgba(0,0,0,0.85)',
+                            color: '#ffffff',
+                            padding: '5px 14px',
+                            borderRadius: '12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            backdropFilter: 'blur(8px)'
                           }}>
-                            <span style={{
-                              background: isPreviewOpen ? '#FF3B30' : 'rgba(0,0,0,0.85)',
-                              color: '#ffffff',
-                              padding: '5px 14px',
-                              borderRadius: '12px',
-                              fontSize: '0.78rem',
-                              fontWeight: 800,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                              backdropFilter: 'blur(8px)'
-                            }}>
-                              {isPreviewOpen ? '✕ Cerrar Vista Previa' : 'Ver Vista Previa'}
-                            </span>
-                          </div>
+                            {isPreviewOpen ? '✕ Cerrar Vista Previa' : 'Ver Vista Previa'}
+                          </span>
                         </div>
+                      </div>
 
-                        {/* Botones de acción (Abrir en Drive + Guardar) */}
-                        <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-                          <button 
-                            onClick={() => window.open(link, '_blank')}
-                            style={{ 
-                              flex: 1,
-                              padding: '12px 18px', 
-                              background: 'linear-gradient(135deg, #FF3B30, #FF5252)', 
-                              color: '#FFFFFF', 
-                              border: 'none', 
-                              borderRadius: '14px', 
-                              fontWeight: 800, 
-                              fontSize: '0.88rem',
-                              display: 'flex', 
-                              justifyContent: 'center', 
-                              alignItems: 'center', 
-                              gap: '8px', 
+                      {/* Botones de acción */}
+                      <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => window.open(link, '_blank')}
+                          style={{ 
+                            flex: 1,
+                            padding: '12px 18px', 
+                            background: `linear-gradient(135deg, ${accentThemeColor}, ${isTomo ? '#FF6B6B' : '#30D158'})`, 
+                            color: '#FFFFFF', 
+                            border: 'none', 
+                            borderRadius: '14px', 
+                            fontWeight: 800, 
+                            fontSize: '0.88rem', 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            cursor: 'pointer',
+                            boxShadow: `0 4px 14px ${isTomo ? 'rgba(255, 59, 48, 0.3)' : 'rgba(52, 199, 89, 0.3)'}`
+                          }}
+                        >
+                          <ExternalLink size={16} /> Abrir en Drive
+                        </button>
+                        <BookmarkButton
+                          item={{
+                            id: itemId,
+                            title: title,
+                            desc: desc,
+                            driveUrl: link,
+                            category: isTomo ? 'tomos' : 'practicas',
+                            author: 'CEPRE / UNSA'
+                          }}
+                          size="normal"
+                          showText={false}
+                        />
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`¿Deseas ocultar "${title}" de la Biblioteca para todos los estudiantes?`)) {
+                                await toggleHideDefaultItem(itemId);
+                                alert("Material oficial ocultado correctamente.");
+                              }
+                            }}
+                            title="Ocultar / Eliminar del Sistema (Admin)"
+                            style={{
+                              padding: '10px 12px',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: 'none',
+                              color: '#EF4444',
+                              borderRadius: '14px',
                               cursor: 'pointer',
-                              boxShadow: '0 4px 14px rgba(255, 59, 48, 0.3)'
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}
                           >
-                            <ExternalLink size={16} /> Abrir en Drive
+                            <Trash2 size={16} />
                           </button>
-                          <BookmarkButton
-                            item={{
-                              id: tomoId,
-                              title: title,
-                              desc: desc,
-                              driveUrl: link,
-                              category: 'teoria',
-                              author: 'CEPRE / UNSA'
-                            }}
-                            size="normal"
-                            showText={false}
-                          />
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (window.confirm(`¿Deseas ocultar "${title}" de la Biblioteca para todos los estudiantes?`)) {
-                                  await toggleHideDefaultItem(tomoId);
-                                  alert("Material oficial ocultado correctamente.");
-                                }
-                              }}
-                              title="Ocultar / Eliminar del Sistema (Admin)"
-                              style={{
-                                padding: '10px 12px',
-                                background: 'rgba(239, 68, 68, 0.12)',
-                                border: 'none',
-                                color: '#EF4444',
-                                borderRadius: '14px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
+                        )}
+                      </div>
 
-                        {/* Barra de Reacciones Instantánea */}
-                        <div style={{
-                          marginTop: '12px',
-                          paddingTop: '10px',
-                          borderTop: '1px solid rgba(255, 59, 48, 0.15)',
-                          display: 'flex',
-                          justifyContent: 'center'
-                        }}>
-                          <ReactionsBar
-                            targetId={tomoId}
-                            targetType="tomo"
-                            size="small"
-                          />
-                        </div>
+                      {/* Barra de Reacciones */}
+                      <div style={{
+                        marginTop: '12px',
+                        paddingTop: '10px',
+                        borderTop: `1px solid ${isTomo ? 'rgba(255, 59, 48, 0.15)' : 'rgba(52, 199, 89, 0.15)'}`,
+                        display: 'flex',
+                        justifyContent: 'center'
+                      }}>
+                        <ReactionsBar
+                          targetId={itemId}
+                          targetType={isTomo ? 'tomo' : 'practica'}
+                          size="small"
+                        />
+                      </div>
 
-                        {/* Contenedor expandible de la Vista Previa completa */}
-                        <AnimatePresence>
-                          {isPreviewOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              style={{ overflow: 'hidden', marginTop: '16px' }}
-                            >
-                              <div style={{
-                                borderRadius: '18px',
-                                overflow: 'hidden',
-                                border: '2px solid rgba(255, 59, 48, 0.4)',
-                                minHeight: '340px',
-                                maxHeight: '520px',
-                                background: 'rgba(15, 23, 42, 0.04)',
-                                boxShadow: '0 12px 32px rgba(0,0,0,0.14)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px 8px',
-                                pointerEvents: 'none',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none',
-                                touchAction: 'pan-y'
-                              }}>
-                                {getDriveFileId(link) ? (
-                                  <img
-                                    src={getDriveThumbnailUrl(link, 'w1200')}
-                                    alt={title}
-                                    referrerPolicy="no-referrer"
-                                    crossOrigin="anonymous"
-                                    draggable={false}
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w800`;
-                                    }}
-                                    style={{
-                                      maxHeight: '480px',
-                                      width: 'auto',
-                                      maxWidth: '100%',
-                                      objectFit: 'contain',
-                                      display: 'block',
-                                      margin: '0 auto',
-                                      borderRadius: '6px',
-                                      background: '#FFFFFF',
-                                      boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                                      pointerEvents: 'none',
-                                      userSelect: 'none',
-                                      touchAction: 'pan-y'
-                                    }}
-                                  />
-                                ) : previewUrl ? (
-                                  <iframe
-                                    src={previewUrl}
-                                    title={title}
-                                    style={{ width: '100%', height: '460px', border: 'none', pointerEvents: 'none', background: '#FFFFFF' }}
-                                  />
-                                ) : (
-                                  <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                                    Vista previa no disponible directamente. Usa "Abrir en Drive".
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })
-                )
-              ) : (
-                filteredPracticas.length === 0 ? (
-                  <div className="glass-card" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', gridColumn: '1 / -1' }}>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>
-                      No se encontraron prácticas para "{searchQuery}". Puedes buscar en "Tomos Académicos" o en "Aportes de la Comunidad".
-                    </p>
-                  </div>
-                ) : (
-                  filteredPracticas.map((practica, idx) => {
-                    const title = practica.titulo || practica[0];
-                    const practicaId = `official-practica-${(title || '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || idx}`;
-                    const desc = practica.descripcion || practica[1];
-                    const link = practica.carpeta || practica[2];
-                    const previewUrl = getPreviewUrl(link);
-                    const isPreviewOpen = !!expandedPreviews[practicaId];
-
-                    return (
-                      <motion.div 
-                        key={practicaId} 
-                        initial={{ opacity: 0, y: 15 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        className="glass-card" 
-                        style={{ 
-                          padding: '22px', 
-                          borderRadius: '24px', 
-                          position: 'relative', 
-                          display: 'flex', 
-                          flexDirection: 'column',
-                          border: '1.5px solid rgba(52, 199, 89, 0.25)',
-                          boxShadow: '0 10px 26px rgba(52, 199, 89, 0.08)',
-                          gridColumn: isPreviewOpen ? '1 / -1' : 'auto'
-                        }}
-                      >
-                        {/* Encabezado e Info */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'rgba(52, 199, 89, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <FileText color="#34C759" size={22} />
-                          </div>
-                          <div>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              📗 Práctica Oficial / Banco de Preguntas
-                            </span>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{title}</h3>
-                          </div>
-                        </div>
-
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '14px', lineHeight: 1.5, flex: 1 }}>{desc}</p>
-
-                        {/* Banner Recuadro de Vista Previa Responsive - Hoja Centrada Estática */}
-                        <div 
-                          onClick={() => togglePreview(practicaId)}
-                          style={{
-                            width: '100%',
-                            height: '140px',
-                            borderRadius: '16px',
-                            border: isPreviewOpen ? '2px solid #34C759' : '1.5px solid var(--card-border)',
-                            background: 'rgba(15, 23, 42, 0.05)',
-                            position: 'relative',
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            marginBottom: '14px',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '6px'
-                          }}
-                          title="Toca para ver / ocultar vista previa"
-                        >
-                          {getDriveFileId(link) ? (
-                            <img
-                              src={getDriveThumbnailUrl(link, 'w600')}
-                              alt={title}
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              draggable={false}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w400`;
-                              }}
-                              style={{
-                                maxHeight: '100%',
-                                maxWidth: '100%',
-                                width: 'auto',
-                                height: 'auto',
-                                objectFit: 'contain',
-                                display: 'block',
-                                margin: '0 auto',
-                                borderRadius: '6px',
-                                background: '#FFFFFF',
-                                boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
-                                pointerEvents: 'none',
-                                userSelect: 'none',
-                                touchAction: 'pan-y'
-                              }}
-                            />
-                          ) : previewUrl ? (
-                            <iframe
-                              src={previewUrl}
-                              title={title}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                border: 'none',
-                                pointerEvents: 'none',
-                                background: '#ffffff',
-                                opacity: 0.9
-                              }}
-                            />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34C759' }}>
-                              <FileText size={36} />
-                            </div>
-                          )}
-                          <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.65) 100%)',
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            justifyContent: 'center',
-                            padding: '10px',
-                            pointerEvents: 'none'
-                          }}>
-                            <span style={{
-                              background: isPreviewOpen ? '#34C759' : 'rgba(0,0,0,0.85)',
-                              color: '#ffffff',
-                              padding: '5px 14px',
-                              borderRadius: '12px',
-                              fontSize: '0.78rem',
-                              fontWeight: 800,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                              backdropFilter: 'blur(8px)'
-                            }}>
-                              {isPreviewOpen ? '✕ Cerrar Vista Previa' : 'Ver Vista Previa'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Botones de acción (Abrir en Drive + Guardar) */}
-                        <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-                          <button 
-                            onClick={() => window.open(link, '_blank')}
-                            style={{ 
-                              flex: 1,
-                              padding: '12px 18px', 
-                              background: 'linear-gradient(135deg, #34C759, #30D158)', 
-                              color: '#FFFFFF', 
-                              border: 'none', 
-                              borderRadius: '14px', 
-                              fontWeight: 800, 
-                              fontSize: '0.88rem', 
-                              display: 'flex', 
-                              justifyContent: 'center', 
-                              alignItems: 'center', 
-                              gap: '8px', 
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 14px rgba(52, 199, 89, 0.3)'
-                            }}
+                      {/* Vista Previa Expandible */}
+                      <AnimatePresence>
+                        {isPreviewOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ overflow: 'hidden', marginTop: '16px' }}
                           >
-                            <ExternalLink size={16} /> Abrir en Drive
-                          </button>
-                          <BookmarkButton
-                            item={{
-                              id: practicaId,
-                              title: title,
-                              desc: desc,
-                              driveUrl: link,
-                              category: 'practicas',
-                              author: 'CEPRE / UNSA'
-                            }}
-                            size="normal"
-                            showText={false}
-                          />
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (window.confirm(`¿Deseas ocultar "${title}" de la Biblioteca para todos los estudiantes?`)) {
-                                  await toggleHideDefaultItem(practicaId);
-                                  alert("Práctica oficial ocultada correctamente.");
-                                }
-                              }}
-                              title="Ocultar / Eliminar del Sistema (Admin)"
-                              style={{
-                                padding: '10px 12px',
-                                background: 'rgba(239, 68, 68, 0.12)',
-                                border: 'none',
-                                color: '#EF4444',
-                                borderRadius: '14px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Barra de Reacciones Instantánea */}
-                        <div style={{
-                          marginTop: '12px',
-                          paddingTop: '10px',
-                          borderTop: '1px solid rgba(52, 199, 89, 0.15)',
-                          display: 'flex',
-                          justifyContent: 'center'
-                        }}>
-                          <ReactionsBar
-                            targetId={practicaId}
-                            targetType="practica"
-                            size="small"
-                          />
-                        </div>
-
-                        {/* Contenedor expandible de la Vista Previa completa */}
-                        <AnimatePresence>
-                          {isPreviewOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              style={{ overflow: 'hidden', marginTop: '16px' }}
-                            >
-                              <div style={{
-                                borderRadius: '18px',
-                                overflow: 'hidden',
-                                border: '2px solid rgba(52, 199, 89, 0.4)',
-                                minHeight: '340px',
-                                maxHeight: '520px',
-                                background: 'rgba(15, 23, 42, 0.04)',
-                                boxShadow: '0 12px 32px rgba(0,0,0,0.14)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px 8px',
-                                pointerEvents: 'none',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none',
-                                touchAction: 'pan-y'
-                              }}>
-                                {getDriveFileId(link) ? (
-                                  <img
-                                    src={getDriveThumbnailUrl(link, 'w1200')}
-                                    alt={title}
-                                    referrerPolicy="no-referrer"
-                                    crossOrigin="anonymous"
-                                    draggable={false}
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w800`;
-                                    }}
-                                    style={{
-                                      maxHeight: '480px',
-                                      width: 'auto',
-                                      maxWidth: '100%',
-                                      objectFit: 'contain',
-                                      display: 'block',
-                                      margin: '0 auto',
-                                      borderRadius: '6px',
-                                      background: '#FFFFFF',
-                                      boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                                      pointerEvents: 'none',
-                                      userSelect: 'none',
-                                      touchAction: 'pan-y'
-                                    }}
-                                  />
-                                ) : previewUrl ? (
-                                  <iframe
-                                    src={previewUrl}
-                                    title={title}
-                                    style={{ width: '100%', height: '460px', border: 'none', pointerEvents: 'none', background: '#FFFFFF' }}
-                                  />
-                                ) : (
-                                  <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                                    Vista previa no disponible directamente. Usa "Abrir en Drive".
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })
-                )
-              )}
+                            <div style={{
+                              borderRadius: '18px',
+                              overflow: 'hidden',
+                              border: `2px solid ${accentThemeColor}`,
+                              minHeight: '340px',
+                              maxHeight: '520px',
+                              background: 'rgba(15, 23, 42, 0.04)',
+                              boxShadow: '0 12px 32px rgba(0,0,0,0.14)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '16px 8px',
+                              pointerEvents: 'none',
+                              userSelect: 'none',
+                              WebkitUserSelect: 'none',
+                              touchAction: 'pan-y'
+                            }}>
+                              {getDriveFileId(link) ? (
+                                <img
+                                  src={getDriveThumbnailUrl(link, 'w1200')}
+                                  alt={title}
+                                  referrerPolicy="no-referrer"
+                                  crossOrigin="anonymous"
+                                  draggable={false}
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://drive.google.com/thumbnail?id=${getDriveFileId(link)}&sz=w800`;
+                                  }}
+                                  style={{
+                                    maxHeight: '480px',
+                                    width: 'auto',
+                                    maxWidth: '100%',
+                                    objectFit: 'contain',
+                                    display: 'block',
+                                    margin: '0 auto',
+                                    borderRadius: '6px',
+                                    background: '#FFFFFF',
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+                                    pointerEvents: 'none',
+                                    userSelect: 'none',
+                                    touchAction: 'pan-y'
+                                  }}
+                                />
+                              ) : previewUrl ? (
+                                <iframe
+                                  src={previewUrl}
+                                  title={title}
+                                  style={{ width: '100%', height: '460px', border: 'none', pointerEvents: 'none', background: '#FFFFFF' }}
+                                />
+                              ) : (
+                                <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                                  Vista previa no disponible directamente. Usa "Abrir en Drive".
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                });
+              })()}
             </AnimatePresence>
           </section>
         </>
@@ -1090,48 +833,44 @@ export const Biblioteca = () => {
       )}
       {mainTab === 'libros' && (
         <section style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Header informativo de la sección */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Header compacto de la sección */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', padding: '0 4px' }}>
+            <div style={{ flex: 1, minWidth: '180px' }}>
+              <h2 style={{ margin: 0, fontSize: 'clamp(1.05rem, 3.5vw, 1.25rem)', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>📚</span>
-                <span>{getText('biblio_books_header', 'Colecciones de Libros y Tomos Completos')}</span>
+                <span>Colecciones de Editoriales</span>
               </h2>
-              <p style={{ margin: '4px 0 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                {getText('biblio_books_subtitle', 'Explora las colecciones editoriales organizadas (Lumbreras, Cuzcano, Rodo, San Marcos y más). Abre cualquier contenedor para ver todos sus tomos.')}
-              </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Switch UI Interactivo */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none', background: 'var(--card-bg)', padding: '6px 14px', borderRadius: '20px', border: '1.5px solid var(--card-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Switch UI Interactivo Compacto */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none', background: 'var(--card-bg)', padding: '4px 10px', borderRadius: '14px', border: '1px solid var(--card-border)' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                   Vista previa
                 </span>
                 <div
                   onClick={() => setShowAllBookPreviews(prev => !prev)}
                   style={{
-                    width: '42px',
-                    height: '24px',
-                    borderRadius: '12px',
+                    width: '32px',
+                    height: '18px',
+                    borderRadius: '10px',
                     background: showAllBookPreviews ? 'linear-gradient(135deg, #A855F7, #6366F1)' : 'rgba(148, 163, 184, 0.4)',
                     padding: '2px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: showAllBookPreviews ? 'flex-end' : 'flex-start',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: showAllBookPreviews ? '0 2px 8px rgba(168, 85, 247, 0.4)' : 'none'
+                    transition: 'all 0.25s ease'
                   }}
                 >
                   <motion.div
                     layout
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     style={{
-                      width: '20px',
-                      height: '20px',
+                      width: '14px',
+                      height: '14px',
                       borderRadius: '50%',
                       background: '#FFFFFF',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                     }}
                   />
                 </div>
@@ -1140,22 +879,21 @@ export const Biblioteca = () => {
               <button
                 onClick={() => setIsUploadOpen(true)}
                 style={{
-                  padding: '9px 16px',
-                  borderRadius: '14px',
+                  padding: '5px 10px',
+                  borderRadius: '12px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #A855F7, #6366F1)',
                   color: '#fff',
-                  fontSize: '0.84rem',
+                  fontSize: '0.76rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 14px rgba(168, 85, 247, 0.3)'
+                  gap: '4px'
                 }}
               >
-                <Plus size={16} />
-                <span>Subir Tomo o Libro</span>
+                <Plus size={13} />
+                <span>Subir</span>
               </button>
             </div>
           </div>
@@ -1227,8 +965,8 @@ export const Biblioteca = () => {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                        gap: '16px',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+                        gap: '12px',
                         width: '100%'
                       }}
                     >
@@ -1441,9 +1179,9 @@ export const Biblioteca = () => {
                                       cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
                                       display: 'flex',
                                       flexDirection: 'column',
-                                      gap: '8px',
-                                      minWidth: '130px',
-                                      maxWidth: '130px',
+                                      gap: '6px',
+                                      minWidth: 'clamp(105px, 28vw, 125px)',
+                                      maxWidth: 'clamp(105px, 28vw, 125px)',
                                       scrollSnapAlign: 'start',
                                       flexShrink: 0
                                     }}

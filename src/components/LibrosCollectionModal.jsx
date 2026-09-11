@@ -191,27 +191,27 @@ export const LibrosCollectionModal = ({
         {/* Cabecera / Banner de la Colección */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '16px 20px',
             borderBottom: '1px solid var(--card-border)',
-            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%)',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%)',
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '16px'
+            gap: '12px'
           }}
         >
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
             {/* Portada en miniatura con relieve de libro */}
             <div
               style={{
-                width: '64px',
-                height: '84px',
+                width: '42px',
+                height: '56px',
                 borderRadius: '8px',
                 background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                 overflow: 'hidden',
                 flexShrink: 0,
                 border: '1px solid rgba(255,255,255,0.2)'
@@ -227,58 +227,52 @@ export const LibrosCollectionModal = ({
                   }}
                 />
               ) : (
-                <span style={{ fontSize: '1.8rem' }}>📕</span>
+                <span style={{ fontSize: '1.3rem' }}>📕</span>
               )}
             </div>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
                 <span
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '8px',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
                     background: 'rgba(168, 85, 247, 0.15)',
                     color: '#A855F7',
-                    fontSize: '0.74rem',
+                    fontSize: '0.68rem',
                     fontWeight: 800,
                     textTransform: 'uppercase'
                   }}
                 >
-                  {collectionItem.editorial || 'Colección de Libros'}
+                  {collectionItem.editorial || 'Colección'}
                 </span>
                 <span
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(0, 122, 255, 0.12)',
-                    color: 'var(--accent-color)',
-                    fontSize: '0.74rem',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.06)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.68rem',
                     fontWeight: 700
                   }}
                 >
-                  📚 {recursos.length} {recursos.length === 1 ? 'libro / tomo' : 'libros / tomos'}
+                  📚 {recursos.length} {recursos.length === 1 ? 'tomo' : 'tomos'}
                 </span>
               </div>
-
-              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900, color: 'var(--text-main)', lineHeight: 1.25 }}>
+              <h3 style={{ margin: 0, fontSize: 'clamp(0.95rem, 3vw, 1.15rem)', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {collectionItem.nombre}
-              </h2>
-              {collectionItem.descripcion && (
-                <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  {collectionItem.descripcion}
-                </p>
-              )}
+              </h3>
             </div>
           </div>
 
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(120, 120, 128, 0.12)',
+              background: 'rgba(255,255,255,0.08)',
               border: 'none',
               borderRadius: '50%',
-              width: '34px',
-              height: '34px',
+              width: '32px',
+              height: '32px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -294,30 +288,31 @@ export const LibrosCollectionModal = ({
         {/* Barra de herramientas y búsqueda dentro de la colección */}
         <div
           style={{
-            padding: '14px 20px',
+            padding: '12px 16px',
             borderBottom: '1px solid var(--card-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap'
+            gap: '10px',
+            flexWrap: 'wrap',
+            background: 'var(--card-bg)'
           }}
         >
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-            <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+          <div style={{ position: 'relative', flex: 1, minWidth: '160px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               type="text"
-              placeholder="🔍 Buscar tomo o asignatura en esta colección..."
+              placeholder="Buscar tomo o asignatura..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                padding: '8px 12px 8px 34px',
-                borderRadius: '10px',
+                padding: '7px 10px 7px 30px',
+                borderRadius: '8px',
                 border: '1px solid var(--card-border)',
                 background: 'rgba(120, 120, 128, 0.05)',
                 color: 'var(--text-main)',
-                fontSize: '0.85rem',
+                fontSize: '0.82rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -328,26 +323,27 @@ export const LibrosCollectionModal = ({
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               style={{
-                padding: '8px 14px',
-                borderRadius: '10px',
+                padding: '7px 12px',
+                borderRadius: '8px',
                 border: 'none',
                 background: showAddForm ? 'rgba(239, 68, 68, 0.15)' : 'rgba(168, 85, 247, 0.15)',
                 color: showAddForm ? '#EF4444' : '#A855F7',
                 fontWeight: 800,
-                fontSize: '0.82rem',
+                fontSize: '0.8rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '5px',
+                whiteSpace: 'nowrap'
               }}
             >
-              {showAddForm ? <X size={15} /> : <Plus size={15} />}
-              <span>{showAddForm ? 'Cancelar' : '+ Agregar Tomo / Libro'}</span>
+              {showAddForm ? <X size={14} /> : <Plus size={14} />}
+              <span>{showAddForm ? 'Cancelar' : '+ Agregar Tomo'}</span>
             </button>
           )}
         </div>
 
-        {/* Formulario desplegable para agregar nuevo libro ("y así mediante le agrego") */}
+        {/* Formulario desplegable para agregar nuevo libro */}
         <AnimatePresence>
           {showAddForm && (
             <motion.form
@@ -356,25 +352,25 @@ export const LibrosCollectionModal = ({
               exit={{ height: 0, opacity: 0 }}
               onSubmit={handleAddBookToCollection}
               style={{
-                padding: '16px 20px',
-                background: 'rgba(168, 85, 247, 0.05)',
+                padding: '14px 16px',
+                background: 'rgba(168, 85, 247, 0.06)',
                 borderBottom: '1.5px dashed rgba(168, 85, 247, 0.3)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: '10px',
                 overflow: 'hidden'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={16} color="#A855F7" />
-                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={15} color="#A855F7" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>
                   Agregar Nuevo Tomo o Libro a "{collectionItem.nombre}"
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '3px' }}>
                     Título del Tomo / Libro *
                   </label>
                   <input
