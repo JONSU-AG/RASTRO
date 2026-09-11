@@ -533,18 +533,32 @@ export const LibrosCollectionModal = ({
                         justifyContent: 'center',
                         fontSize: '1.4rem',
                         flexShrink: 0,
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        position: 'relative'
                       }}
                     >
-                      {libro.portadaUrl ? (
-                        <img
-                          src={libro.portadaUrl}
-                          alt={libro.nombre}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <span>📕</span>
-                      )}
+                      {(() => {
+                        const getThumb = (url) => {
+                          if (!url) return null;
+                          const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                          if (!m) return null;
+                          const covers = JSON.parse(localStorage.getItem('bookCovers') || '{}');
+                          return covers[m[1]] || `https://drive.google.com/uc?export=view&id=${m[1]}`;
+                        };
+                        const src = libro.portadaUrl || libro.thumbUrl || getThumb(libro.url);
+                        return src ? (
+                          <>
+                            <span style={{ position: 'absolute', zIndex: 1, opacity: 0.4 }}>📕</span>
+                            <img
+                              src={src}
+                              alt={libro.nombre}
+                              loading="lazy"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 2 }}
+                              onLoad={(e) => { e.target.previousElementSibling.style.display = 'none'; }}
+                            />
+                          </>
+                        ) : <span>📕</span>;
+                      })()}
                     </div>
 
                     <div>

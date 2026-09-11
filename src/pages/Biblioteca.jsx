@@ -18,7 +18,8 @@ import {
   Share2,
   MessageSquare,
   X,
-  Trash2
+  Trash2,
+  BookOpen
 } from 'lucide-react';
 import { ReportModal } from '../components/ReportModal';
 import { UploadModal } from '../components/UploadModal';
@@ -270,7 +271,7 @@ export const Biblioteca = () => {
             🤝 Aportes de la Comunidad ({filteredCommunity.length})
           </motion.button>
 
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setMainTab('libros')} style={{ padding: '10px 18px', borderRadius: '16px', fontWeight: 800, fontSize: '0.88rem', border: mainTab==='libros' ? 'none' : '1.5px solid var(--card-border)', background: mainTab==='libros' ? 'linear-gradient(135deg, #A855F7, #6366F1)' : 'var(--card-bg)', color: mainTab==='libros' ? '#fff' : 'var(--text-main)', cursor:'pointer', boxShadow: mainTab==='libros' ? '0 6px 20px rgba(168,85,247,0.35)' : 'none' }}>📚 Libros ({libros.length})</motion.button>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setMainTab('libros')} style={{ padding: '10px 18px', borderRadius: '16px', fontWeight: 800, fontSize: '0.88rem', border: mainTab==='libros' ? 'none' : '1.5px solid var(--card-border)', background: mainTab==='libros' ? 'linear-gradient(135deg, #A855F7, #6366F1)' : 'var(--card-bg)', color: mainTab==='libros' ? '#fff' : 'var(--text-main)', cursor:'pointer', boxShadow: mainTab==='libros' ? '0 6px 20px rgba(168,85,247,0.35)' : 'none' }}>📚 Libros ({libros.reduce((acc, l) => acc + (l.recursos?.length || 0), 0)})</motion.button>
         </div>
 
         {/* Global Accent-Insensitive Search Bar */}
@@ -1169,176 +1170,135 @@ export const Biblioteca = () => {
               }
 
               return (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-                    gap: '18px'
-                  }}
-                >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {filteredLibros.map((libro) => {
                     const tomosCount = libro.recursos?.length || 0;
                     return (
-                      <motion.div
-                        key={libro.id}
-                        whileHover={{ y: -4, scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelectedBookCollection(libro)}
-                        className="glass-card"
-                        style={{
-                          borderRadius: '18px',
-                          border: '1.5px solid var(--card-border)',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.06)'
-                        }}
-                      >
-                        {/* Portada Estilo Libro */}
-                        <div
-                          style={{
-                            width: '100%',
-                            aspectRatio: '3 / 4.1',
-                            position: 'relative',
-                            background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'flex-end',
-                            padding: '12px',
-                            boxSizing: 'border-box'
-                          }}
-                        >
-                          {libro.portadaUrl ? (
-                            <img
-                              src={libro.portadaUrl}
-                              alt={libro.nombre}
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                              }}
-                            />
+                      <details key={libro.id} className="glass-card" style={{ borderRadius: '20px', overflow: 'hidden', border: '1.5px solid var(--card-border)' }}>
+                        <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px' }}>
+                            {/* Portada mini */}
+                            <div style={{ width: '56px', height: '72px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                              {libro.portadaUrl ? (
+                                <img src={libro.portadaUrl} alt={libro.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #581C87, #312E81)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.4rem' }}>📕</div>
+                              )}
+                              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: 'linear-gradient(to right, rgba(0,0,0,0.3), transparent)' }} />
+                            </div>
+
+                            {/* Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#A855F7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                {libro.editorial || 'Editorial Oficial'}
+                              </span>
+                              <h3 style={{ margin: '2px 0 0', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {libro.nombre}
+                              </h3>
+                              {libro.descripcion && (
+                                <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {libro.descripcion}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Badge + chevron */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              <span style={{ padding: '4px 10px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.12)', color: '#A855F7', fontSize: '0.74rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <BookOpen size={12} /> {tomosCount} {tomosCount === 1 ? 'tomo' : 'tomos'}
+                              </span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', transition: 'transform 0.2s' }}>▼</span>
+                            </div>
+                          </div>
+                        </summary>
+
+                        {/* Carrusel de tomos */}
+                        <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--card-border)' }}>
+                          {tomosCount === 0 ? (
+                            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px', fontSize: '0.85rem', margin: 0 }}>
+                              Esta colección aún no tiene tomos.
+                            </p>
                           ) : (
                             <div
                               style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
                                 display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px',
-                                textAlign: 'center',
-                                background: 'linear-gradient(145deg, #581C87 0%, #312E81 100%)',
-                                color: '#FFFFFF'
+                                gap: '14px',
+                                overflowX: 'auto',
+                                scrollSnapType: 'x mandatory',
+                                paddingTop: '16px',
+                                paddingBottom: '6px',
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: 'var(--accent-color) transparent'
                               }}
                             >
-                              <span style={{ fontSize: '2.4rem', marginBottom: '8px' }}>📕</span>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>
-                                {libro.editorial || 'Colección'}
-                              </span>
+                              {(libro.recursos || []).map((recurso, rIdx) => {
+                                const getDriveId = (url) => {
+                                  if (!url) return null;
+                                  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                                  return m ? m[1] : null;
+                                };
+                                const driveId = getDriveId(recurso.url);
+                                const cached = driveId ? (JSON.parse(localStorage.getItem('bookCovers') || '{}')[driveId]) : null;
+                                const coverSrc = recurso.portadaUrl || recurso.thumbUrl || cached || (driveId ? `https://drive.google.com/uc?export=view&id=${driveId}` : null);
+                                return (
+                                <motion.a
+                                  key={recurso.id || rIdx}
+                                  href={recurso.url || '#'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  whileHover={{ y: -4, scale: 1.03 }}
+                                  whileTap={{ scale: 0.97 }}
+                                  style={{
+                                    textDecoration: 'none',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    minWidth: '130px',
+                                    maxWidth: '130px',
+                                    scrollSnapAlign: 'start',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  <div style={{ width: '100%', aspectRatio: '3 / 4.1', borderRadius: '10px', overflow: 'hidden', position: 'relative', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', border: '1px solid var(--card-border)', background: 'linear-gradient(135deg, #581C87, #312E81)' }}>
+                                    {coverSrc ? (
+                                      <img
+                                        src={coverSrc}
+                                        alt={recurso.nombre}
+                                        loading="lazy"
+                                        decoding="async"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        onLoad={(e) => {
+                                          if (driveId && !recurso.thumbUrl && !cached) {
+                                            try {
+                                              const covers = JSON.parse(localStorage.getItem('bookCovers') || '{}');
+                                              covers[driveId] = e.target.src;
+                                              localStorage.setItem('bookCovers', JSON.stringify(covers));
+                                            } catch {}
+                                          }
+                                        }}
+                                        onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                                      />
+                                    ) : null}
+                                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                                      {!coverSrc && <span style={{ fontSize: '2rem' }}>📖</span>}
+                                    </div>
+                                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '5px', background: 'linear-gradient(to right, rgba(0,0,0,0.25), transparent)' }} />
+                                  </div>
+                                  <div style={{ padding: '0 2px' }}>
+                                    <h5 style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                      {recurso.nombre}
+                                    </h5>
+                                    {recurso.autor && (
+                                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{recurso.autor}</span>
+                                    )}
+                                  </div>
+                                </motion.a>
+                                );
+                              })}
                             </div>
                           )}
-
-                          {/* Simulación de lomo de libro (sombra 3D a la izquierda) */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              bottom: 0,
-                              width: '10px',
-                              background: 'linear-gradient(to right, rgba(0,0,0,0.4), rgba(0,0,0,0.1) 60%, transparent)',
-                              pointerEvents: 'none'
-                            }}
-                          />
-
-                          {/* Badge de cantidad de tomos */}
-                          <div
-                            style={{
-                              position: 'relative',
-                              alignSelf: 'flex-start',
-                              padding: '4px 8px',
-                              borderRadius: '8px',
-                              background: 'rgba(0, 0, 0, 0.7)',
-                              backdropFilter: 'blur(6px)',
-                              color: '#FFFFFF',
-                              fontSize: '0.72rem',
-                              fontWeight: 800,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              zIndex: 2
-                            }}
-                          >
-                            <BookOpen size={12} />
-                            <span>{tomosCount} {tomosCount === 1 ? 'tomo' : 'tomos'}</span>
-                          </div>
                         </div>
-
-                        {/* Metadatos y pie de la tarjeta */}
-                        <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#A855F7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            {libro.editorial || 'Editorial Oficial'}
-                          </span>
-                          <h4
-                            style={{
-                              margin: 0,
-                              fontSize: '0.88rem',
-                              fontWeight: 800,
-                              color: 'var(--text-main)',
-                              lineHeight: 1.3,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            {libro.nombre}
-                          </h4>
-                          {libro.descripcion && (
-                            <p
-                              style={{
-                                margin: '2px 0 0',
-                                fontSize: '0.74rem',
-                                color: 'var(--text-secondary)',
-                                lineHeight: 1.25,
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              {libro.descripcion}
-                            </p>
-                          )}
-
-                          <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '0.76rem',
-                                fontWeight: 800,
-                                color: 'var(--accent-color)'
-                              }}
-                            >
-                              <span>Abrir Colección</span>
-                              <span>→</span>
-                            </span>
-                          </div>
-                        </div>
-                      </motion.div>
+                      </details>
                     );
                   })}
                 </div>

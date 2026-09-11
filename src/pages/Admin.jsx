@@ -73,6 +73,13 @@ const LibrosAdminPanel = ({ onNotice }) => {
   const [creating, setCreating] = React.useState(false);
   const [libros, setLibros] = React.useState([]);
   const [selectedCollection, setSelectedCollection] = React.useState(null);
+  const [bulkJson, setBulkJson] = React.useState('');
+  const [bulkEditorial, setBulkEditorial] = React.useState('');
+  const [bulkImporting, setBulkImporting] = React.useState(false);
+  const [showBulk, setShowBulk] = React.useState(false);
+  const [editingCollectionId, setEditingCollectionId] = React.useState(null);
+  const [editArrayJson, setEditArrayJson] = React.useState('');
+  const [savingEdit, setSavingEdit] = React.useState(false);
 
   React.useEffect(() => {
     const q = query(collection(db, 'libros'), orderBy('orden', 'asc'));
@@ -124,6 +131,109 @@ const LibrosAdminPanel = ({ onNotice }) => {
     }
   };
 
+  const handleBulkImport = async () => {
+    if (!bulkJson.trim() || !bulkEditorial.trim()) return;
+    setBulkImporting(true);
+    try {
+      let raw = bulkJson.trim();
+      const firstBracket = raw.indexOf('[');
+      const lastBracket = raw.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) raw = raw.substring(firstBracket, lastBracket + 1);
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch {
+        try {
+          let fixed = raw.replace(/'/g, '"');
+          fixed = fixed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+          fixed = fixed.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g, '$1"$2":');
+          parsed = JSON.parse(fixed);
+        } catch { throw new Error('Formato no válido. Pega solo el array entre [ ].'); }
+      }
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const validBooks = arr.filter(b => b.nombre || b.title).map((b, i) => ({
+        id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
+        nombre: b.nombre || b.title || '',
+        url: b.url || b.enlace || '',
+        autor: b.autor || b.author || bulkEditorial.trim(),
+        desc: b.desc || b.descripcion || b.description || '',
+        portadaUrl: b.portadaUrl || b.portada || b.cover || '',
+        addedAt: new Date().toISOString()
+      }));
+      if (validBooks.length === 0) throw new Error('No se encontraron libros válidos.');
+
+      const editorialName = bulkEditorial.trim();
+      let targetCollection = libros.find(l => l.nombre.toLowerCase() === editorialName.toLowerCase());
+
+      if (!targetCollection) {
+        const docRef = await addDoc(collection(db, 'libros'), {
+          nombre: editorialName,
+          editorial: editorialName,
+          portadaUrl: '',
+          descripcion: '',
+          orden: libros.length,
+          recursos: validBooks,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        if (onNotice) onNotice('Colección Creada + Importados', `"${editorialName}" creada con ${validBooks.length} libros.`);
+      } else {
+        const existingNames = new Set((targetCollection.recursos || []).map(r => r.nombre));
+        const newOnes = validBooks.filter(nb => !existingNames.has(nb.nombre));
+        if (newOnes.length === 0) throw new Error('Todos los libros ya existen en esa colección.');
+        const docRef = doc(db, 'libros', targetCollection.id);
+        await updateDoc(docRef, { recursos: arrayUnion(...newOnes), updatedAt: new Date() });
+        if (onNotice) onNotice('Importados', `${newOnes.length} libros agregados a "${targetCollection.nombre}".`);
+      }
+
+      setBulkJson('');
+      setBulkEditorial('');
+      setShowBulk(false);
+    } catch (err) {
+      if (onNotice) onNotice('Error de Importación', err.message);
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  const handleSaveEditedArray = async (collectionId) => {
+    if (!editArrayJson.trim()) return;
+    setSavingEdit(true);
+    try {
+      let raw = editArrayJson.trim();
+      const firstBracket = raw.indexOf('[');
+      const lastBracket = raw.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) raw = raw.substring(firstBracket, lastBracket + 1);
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch {
+        try {
+          let fixed = raw.replace(/'/g, '"');
+          fixed = fixed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+          fixed = fixed.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g, '$1"$2":');
+          parsed = JSON.parse(fixed);
+        } catch { throw new Error('Formato no válido.'); }
+      }
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const validBooks = arr.filter(b => b.nombre || b.title).map((b, i) => ({
+        id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
+        nombre: b.nombre || b.title || '',
+        url: b.url || b.enlace || '',
+        autor: b.autor || b.author || '',
+        desc: b.desc || b.descripcion || b.description || '',
+        portadaUrl: b.portadaUrl || b.portada || b.cover || '',
+        addedAt: new Date().toISOString()
+      }));
+      const docRef = doc(db, 'libros', collectionId);
+      await updateDoc(docRef, { recursos: validBooks, updatedAt: new Date() });
+      const col = libros.find(l => l.id === collectionId);
+      if (onNotice) onNotice('Guardado', `"${col?.nombre}" actualizada con ${validBooks.length} libros.`);
+      setEditingCollectionId(null);
+      setEditArrayJson('');
+    } catch (err) {
+      if (onNotice) onNotice('Error al Guardar', err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -143,63 +253,65 @@ const LibrosAdminPanel = ({ onNotice }) => {
           + Crear Nueva Colección de Libros
         </h4>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Nombre de la Colección *
-            </label>
-            <input
-              required
-              value={nombre}
-              onChange={e => setNombre(e.target.value)}
-              placeholder="Ej. Lumbreras - Libros Rojos"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Editorial o Autor
-            </label>
-            <input
-              value={editorial}
-              onChange={e => setEditorial(e.target.value)}
-              placeholder="Ej. Lumbreras Editores / Cuzcano"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              URL de Portada
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                value={portadaUrl}
-                onChange={e => setPortadaUrl(e.target.value)}
-                placeholder="https://... o sube una imagen"
-                style={{ flex: 1, padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
-              />
-              <label style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.12)', color: '#A855F7', fontSize: '0.8rem', fontWeight: 700, cursor: uploadingCover ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                <UploadCloud size={14} />
-                <span>{uploadingCover ? 'Subiendo...' : 'Subir'}</span>
-                <input type="file" accept="image/*" onChange={handleUploadCover} style={{ display: 'none' }} disabled={uploadingCover} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Nombre de la Colección *
               </label>
+              <input
+                required
+                value={nombre}
+                onChange={e => setNombre(e.target.value)}
+                placeholder="Ej. Lumbreras - Libros Rojos"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Editorial o Autor
+              </label>
+              <input
+                value={editorial}
+                onChange={e => setEditorial(e.target.value)}
+                placeholder="Ej. Lumbreras Editores / Cuzcano"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
+              />
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Descripción Breve
-            </label>
-            <input
-              value={descripcion}
-              onChange={e => setDescripcion(e.target.value)}
-              placeholder="Ej. Tomos completos de teoría y problemas resueltos"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
-            />
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                URL de Portada
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  value={portadaUrl}
+                  onChange={e => setPortadaUrl(e.target.value)}
+                  placeholder="https://... o sube una imagen"
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
+                />
+                <label style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.12)', color: '#A855F7', fontSize: '0.8rem', fontWeight: 700, cursor: uploadingCover ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  <UploadCloud size={14} />
+                  <span>{uploadingCover ? 'Subiendo...' : 'Subir'}</span>
+                  <input type="file" accept="image/*" onChange={handleUploadCover} style={{ display: 'none' }} disabled={uploadingCover} />
+                </label>
+              </div>
+            </div>
+
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Descripción Breve
+              </label>
+              <input
+                value={descripcion}
+                onChange={e => setDescripcion(e.target.value)}
+                placeholder="Ej. Tomos completos de teoría y problemas resueltos"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
+              />
+            </div>
           </div>
         </div>
 
@@ -227,6 +339,80 @@ const LibrosAdminPanel = ({ onNotice }) => {
         </div>
       </form>
 
+      {/* Importación masiva de libros */}
+      <div className="glass-card" style={{ padding: '18px', borderRadius: '18px', border: '1.5px solid var(--card-border)' }}>
+        <button
+          type="button"
+          onClick={() => setShowBulk(!showBulk)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', width: '100%', textAlign: 'left', padding: 0
+          }}
+        >
+          <span style={{ fontSize: '1.1rem' }}>📋</span>
+          <span>Importar Array de Libros (JSON)</span>
+          <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-secondary)', transition: 'transform 0.2s', transform: showBulk ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+        </button>
+
+        {showBulk && (
+          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Nombre de la Editorial / Colección *
+              </label>
+              <input
+                value={bulkEditorial}
+                onChange={e => setBulkEditorial(e.target.value)}
+                placeholder="Ej. Libros Azules Lumbreras"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
+              />
+              <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                Si no existe, se crea automáticamente. Si ya existe, se agregan los libros nuevos.
+              </p>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Pega solo el array:
+            </p>
+            <textarea
+              value={bulkJson}
+              onChange={e => setBulkJson(e.target.value)}
+              placeholder={`[\n  { "nombre": "Libro 1", "url": "https://drive.google.com/..." },\n  { "nombre": "Libro 2", "url": "https://drive.google.com/..." }\n]`}
+              rows={8}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--card-border)',
+                background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.82rem',
+                fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => { setBulkJson(''); setBulkEditorial(''); setShowBulk(false); }}
+                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkImport}
+                disabled={bulkImporting || !bulkJson.trim() || !bulkEditorial.trim()}
+                style={{
+                  padding: '8px 14px', borderRadius: '10px', border: 'none',
+                  background: (!bulkEditorial.trim() || !bulkJson.trim()) ? '#888' : 'linear-gradient(135deg, #F59E0B, #EF4444)',
+                  color: '#fff', fontWeight: 800,
+                  fontSize: '0.82rem', cursor: bulkImporting || !bulkEditorial.trim() ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px', opacity: (!bulkEditorial.trim() || !bulkJson.trim()) ? 0.5 : 1
+                }}
+              >
+                <BookOpen size={14} />
+                {bulkImporting ? 'Importando...' : 'Importar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Lista de Colecciones Creadas */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
@@ -240,7 +426,7 @@ const LibrosAdminPanel = ({ onNotice }) => {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: '14px' }}>
             {libros.map(l => (
               <div
                 key={l.id}
@@ -317,7 +503,35 @@ const LibrosAdminPanel = ({ onNotice }) => {
                     }}
                   >
                     <BookOpen size={14} />
-                    <span>Ver / Agregar Tomos ({l.recursos?.length || 0})</span>
+                    <span>Ver / Agregar ({l.recursos?.length || 0})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingCollectionId === l.id) {
+                        setEditingCollectionId(null);
+                        setEditArrayJson('');
+                      } else {
+                        setEditingCollectionId(l.id);
+                        setEditArrayJson(JSON.stringify(l.recursos || [], null, 2));
+                      }
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: editingCollectionId === l.id ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.12)',
+                      color: '#F59E0B',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Edit3 size={14} />
                   </button>
 
                   <button
@@ -344,6 +558,28 @@ const LibrosAdminPanel = ({ onNotice }) => {
                     <Trash2 size={14} />
                   </button>
                 </div>
+
+                {editingCollectionId === l.id && (
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#F59E0B' }}>
+                      Editar array de "{l.nombre}"
+                    </label>
+                    <textarea
+                      value={editArrayJson}
+                      onChange={e => setEditArrayJson(e.target.value)}
+                      rows={6}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.78rem', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => { setEditingCollectionId(null); setEditArrayJson(''); }} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        Cancelar
+                      </button>
+                      <button type="button" onClick={() => handleSaveEditedArray(l.id)} disabled={savingEdit} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#F59E0B', color: '#fff', fontWeight: 800, fontSize: '0.78rem', cursor: savingEdit ? 'wait' : 'pointer' }}>
+                        {savingEdit ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1579,7 +1815,7 @@ export const Admin = () => {
         </div>
       )}
       {activeTab === 'librosAdmin' && (
-        <div style={{ maxWidth:'900px', margin:'0 auto' }} className="glass-card" >
+        <div style={{ maxWidth:'900px', width:'100%', margin:'0 auto', boxSizing:'border-box', padding:'0 12px' }} className="glass-card" >
           <LibrosAdminPanel onNotice={showNotice} />
         </div>
       )}
