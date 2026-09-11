@@ -101,6 +101,8 @@ export const UserDirectChat = ({
   // Selected conversation partner when in own profile view
   const [selectedPartnerUid, setSelectedPartnerUid] = useState(initialChatWithUid || null);
   const [selectedPartnerData, setSelectedPartnerData] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   
   // All messages where current user is a participant (for own profile inbox list)
   const [inboxMessages, setInboxMessages] = useState([]);
@@ -958,6 +960,45 @@ export const UserDirectChat = ({
     : null;
 
   return (
+    <>
+    {/* Delete Confirmation Modal */}
+    {showDeleteModal && (
+      <div 
+        onClick={() => setShowDeleteModal(false)}
+        style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'20px', backdropFilter:'blur(4px)', WebkitBackdropFilter:'blur(4px)' }}
+      >
+        <div 
+          onClick={e => e.stopPropagation()}
+          style={{ background:'var(--card-bg)', borderRadius:'24px', padding:'28px 24px', maxWidth:'380px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)', border:'1.5px solid var(--card-border)', textAlign:'center' }}
+        >
+          <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:'rgba(239, 68, 68, 0.12)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+            <Trash2 size={28} color="#EF4444" />
+          </div>
+          <h3 style={{ margin:'0 0 8px', fontSize:'1.15rem', fontWeight:800, color:'var(--text-main)' }}>Eliminar conversación</h3>
+          <p style={{ margin:'0 0 20px', fontSize:'0.88rem', color:'var(--text-secondary)', lineHeight:1.5 }}>
+            ¿Eliminar toda la conversación con <strong style={{ color:'var(--text-main)' }}>{deleteTarget?.name}</strong>? Esta acción no se puede deshacer.
+          </p>
+          <div style={{ display:'flex', gap:'10px' }}>
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              style={{ flex:1, padding:'12px', borderRadius:'14px', border:'1.5px solid var(--card-border)', background:'var(--card-bg)', color:'var(--text-main)', fontWeight:700, fontSize:'0.88rem', cursor:'pointer', transition:'all 0.15s' }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                handleDeleteConversation(deleteTarget.uid, deleteTarget.name);
+                setShowDeleteModal(false);
+              }}
+              style={{ flex:1, padding:'12px', borderRadius:'14px', border:'none', background:'linear-gradient(135deg, #EF4444, #DC2626)', color:'#fff', fontWeight:700, fontSize:'0.88rem', cursor:'pointer', boxShadow:'0 4px 14px rgba(239,68,68,0.35)', transition:'all 0.15s' }}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="ios-glass-card" style={{
       borderRadius: '24px',
       overflow: 'hidden',
@@ -1053,9 +1094,8 @@ export const UserDirectChat = ({
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`¿Eliminar toda la conversación con ${displayPartnerName}? Esta acción no se puede deshacer.`)) {
-                handleDeleteConversation(currentPartnerUid, displayPartnerName);
-              }
+              setDeleteTarget({ uid: currentPartnerUid, name: displayPartnerName });
+              setShowDeleteModal(true);
             }}
             title="Eliminar conversación"
             style={{
@@ -1743,5 +1783,6 @@ export const UserDirectChat = ({
         type={noticeModal.type}
       />
     </div>
+    </>
   );
 };
