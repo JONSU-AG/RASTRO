@@ -19,7 +19,7 @@ import {
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
-import { uploadFileReliable } from '../lib/storageHelper';
+import { uploadFileReliable, getDriveFileId, getDriveThumbnailUrl, getDirectImageUrl } from '../lib/storageHelper';
 
 export const LibrosCollectionModal = ({
   isOpen,
@@ -538,14 +538,8 @@ export const LibrosCollectionModal = ({
                       }}
                     >
                       {(() => {
-                        const getThumb = (url) => {
-                          if (!url) return null;
-                          const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                          if (!m) return null;
-                          const covers = JSON.parse(localStorage.getItem('bookCovers') || '{}');
-                          return covers[m[1]] || `https://drive.google.com/uc?export=view&id=${m[1]}`;
-                        };
-                        const src = libro.portadaUrl || libro.thumbUrl || getThumb(libro.url);
+                        const driveId = getDriveFileId(libro.url);
+                        const src = libro.portadaUrl || libro.thumbUrl || (driveId ? getDriveThumbnailUrl(libro.url, 'w400') : getDirectImageUrl(libro.url));
                         return src ? (
                           <>
                             <span style={{ position: 'absolute', zIndex: 1, opacity: 0.4 }}>📕</span>
@@ -553,8 +547,15 @@ export const LibrosCollectionModal = ({
                               src={src}
                               alt={libro.nombre}
                               loading="lazy"
+                              referrerPolicy="no-referrer"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 2 }}
-                              onLoad={(e) => { e.target.previousElementSibling.style.display = 'none'; }}
+                              onError={(e) => {
+                                if (driveId && e.target.src.includes('thumbnail')) {
+                                  e.target.src = `https://drive.google.com/uc?export=view&id=${driveId}`;
+                                } else {
+                                  e.target.style.display = 'none';
+                                }
+                              }}
                             />
                           </>
                         ) : <span>📕</span>;

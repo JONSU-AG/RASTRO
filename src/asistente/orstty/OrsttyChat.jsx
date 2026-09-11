@@ -433,10 +433,10 @@ export function OrsttyChat({
         width: '100%',
         maxWidth: '860px',
         margin: '0 auto',
-        background: 'var(--card-bg, rgba(255, 255, 255, 0.9))',
-        border: '1px solid rgba(124, 58, 237, 0.25)',
+        background: 'var(--card-bg)',
+        border: '1.5px solid var(--card-border)',
         borderRadius: '20px',
-        boxShadow: '0 16px 40px rgba(124, 58, 237, 0.12), 0 0 0 1px rgba(124, 58, 237, 0.15)',
+        boxShadow: 'var(--glass-shadow, 0 16px 40px rgba(0,0,0,0.12))',
         overflow: 'hidden',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
@@ -472,11 +472,11 @@ export function OrsttyChat({
       <div 
         style={{
           padding: '10px 14px',
-          borderBottom: '1px solid rgba(124, 58, 237, 0.18)',
+          borderBottom: '1.5px solid var(--card-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.02) 100%)',
+          background: 'var(--card-bg)',
           gap: '8px',
           flexShrink: 0
         }}
@@ -493,7 +493,7 @@ export function OrsttyChat({
 
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
-              <span style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-main, #1F2937)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                 {apodoActual}
               </span>
               <span 
@@ -502,9 +502,9 @@ export function OrsttyChat({
                   fontSize: '0.64rem',
                   fontWeight: 800,
                   textTransform: 'uppercase',
-                  background: 'rgba(124, 58, 237, 0.12)',
-                  color: '#7C3AED',
-                  border: '1px solid rgba(124, 58, 237, 0.28)',
+                  background: 'rgba(168, 85, 247, 0.12)',
+                  color: 'var(--accent-color)',
+                  border: '1px solid var(--card-border)',
                   padding: '2px 7px',
                   borderRadius: '99px',
                   whiteSpace: 'nowrap',
@@ -519,7 +519,7 @@ export function OrsttyChat({
               className="orstty-subtitle"
               style={{ 
                 fontSize: '0.72rem', 
-                color: 'var(--text-secondary, #6B7280)',
+                color: 'var(--text-secondary)',
                 opacity: 0.9, 
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -539,9 +539,9 @@ export function OrsttyChat({
               style={{
                 padding: '5px 9px',
                 borderRadius: '10px',
-                border: '1px solid rgba(124, 58, 237, 0.28)',
-                background: 'rgba(124, 58, 237, 0.1)',
-                color: '#7C3AED',
+                border: '1.5px solid var(--card-border)',
+                background: 'var(--card-bg)',
+                color: 'var(--accent-color)',
                 fontSize: '0.72rem',
                 fontWeight: 800,
                 display: 'flex',
@@ -550,7 +550,7 @@ export function OrsttyChat({
                 whiteSpace: 'nowrap'
               }}
             >
-              <Sparkles size={13} color="#7C3AED" />
+              <Sparkles size={13} color="var(--accent-color)" />
               <span className="hide-on-mobile">IA Activa</span>
             </div>
           )}
@@ -562,9 +562,9 @@ export function OrsttyChat({
             style={{
               padding: '5px 9px',
               borderRadius: '10px',
-              border: '1px solid rgba(124, 58, 237, 0.25)',
-              background: 'rgba(124, 58, 237, 0.08)',
-              color: '#7C3AED',
+              border: '1.5px solid var(--card-border)',
+              background: 'var(--card-bg)',
+              color: 'var(--accent-color)',
               fontSize: '0.72rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -575,7 +575,7 @@ export function OrsttyChat({
               whiteSpace: 'nowrap'
             }}
           >
-            <RotateCcw size={13} color="#7C3AED" />
+            <RotateCcw size={13} color="var(--accent-color)" />
             <span className="hide-on-mobile">Reiniciar</span>
           </button>
 
@@ -588,7 +588,7 @@ export function OrsttyChat({
                 borderRadius: '50%',
                 border: 'none',
                 background: 'rgba(139, 92, 246, 0.15)',
-                color: 'var(--text-main, #FFFFFF)',
+                color: 'var(--text-main)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -726,13 +726,13 @@ export function OrsttyChat({
                     padding: '12px 16px',
                     borderRadius: isOrstty ? '18px 18px 18px 4px' : '18px 18px 4px 18px',
                     background: isOrstty
-                      ? 'var(--card-bg, #1a152d)'
-                      : 'linear-gradient(135deg, #7C3AED 0%, #9333EA 100%)',
-                    color: isOrstty ? 'var(--text-main, #FFFFFF)' : '#FFFFFF',
-                    border: isOrstty ? '1px solid rgba(139, 92, 246, 0.22)' : 'none',
+                      ? 'var(--card-bg)'
+                      : 'var(--accent-gradient, linear-gradient(135deg, #7C3AED 0%, #9333EA 100%))',
+                    color: isOrstty ? 'var(--text-main)' : '#FFFFFF',
+                    border: isOrstty ? '1.5px solid var(--card-border)' : 'none',
                     fontSize: '0.88rem',
                     lineHeight: 1.45,
-                    boxShadow: isOrstty ? '0 2px 10px rgba(0, 0, 0, 0.08)' : '0 4px 16px rgba(124, 58, 237, 0.35)',
+                    boxShadow: isOrstty ? '0 2px 10px rgba(0, 0, 0, 0.05)' : '0 4px 16px rgba(124, 58, 237, 0.3)',
                     wordBreak: 'break-word'
                   }}
                 >
@@ -919,11 +919,11 @@ export function OrsttyChat({
         }}
         style={{
           padding: '8px 12px',
-          borderTop: '1px solid rgba(124, 58, 237, 0.18)',
+          borderTop: '1.5px solid var(--card-border)',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'rgba(124, 58, 237, 0.03)',
+          background: 'var(--card-bg)',
           flexShrink: 0
         }}
       >
@@ -938,9 +938,9 @@ export function OrsttyChat({
             flex: 1,
             padding: '10px 14px',
             borderRadius: '14px',
-            border: '1.5px solid rgba(124, 58, 237, 0.25)',
-            background: 'var(--card-bg, rgba(255, 255, 255, 0.95))',
-            color: 'var(--text-main, #1F2937)',
+            border: '1.5px solid var(--card-border)',
+            background: 'var(--card-bg)',
+            color: 'var(--text-main)',
             fontSize: '0.86rem',
             outline: 'none',
             boxSizing: 'border-box'
@@ -957,19 +957,19 @@ export function OrsttyChat({
             borderRadius: '12px',
             border: 'none',
             background: inputVal.trim() && !isProcessing
-              ? 'linear-gradient(135deg, #7C3AED, #9333EA)'
-              : 'rgba(124, 58, 237, 0.15)',
+              ? 'var(--accent-gradient, linear-gradient(135deg, #7C3AED, #9333EA))'
+              : 'rgba(148, 163, 184, 0.25)',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: inputVal.trim() && !isProcessing ? 'pointer' : 'default',
+            cursor: inputVal.trim() && !isProcessing ? 'pointer' : 'not-allowed',
             flexShrink: 0,
-            boxShadow: inputVal.trim() && !isProcessing ? '0 4px 14px rgba(124, 58, 237, 0.35)' : 'none',
-            transition: 'all 0.15s ease'
+            boxShadow: inputVal.trim() && !isProcessing ? '0 4px 14px rgba(124, 58, 237, 0.3)' : 'none',
+            transition: 'all 0.2s ease'
           }}
         >
-          <Send size={16} />
+          <Send size={18} />
         </button>
       </form>
 

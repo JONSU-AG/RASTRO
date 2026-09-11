@@ -529,9 +529,9 @@ export const LiquidNavbar = () => {
               borderRadius: '9px',
               border: 'none',
               background: location.pathname.startsWith('/orstty')
-                ? 'rgba(139, 92, 246, 0.15)'
+                ? 'rgba(168, 85, 247, 0.15)'
                 : 'transparent',
-              color: location.pathname.startsWith('/orstty') ? '#8B5CF6' : 'var(--text-secondary, #6B7280)',
+              color: location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : 'var(--text-secondary)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -545,7 +545,7 @@ export const LiquidNavbar = () => {
               transition: 'all 0.15s ease'
             }}
           >
-            <GeminiStarIcon size={16} color={location.pathname.startsWith('/orstty') ? '#8B5CF6' : 'currentColor'} />
+            <GeminiStarIcon size={16} color={location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : 'currentColor'} />
             <span style={{ lineHeight: 1 }}>ORSTTY</span>
           </NavLink>
 
@@ -765,7 +765,7 @@ export const LiquidNavbar = () => {
                         zIndex: 2
                       }}
                     >
-                      <GeminiStarIcon size={19} color={isActive ? '#FFFFFF' : '#000000'} />
+                      <GeminiStarIcon size={19} color={isActive ? 'var(--pill-active-text)' : 'var(--text-main)'} />
                     </div>
                   ) : Icon ? (
                     <Icon

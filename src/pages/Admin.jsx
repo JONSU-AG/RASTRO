@@ -132,56 +132,206 @@ const LibrosAdminPanel = ({ onNotice }) => {
   };
 
   const handleBulkImport = async () => {
-    if (!bulkJson.trim() || !bulkEditorial.trim()) return;
+    if (!bulkJson.trim()) return;
     setBulkImporting(true);
     try {
       let raw = bulkJson.trim();
-      const firstBracket = raw.indexOf('[');
-      const lastBracket = raw.lastIndexOf(']');
-      if (firstBracket !== -1 && lastBracket !== -1) raw = raw.substring(firstBracket, lastBracket + 1);
       let parsed;
-      try { parsed = JSON.parse(raw); } catch {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
         try {
           let fixed = raw.replace(/'/g, '"');
           fixed = fixed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
           fixed = fixed.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g, '$1"$2":');
           parsed = JSON.parse(fixed);
-        } catch { throw new Error('Formato no válido. Pega solo el array entre [ ].'); }
+        } catch {
+          throw new Error('Formato no válido. Asegúrate de pegar un JSON válido (array de libros o colecciones/cursos).');
+        }
       }
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      const validBooks = arr.filter(b => b.nombre || b.title).map((b, i) => ({
-        id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
-        nombre: b.nombre || b.title || '',
-        url: b.url || b.enlace || '',
-        autor: b.autor || b.author || bulkEditorial.trim(),
-        desc: b.desc || b.descripcion || b.description || '',
-        portadaUrl: b.portadaUrl || b.portada || b.cover || '',
-        addedAt: new Date().toISOString()
-      }));
-      if (validBooks.length === 0) throw new Error('No se encontraron libros válidos.');
 
-      const editorialName = bulkEditorial.trim();
-      let targetCollection = libros.find(l => l.nombre.toLowerCase() === editorialName.toLowerCase());
+      let editorialBase = bulkEditorial.trim();
+      let collectionsMap = parsed;
 
-      if (!targetCollection) {
-        const docRef = await addDoc(collection(db, 'libros'), {
-          nombre: editorialName,
-          editorial: editorialName,
-          portadaUrl: '',
-          descripcion: '',
-          orden: libros.length,
-          recursos: validBooks,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        if (onNotice) onNotice('Colección Creada + Importados', `"${editorialName}" creada con ${validBooks.length} libros.`);
-      } else {
-        const existingNames = new Set((targetCollection.recursos || []).map(r => r.nombre));
-        const newOnes = validBooks.filter(nb => !existingNames.has(nb.nombre));
-        if (newOnes.length === 0) throw new Error('Todos los libros ya existen en esa colección.');
-        const docRef = doc(db, 'libros', targetCollection.id);
-        await updateDoc(docRef, { recursos: arrayUnion(...newOnes), updatedAt: new Date() });
-        if (onNotice) onNotice('Importados', `${newOnes.length} libros agregados a "${targetCollection.nombre}".`);
+      // Normalización de estructuras anidadas con "items"
+      if (Array.isArray(collectionsMap) && collectionsMap.length > 0) {
+        // Caso A: Array donde cada elemento es una colección con "items": [{ nombre: "LUMBRERAS AZULES", items: [...] }, { nombre: "LUMBRERAS ROJOS", items: [...] }]
+        if (collectionsMap.every(el => typeof el === 'object' && (Array.isArray(el.items) || Array.isArray(el.recursos)))) {
+          const newMap = {};
+          collectionsMap.forEach(group => {
+            const groupName = group.nombre || group.title || 'General';
+            const groupBooks = group.items || group.recursos || [];
+            
+            // Si además tiene sub-grupos con "items": [{ nombre: "CUZCANO", items: [{ nombre: "QUÍMICA", items: [...] }] }]
+            if (groupBooks.length > 0 && Array.isArray(groupBooks[0]?.items)) {
+              groupBooks.forEach(sub => {
+                const subName = `${groupName} - ${sub.nombre || sub.title || 'General'}`;
+                newMap[subName] = sub.items || sub.recursos || [];
+              });
+            } else {
+              newMap[groupName] = groupBooks;
+            }
+          });
+          collectionsMap = newMap;
+        }
+      }
+
+      if (!editorialBase) editorialBase = 'Editorial Oficial';
+
+      // CASO A: Objeto con claves por curso/colección. Ej: { "Álgebra": [...], "Física": [...] }
+      if (typeof collectionsMap === 'object' && !Array.isArray(collectionsMap)) {
+        let totalCount = 0;
+        for (const [colName, colBooks] of Object.entries(collectionsMap)) {
+          if (!Array.isArray(colBooks)) continue;
+          const validBooks = colBooks.filter(b => b.nombre || b.title).map((b, i) => ({
+            id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
+            nombre: b.nombre || b.title || '',
+            url: b.url || b.link || b.driveUrl || b.enlace || '',
+            autor: b.autor || b.author || editorialBase,
+            desc: b.desc || b.descripcion || b.description || '',
+            portadaUrl: b.portadaUrl || b.portada || b.cover || '',
+            addedAt: new Date().toISOString()
+          }));
+          if (validBooks.length === 0) continue;
+
+          const fullName = (editorialBase === 'Editorial Oficial' || colName.toLowerCase().startsWith(editorialBase.toLowerCase())) 
+            ? colName 
+            : `${editorialBase} - ${colName}`;
+          let targetCollection = libros.find(l => l.nombre.toLowerCase() === fullName.toLowerCase() || l.nombre.toLowerCase() === colName.toLowerCase());
+
+          if (!targetCollection) {
+            await addDoc(collection(db, 'libros'), {
+              nombre: fullName,
+              editorial: editorialBase !== 'Editorial Oficial' ? editorialBase : 'Editorial Oficial',
+              portadaUrl: '',
+              descripcion: `Colección de ${colName} (${editorialBase})`,
+              orden: libros.length,
+              recursos: validBooks,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            const existingRecursos = [...(targetCollection.recursos || [])];
+            validBooks.forEach(nb => {
+              const idx = existingRecursos.findIndex(r => r.nombre === nb.nombre);
+              if (idx >= 0) {
+                if (!existingRecursos[idx].url && nb.url) {
+                  existingRecursos[idx] = { ...existingRecursos[idx], url: nb.url, link: nb.url };
+                }
+              } else {
+                existingRecursos.push(nb);
+              }
+            });
+            const docRef = doc(db, 'libros', targetCollection.id);
+            await updateDoc(docRef, { recursos: existingRecursos, updatedAt: new Date() });
+          }
+          totalCount += validBooks.length;
+        }
+
+        if (onNotice) onNotice('Importación Múltiple Completada', `Se procesaron las colecciones organizadas de ${editorialBase} con un total de ${totalCount} tomos.`);
+      }
+      // CASO B: Array de colecciones agrupadas [{ nombre: "Álgebra", recursos: [...] }]
+      else if (Array.isArray(parsed) && parsed.length > 0 && Array.isArray(parsed[0].recursos)) {
+        let totalCount = 0;
+        for (const colObj of parsed) {
+          const colName = colObj.nombre || colObj.title || colObj.coleccion || 'General';
+          const validBooks = (colObj.recursos || []).filter(b => b.nombre || b.title).map((b, i) => ({
+            id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
+            nombre: b.nombre || b.title || '',
+            url: b.url || b.link || b.driveUrl || b.enlace || '',
+            autor: b.autor || b.author || colObj.editorial || editorialBase,
+            desc: b.desc || b.descripcion || b.description || '',
+            portadaUrl: b.portadaUrl || b.portada || b.cover || '',
+            addedAt: new Date().toISOString()
+          }));
+          if (validBooks.length === 0) continue;
+
+          const fullName = colObj.editorial ? `${colObj.editorial} - ${colName}` : (editorialBase !== 'Editorial Oficial' ? `${editorialBase} - ${colName}` : colName);
+          let targetCollection = libros.find(l => l.nombre.toLowerCase() === fullName.toLowerCase() || l.nombre.toLowerCase() === colName.toLowerCase());
+
+          if (!targetCollection) {
+            await addDoc(collection(db, 'libros'), {
+              nombre: fullName,
+              editorial: colObj.editorial || editorialBase,
+              portadaUrl: colObj.portadaUrl || '',
+              descripcion: colObj.descripcion || `Colección de ${colName}`,
+              orden: libros.length,
+              recursos: validBooks,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            const existingRecursos = [...(targetCollection.recursos || [])];
+            validBooks.forEach(nb => {
+              const idx = existingRecursos.findIndex(r => r.nombre === nb.nombre);
+              if (idx >= 0) {
+                if (!existingRecursos[idx].url && nb.url) {
+                  existingRecursos[idx] = { ...existingRecursos[idx], url: nb.url, link: nb.url };
+                }
+              } else {
+                existingRecursos.push(nb);
+              }
+            });
+            const docRef = doc(db, 'libros', targetCollection.id);
+            await updateDoc(docRef, { recursos: existingRecursos, updatedAt: new Date() });
+          }
+          totalCount += validBooks.length;
+        }
+
+        if (onNotice) onNotice('Importación de Grupos Exitosa', `Se procesaron las colecciones organizadas con ${totalCount} tomos.`);
+      }
+      // CASO C: Array de libros simple [{ nombre: "Libro 1", url: "..." }]
+      else {
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        const validBooks = arr.filter(b => b.nombre || b.title).map((b, i) => ({
+          id: 'book_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
+          nombre: b.nombre || b.title || '',
+          url: b.url || b.link || b.driveUrl || b.enlace || '',
+          autor: b.autor || b.author || editorialBase,
+          desc: b.desc || b.descripcion || b.description || '',
+          portadaUrl: b.portadaUrl || b.portada || b.cover || '',
+          addedAt: new Date().toISOString()
+        }));
+        if (validBooks.length === 0) throw new Error('No se encontraron libros válidos.');
+
+        let targetCollection = libros.find(l => l.nombre.toLowerCase() === editorialBase.toLowerCase());
+
+        if (!targetCollection) {
+          await addDoc(collection(db, 'libros'), {
+            nombre: editorialBase,
+            editorial: editorialBase,
+            portadaUrl: '',
+            descripcion: '',
+            orden: libros.length,
+            recursos: validBooks,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          if (onNotice) onNotice('Colección Creada + Importados', `"${editorialBase}" creada con ${validBooks.length} libros.`);
+        } else {
+          const existingRecursos = [...(targetCollection.recursos || [])];
+          let updatedCount = 0;
+          let addedCount = 0;
+
+          validBooks.forEach(nb => {
+            const idx = existingRecursos.findIndex(r => r.nombre === nb.nombre);
+            if (idx >= 0) {
+              // Si ya existía pero no tenía URL y ahora sí viene URL, lo actualizamos
+              if (!existingRecursos[idx].url && nb.url) {
+                existingRecursos[idx] = { ...existingRecursos[idx], url: nb.url, link: nb.url };
+                updatedCount++;
+              }
+            } else {
+              existingRecursos.push(nb);
+              addedCount++;
+            }
+          });
+
+          if (updatedCount === 0 && addedCount === 0) throw new Error('Todos los libros ya existen en esa colección y no tenían nuevas URLs.');
+          const docRef = doc(db, 'libros', targetCollection.id);
+          await updateDoc(docRef, { recursos: existingRecursos, updatedAt: new Date() });
+          if (onNotice) onNotice('Colección Actualizada', `Se agregaron ${addedCount} libros nuevos y se actualizaron las URLs de ${updatedCount} libros.`);
+        }
       }
 
       setBulkJson('');
@@ -236,7 +386,7 @@ const LibrosAdminPanel = ({ onNotice }) => {
 
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.25rem', color: 'var(--text-main)' }}>
             📚 Gestor de Colecciones de Libros & Tomos
@@ -244,6 +394,111 @@ const LibrosAdminPanel = ({ onNotice }) => {
           <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
             Crea colecciones (ej. "Lumbreras Libros Rojos", "Cuzcano") y agrega tomos con sus portadas y enlaces de lectura.
           </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const promptText = `Por favor formatea la siguiente lista de libros en un JSON agrupado por CURSOS bajo una EDITORIAL PRINCIPAL.
+
+Puedes usar cualquiera de las siguientes estructuras válidas:
+
+Estructura Opción 1 (Lista con items):
+[
+  {
+    "nombre": "EDITORIAL CUZCANO",
+    "items": [
+      {
+        "nombre": "QUÍMICA",
+        "items": [
+          { "nombre": "Tomo 1 Química", "link": "https://drive.google.com/file/d/..." }
+        ]
+      },
+      {
+        "nombre": "FÍSICA",
+        "items": [
+          { "nombre": "Tomo 1 Física", "link": "https://drive.google.com/file/d/..." }
+        ]
+      }
+    ]
+  }
+]
+
+Estructura Opción 2 (Objeto por Cursos):
+{
+  "EDITORIAL CUZCANO": {
+    "Álgebra": [
+      { "nombre": "Tomo 1", "link": "https://drive.google.com/file/d/..." }
+    ],
+    "Química": [
+      { "nombre": "Tomo 1", "link": "https://drive.google.com/file/d/..." }
+    ]
+  }
+}
+
+Responde ÚNICAMENTE con el código JSON sin texto adicional ni explicaciones.
+Aquí está la lista de archivos:
+[PEGA AQUÍ TU LISTA DE LIBROS Y ENLACES]`;
+              navigator.clipboard.writeText(promptText);
+              if (onNotice) onNotice('📋 Prompt Copiado', 'Prompt para Colección Anidada (ej. CUZCANO con Cursos) copiado al portapapeles.');
+            }}
+            style={{
+              padding: '9px 16px',
+              borderRadius: '14px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+            }}
+          >
+            <Copy size={15} />
+            <span>Prompt IA: Editorial + Cursos Anidados</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const promptText = `Por favor formatea la siguiente lista de libros/archivos en un arreglo de objetos en formato JSON limpio y válido para importar a mi aplicación.
+
+Estructura requerida:
+[
+  {
+    "nombre": "Nombre del Libro o Tomo",
+    "link": "https://drive.google.com/file/d/..."
+  }
+]
+
+Responde ÚNICAMENTE con el código JSON sin texto adicional ni explicaciones.
+Aquí está la lista de archivos:
+[PEGA AQUÍ TU LISTA DE LIBROS Y ENLACES]`;
+              navigator.clipboard.writeText(promptText);
+              if (onNotice) onNotice('📋 Prompt Copiado', 'Prompt para Array Simple copiado al portapapeles.');
+            }}
+            style={{
+              padding: '9px 16px',
+              borderRadius: '14px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #A855F7, #6366F1)',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 14px rgba(168, 85, 247, 0.3)'
+            }}
+          >
+            <Copy size={15} />
+            <span>Prompt IA: Lista Simple</span>
+          </button>
         </div>
       </div>
 
@@ -363,21 +618,69 @@ const LibrosAdminPanel = ({ onNotice }) => {
               <input
                 value={bulkEditorial}
                 onChange={e => setBulkEditorial(e.target.value)}
-                placeholder="Ej. Libros Azules Lumbreras"
+                placeholder="Ej. EDITORIAL UNI"
                 style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.86rem', boxSizing: 'border-box' }}
               />
               <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                Si no existe, se crea automáticamente. Si ya existe, se agregan los libros nuevos.
+                Si no existe se crea automáticamente. Si ya existe, actualiza los tomos y sus URLs.
               </p>
             </div>
 
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Pega solo el array:
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                Pega el array JSON:
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const promptText = `Por favor formatea la siguiente lista de libros/archivos en un arreglo de objetos en formato JSON limpio y válido para importar a mi aplicación.
+
+Estructura requerida:
+[
+  {
+    "nombre": "Nombre del Libro o Tomo",
+    "link": "https://drive.google.com/file/d/..."
+  }
+]
+
+O si son varios cursos agrupados:
+{
+  "Álgebra": [
+    { "nombre": "Tomo 1", "link": "https://drive.google.com/..." }
+  ],
+  "Física": [
+    { "nombre": "Tomo 1", "link": "https://drive.google.com/..." }
+  ]
+}
+
+Responde ÚNICAMENTE con el código JSON sin texto adicional ni explicaciones.
+Aquí está la lista de archivos:
+[PEGA AQUÍ TU LISTA DE LIBROS Y ENLACES]`;
+                  navigator.clipboard.writeText(promptText);
+                  if (onNotice) onNotice('📋 Prompt Copiado', 'Copiado al portapapeles. Pégalo en ChatGPT, Claude o Gemini adjuntando tu lista de libros.');
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #A855F7',
+                  background: 'rgba(168, 85, 247, 0.12)',
+                  color: '#A855F7',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Copy size={12} /> Copiar Prompt para IA
+              </button>
+            </div>
+
             <textarea
               value={bulkJson}
               onChange={e => setBulkJson(e.target.value)}
-              placeholder={`[\n  { "nombre": "Libro 1", "url": "https://drive.google.com/..." },\n  { "nombre": "Libro 2", "url": "https://drive.google.com/..." }\n]`}
+              placeholder={`[\n  { "nombre": "Libro 1", "link": "https://drive.google.com/..." },\n  { "nombre": "Libro 2", "link": "https://drive.google.com/..." }\n]`}
               rows={8}
               style={{
                 width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--card-border)',
@@ -385,6 +688,7 @@ const LibrosAdminPanel = ({ onNotice }) => {
                 fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5
               }}
             />
+
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
                 type="button"
@@ -413,7 +717,6 @@ const LibrosAdminPanel = ({ onNotice }) => {
         )}
       </div>
 
-      {/* Lista de Colecciones Creadas */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
           Colecciones Registradas ({libros.length})
@@ -427,7 +730,7 @@ const LibrosAdminPanel = ({ onNotice }) => {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: '14px' }}>
-            {libros.map(l => (
+            {libros.map((l, idx) => (
               <div
                 key={l.id}
                 className="glass-card"
@@ -482,7 +785,48 @@ const LibrosAdminPanel = ({ onNotice }) => {
                   </p>
                 )}
 
-                <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '6px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={async () => {
+                        if (idx === 0) return;
+                        const prev = libros[idx - 1];
+                        const current = l;
+                        await updateDoc(doc(db, 'libros', current.id), { orden: idx - 1 });
+                        await updateDoc(doc(db, 'libros', prev.id), { orden: idx });
+                      }}
+                      style={{
+                        padding: '6px 8px', borderRadius: '8px', border: 'none',
+                        background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-main)',
+                        opacity: idx === 0 ? 0.3 : 1, cursor: idx === 0 ? 'default' : 'pointer'
+                      }}
+                      title="Mover arriba"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === libros.length - 1}
+                      onClick={async () => {
+                        if (idx === libros.length - 1) return;
+                        const next = libros[idx + 1];
+                        const current = l;
+                        await updateDoc(doc(db, 'libros', current.id), { orden: idx + 1 });
+                        await updateDoc(doc(db, 'libros', next.id), { orden: idx });
+                      }}
+                      style={{
+                        padding: '6px 8px', borderRadius: '8px', border: 'none',
+                        background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-main)',
+                        opacity: idx === libros.length - 1 ? 0.3 : 1, cursor: idx === libros.length - 1 ? 'default' : 'pointer'
+                      }}
+                      title="Mover abajo"
+                    >
+                      ▼
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setSelectedCollection(l)}
