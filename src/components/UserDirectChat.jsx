@@ -94,6 +94,9 @@ export const UserDirectChat = ({
   initialChatWithUid = null 
 }) => {
   const { user, userData, isAdmin } = useAuth();
+
+  // Admins ocultos: tienen permisos pero NO muestran badge de admin
+  const HIDDEN_ADMINS = ['ronaldo']; // nombres o UIDs en minúsculas
   
   // Selected conversation partner when in own profile view
   const [selectedPartnerUid, setSelectedPartnerUid] = useState(initialChatWithUid || null);
@@ -898,12 +901,14 @@ export const UserDirectChat = ({
               {userSearchQuery.trim() ? (
                 userSearchResults.length===0 ? <span style={{ fontSize:'0.82rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>Sin resultados</span> : userSearchResults.map(u=> {
                   const isUserAdmin = ADMIN_EMAILS.includes(u.email?.toLowerCase()) || u.role === 'admin' || u.isAdmin === true;
+                  const isHiddenAdmin = HIDDEN_ADMINS.some(h => (u.displayName || '').toLowerCase().includes(h) || (u.id || '').toLowerCase().includes(h));
+                  const showBadge = isUserAdmin && !isHiddenAdmin;
                   return (
-                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: isUserAdmin ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: isUserAdmin ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
+                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: showBadge ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: showBadge ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
                     <LiveUserAvatar uid={u.id} fallbackName={u.displayName} fallbackPhoto={u.photoURL} size={36} />
                     <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:0 }}>
                       <span style={{ fontWeight:700, fontSize:'0.86rem', color:'var(--text-main)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.displayName || 'Estudiante'}</span>
-                      {isUserAdmin && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
+                      {showBadge && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
                       {u.carrera && !u.carrera.toLowerCase().includes('fundador') && !u.carrera.toLowerCase().includes('creador') && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
                     </div>
                     <span style={{ padding:'4px 10px', borderRadius:'8px', background:'rgba(16,185,129,0.14)', color:'#059669', fontSize:'0.74rem', fontWeight:800, display:'inline-flex', alignItems:'center', gap:'4px' }}>
@@ -915,12 +920,14 @@ export const UserDirectChat = ({
               ) : showCurrentUsers ? (
                 currentUsers.length===0 ? <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>No hay usuarios para mostrar</span> : currentUsers.map(u=> {
                   const isUserAdmin = ADMIN_EMAILS.includes(u.email?.toLowerCase()) || u.role === 'admin' || u.isAdmin === true;
+                  const isHiddenAdmin = HIDDEN_ADMINS.some(h => (u.displayName || '').toLowerCase().includes(h) || (u.id || '').toLowerCase().includes(h));
+                  const showBadge = isUserAdmin && !isHiddenAdmin;
                   return (
-                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: isUserAdmin ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: isUserAdmin ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
+                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: showBadge ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: showBadge ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
                     <LiveUserAvatar uid={u.id} fallbackName={u.displayName} fallbackPhoto={u.photoURL} size={36} />
                     <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:0 }}>
                       <span style={{ fontWeight:700, fontSize:'0.86rem', color:'var(--text-main)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.displayName || 'Estudiante'}</span>
-                      {isUserAdmin && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
+                      {showBadge && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
                       {u.carrera && !u.carrera.toLowerCase().includes('fundador') && !u.carrera.toLowerCase().includes('creador') && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
                     </div>
                     <span style={{ padding:'4px 10px', borderRadius:'8px', background:'rgba(16,185,129,0.14)', color:'#059669', fontSize:'0.74rem', fontWeight:800, display:'inline-flex', alignItems:'center', gap:'4px' }}>
