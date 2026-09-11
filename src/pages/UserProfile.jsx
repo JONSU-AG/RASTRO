@@ -45,7 +45,8 @@ import {
   Heart,
   Trash2,
   Users,
-  UserCheck
+  UserCheck,
+  PlayCircle
 } from 'lucide-react';
 import { searchMatches } from '../lib/searchHelper';
 import { WhatsAppIconSVG, TikTokIconSVG } from '../components/AliadosCarousel';
@@ -363,6 +364,7 @@ export const UserProfile = () => {
   const [expandedPreviews, setExpandedPreviews] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   const [copiedUid, setCopiedUid] = useState(false);
   const [copiedProfile, setCopiedProfile] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -942,16 +944,33 @@ export const UserProfile = () => {
   // Filter saved materials by category and search
   const filteredSavedMaterials = savedMaterials.filter(item => {
     if (!item) return false;
-    const matchesCategory = selectedCategory === 'todos' || 
-      (selectedCategory === 'teoria' && (item.category === 'teoria' || item.category === 'tomos' || item.title?.toLowerCase().includes('teoria') || item.title?.toLowerCase().includes('tomo') || item.title?.toLowerCase().includes('libro'))) ||
-      (selectedCategory === 'practicas' && (item.category === 'practica' || item.category === 'practicas' || item.title?.toLowerCase().includes('practica') || item.title?.toLowerCase().includes('guia'))) ||
-      (selectedCategory === 'examenes' && (item.category === 'examen' || item.category === 'examenes' || item.title?.toLowerCase().includes('examen') || item.title?.toLowerCase().includes('parcial'))) ||
-      (selectedCategory === 'resumenes' && (item.category === 'resumen' || item.category === 'resumenes' || item.title?.toLowerCase().includes('resumen') || item.title?.toLowerCase().includes('apunte'))) ||
-      (selectedCategory === 'variado' && (item.category === 'variado' || item.title?.toLowerCase().includes('variado') || item.title?.toLowerCase().includes('miscelanea')));
+    
+    const isAcademy = Boolean(item.academyId);
 
-    const matchesSearch = searchMatches([item.title, item.author, item.desc, item.category], searchQuery);
+    // Main category filter
+    if (selectedCategory === 'videos') {
+      // Videos = all academy items (weeks, courses, individual videos)
+      if (!isAcademy) return false;
+      // Sub-filter by academy
+      if (selectedSubCategory === 'briceno' && item.academyId !== 'briceno') return false;
+      if (selectedSubCategory === 'kelsen' && item.academyId !== 'kelsen') return false;
+      if (selectedSubCategory === 'esparta' && item.academyId !== 'esparta') return false;
+    } else if (selectedCategory === 'material') {
+      // Material = non-academy items (legacy: teoria, practicas, examenes)
+      if (isAcademy) return false;
+      // Sub-filter by material type
+      if (selectedSubCategory) {
+        const matchesType = 
+          (selectedSubCategory === 'teoria' && (item.category === 'teoria' || item.category === 'tomos' || item.title?.toLowerCase().includes('teoria') || item.title?.toLowerCase().includes('tomo') || item.title?.toLowerCase().includes('libro'))) ||
+          (selectedSubCategory === 'practicas' && (item.category === 'practica' || item.category === 'practicas' || item.title?.toLowerCase().includes('practica') || item.title?.toLowerCase().includes('guia'))) ||
+          (selectedSubCategory === 'examenes' && (item.category === 'examen' || item.category === 'examenes' || item.title?.toLowerCase().includes('examen') || item.title?.toLowerCase().includes('parcial')));
+        if (!matchesType) return false;
+      }
+    }
 
-    return matchesCategory && matchesSearch;
+    const matchesSearch = searchMatches([item.title, item.author, item.desc, item.category, item.academyName, item.area], searchQuery);
+
+    return matchesSearch;
   });
 
   if (loading || authLoading || (!profileUser && targetUid)) {
@@ -1980,34 +1999,104 @@ export const UserProfile = () => {
                 </div>
 
                 {/* Category Filter Pills */}
-                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px', scrollbarWidth: 'none' }}>
-                  {[
-                    { id: 'todos', label: 'Todos' },
-                    { id: 'teoria', label: 'Teoría / Tomos' },
-                    { id: 'practicas', label: 'Prácticas' },
-                    { id: 'examenes', label: 'Exámenes' },
-                    { id: 'resumenes', label: 'Resúmenes' }
-                  ].map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: '12px',
-                        border: selectedCategory === cat.id ? '1.5px solid #F59E0B' : '1px solid var(--card-border)',
-                        background: selectedCategory === cat.id ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-bg)',
-                        color: selectedCategory === cat.id ? '#D97706' : 'var(--text-secondary)',
-                        fontWeight: 800,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Main filters */}
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                    {[
+                      { id: 'todos', label: 'Todos' },
+                      { id: 'videos', label: '🎬 Videos' },
+                      { id: 'material', label: '📚 Material' }
+                    ].map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => { setSelectedCategory(cat.id); setSelectedSubCategory(null); }}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '12px',
+                          border: selectedCategory === cat.id ? '1.5px solid #F59E0B' : '1px solid var(--card-border)',
+                          background: selectedCategory === cat.id ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-bg)',
+                          color: selectedCategory === cat.id ? '#D97706' : 'var(--text-secondary)',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sub-filters for Videos */}
+                  {selectedCategory === 'videos' && (
+                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', alignSelf: 'center', marginRight: '4px' }}>Filtrar:</span>
+                      {[
+                        { id: null, label: 'Todas' },
+                        { id: 'briceno', label: '🎓 Briceño' },
+                        { id: 'kelsen', label: '🎓 Kelsen' },
+                        { id: 'esparta', label: '🎓 Esparta' }
+                      ].map(sub => (
+                        <button
+                          key={sub.id || 'all'}
+                          onClick={() => setSelectedSubCategory(sub.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            border: selectedSubCategory === sub.id ? '1.5px solid var(--accent-color)' : '1px solid var(--card-border)',
+                            background: selectedSubCategory === sub.id ? 'rgba(0, 122, 255, 0.12)' : 'var(--card-bg)',
+                            color: selectedSubCategory === sub.id ? '#007AFF' : 'var(--text-secondary)',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {sub.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Sub-filters for Material */}
+                  {selectedCategory === 'material' && (
+                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', alignSelf: 'center', marginRight: '4px' }}>Filtrar:</span>
+                      {[
+                        { id: null, label: 'Todo' },
+                        { id: 'teoria', label: '📕 Teoría / Tomos' },
+                        { id: 'practicas', label: '📗 Prácticas' },
+                        { id: 'examenes', label: '📘 Exámenes' },
+                        { id: 'briceno', label: '🎓 Briceño' },
+                        { id: 'kelsen', label: '🎓 Kelsen' },
+                        { id: 'esparta', label: '🎓 Esparta' }
+                      ].map(sub => (
+                        <button
+                          key={sub.id || 'all'}
+                          onClick={() => setSelectedSubCategory(sub.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            border: selectedSubCategory === sub.id ? '1.5px solid var(--accent-color)' : '1px solid var(--card-border)',
+                            background: selectedSubCategory === sub.id ? 'rgba(0, 122, 255, 0.12)' : 'var(--card-bg)',
+                            color: selectedSubCategory === sub.id ? '#007AFF' : 'var(--text-secondary)',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {sub.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2017,6 +2106,7 @@ export const UserProfile = () => {
                   {filteredSavedMaterials.map((item) => {
                     const isExpanded = Boolean(expandedPreviews[item.id]);
                     const previewUrl = getPreviewUrl(item.driveUrl);
+                    const isAcademy = Boolean(item.academyId);
 
                     return (
                       <motion.div
@@ -2038,19 +2128,60 @@ export const UserProfile = () => {
                         {/* Header & Bookmark */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                              <span style={{
-                                padding: '3px 10px',
-                                borderRadius: '10px',
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                color: '#D97706',
-                                fontWeight: 800,
-                                fontSize: '0.74rem',
-                                textTransform: 'uppercase'
-                              }}>
-                                ⚡ {item.category || 'MATERIAL GUARDADO'}
-                              </span>
-                              {item.author && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                              {isAcademy && (
+                                <span style={{
+                                  padding: '3px 10px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(0, 122, 255, 0.12)',
+                                  color: '#007AFF',
+                                  fontWeight: 800,
+                                  fontSize: '0.74rem',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  🎓 {item.academyName}
+                                </span>
+                              )}
+                              {item.area && (
+                                <span style={{
+                                  padding: '3px 10px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(16, 185, 129, 0.12)',
+                                  color: '#10B981',
+                                  fontWeight: 800,
+                                  fontSize: '0.74rem',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  📚 {item.area}
+                                </span>
+                              )}
+                              {item.weekNum && (
+                                <span style={{
+                                  padding: '3px 10px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(139, 92, 246, 0.12)',
+                                  color: '#8B5CF6',
+                                  fontWeight: 800,
+                                  fontSize: '0.74rem',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  📅 Semana {item.weekNum}
+                                </span>
+                              )}
+                              {!isAcademy && (
+                                <span style={{
+                                  padding: '3px 10px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#D97706',
+                                  fontWeight: 800,
+                                  fontSize: '0.74rem',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  ⚡ {item.category || 'MATERIAL GUARDADO'}
+                                </span>
+                              )}
+                              {item.author && !isAcademy && (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                                   Compartido por {item.author}
                                 </span>
@@ -2064,13 +2195,83 @@ export const UserProfile = () => {
                                 {item.desc || item.description}
                               </p>
                             )}
+                            {isAcademy && item.videoCount && (
+                              <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: 'var(--accent-color)', fontWeight: 700 }}>
+                                🎬 {item.videoCount} videos incluidos
+                              </p>
+                            )}
                           </div>
 
                           <BookmarkButton item={item} size="normal" showText={true} />
                         </div>
 
-                        {/* Vista Previa Siempre Activa (1ra Hoja del PDF Bonita y Centrada) */}
-                        {item.driveUrl && (
+                        {/* Academy video list preview */}
+                        {isAcademy && item.videos && item.videos.length > 0 && (
+                          <div style={{ background: 'rgba(120, 120, 128, 0.05)', borderRadius: '14px', padding: '12px 14px' }}>
+                            <div 
+                              onClick={() => setExpandedPreviews(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: expandedPreviews[item.id] ? '8px' : 0 }}
+                            >
+                              <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                                🎬 {item.videos.length} videos incluidos
+                              </p>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-color)' }}>
+                                {expandedPreviews[item.id] ? 'Ocultar ▲' : 'Ver lista ▼'}
+                              </span>
+                            </div>
+                            {expandedPreviews[item.id] && (
+                              <div style={{ maxHeight: '300px', overflowY: 'auto', marginTop: '6px' }}>
+                                {item.saveType === 'week' ? (
+                                  // Nested: group videos by area/course
+                                  (() => {
+                                    const grouped = {};
+                                    item.videos.forEach((v, idx) => {
+                                      const key = v.area || 'Sin área';
+                                      if (!grouped[key]) grouped[key] = [];
+                                      grouped[key].push({ ...v, _idx: idx });
+                                    });
+                                    return Object.entries(grouped).map(([area, vids]) => (
+                                      <div key={area} style={{ marginBottom: '8px' }}>
+                                        <div 
+                                          onClick={() => setExpandedPreviews(prev => ({ ...prev, [`${item.id}-${area}`]: !prev[`${item.id}-${area}`] }))}
+                                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 6px', borderRadius: '8px', background: 'rgba(0, 122, 255, 0.06)', marginBottom: '4px' }}
+                                        >
+                                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-color)' }}>📚 {area} ({vids.length})</span>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--accent-color)' }}>{expandedPreviews[`${item.id}-${area}`] ? '▲' : '▼'}</span>
+                                        </div>
+                                        {expandedPreviews[`${item.id}-${area}`] && vids.map((v, idx) => (
+                                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 6px 3px 16px', borderBottom: '1px solid rgba(120,120,128,0.08)' }}>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                              <span style={{ color: 'var(--accent-color)', fontSize: '0.7rem' }}>▶</span> {v.nombre || v}
+                                            </div>
+                                            {v.url && (
+                                              <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ padding: '2px 8px', borderRadius: '8px', background: 'rgba(0, 122, 255, 0.1)', color: '#007AFF', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Ver ↗</a>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ));
+                                  })()
+                                ) : (
+                                  // Flat list for courses and individual videos
+                                  item.videos.map((v, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: idx < item.videos.length - 1 ? '1px solid rgba(120,120,128,0.1)' : 'none' }}>
+                                      <div style={{ fontSize: '0.82rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                        <span style={{ color: 'var(--accent-color)' }}>▶</span> {v.nombre || v}
+                                      </div>
+                                      {v.url && (
+                                        <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ padding: '2px 8px', borderRadius: '8px', background: 'rgba(0, 122, 255, 0.1)', color: '#007AFF', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Ver ↗</a>
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Vista Previa (only for non-academy items) */}
+                        {!isAcademy && item.driveUrl && (
                           <div style={{ width: '100%', marginTop: '6px' }}>
                             {getDriveFileId(item.driveUrl) ? (
                               <PdfSheetPreview
@@ -2099,7 +2300,49 @@ export const UserProfile = () => {
 
                         {/* Action Buttons Bar */}
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--card-border)' }}>
-                          {item.driveUrl && (
+                          {isAcademy && item.backLink && (
+                            <a
+                              href={item.backLink}
+                              style={{
+                                padding: '10px 18px',
+                                borderRadius: '14px',
+                                background: 'linear-gradient(135deg, #34C759 0%, #10B981 100%)',
+                                color: '#FFF',
+                                fontWeight: 800,
+                                fontSize: '0.86rem',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 4px 14px rgba(52, 199, 89, 0.35)'
+                              }}
+                            >
+                              <ExternalLink size={16} /> Ir a la clase
+                            </a>
+                          )}
+                          {isAcademy && item.driveUrl && (
+                            <a
+                              href={item.driveUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                padding: '10px 18px',
+                                borderRadius: '14px',
+                                background: 'rgba(0, 122, 255, 0.1)',
+                                color: '#007AFF',
+                                fontWeight: 800,
+                                fontSize: '0.86rem',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                border: '1px solid rgba(0, 122, 255, 0.25)'
+                              }}
+                            >
+                              <PlayCircle size={16} /> Ver Video
+                            </a>
+                          )}
+                          {!isAcademy && item.driveUrl && (
                             <a
                               href={getDriveFileId(item.driveUrl) ? `https://drive.google.com/file/d/${getDriveFileId(item.driveUrl)}/view` : item.driveUrl}
                               target="_blank"

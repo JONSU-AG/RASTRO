@@ -13,6 +13,7 @@ import { COURSES, KELSEN_VIDEOS, BRICENO_AREAS, BRICENO_2027, SUBJECT_ICONS } fr
 import { useAuth } from '../context/AuthContext';
 import { subscribeToAccessSettings, checkAccessPermission, getCachedAccessSettings } from '../lib/accessControl';
 import { AccessGate } from '../components/AccessGate';
+import { AcademyBookmarkButton } from '../components/AcademyBookmarkButton';
 
 const getCourseSvgData = (courseName) => {
   const defaultIcon = {
@@ -75,6 +76,47 @@ export const AcademyDetail = () => {
   }, []);
 
   const permission = checkAccessPermission(id, user, isAdmin, accessSettings);
+
+  // Parse URL query params to auto-expand/scroll to saved section
+  useEffect(() => {
+    const hash = window.location.hash || '';
+    const qIdx = hash.indexOf('?');
+    if (qIdx === -1) return;
+    const params = new URLSearchParams(hash.substring(qIdx + 1));
+    const weekParam = params.get('week');
+    const tabParam = params.get('tab');
+    const courseParam = params.get('course');
+    const moduleParam = params.get('module');
+    const videoParam = params.get('video');
+
+    if (tabParam === '2026') {
+      setBricenoTab('2026');
+    }
+
+    if (weekParam) {
+      const weekNum = parseInt(weekParam, 10);
+      setSelectedWeek(weekNum);
+      setExpandedWeeks(prev => ({ ...prev, [weekNum]: true }));
+      if (courseParam) {
+        const courseKey = `${weekNum}-${decodeURIComponent(courseParam)}-0`;
+        setExpandedCourses(prev => ({ ...prev, [courseKey]: true }));
+      }
+      setTimeout(() => {
+        const el = document.getElementById(`briceno-week-${weekNum}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    } else if (courseParam && id === 'esparta') {
+      setTimeout(() => {
+        const el = document.getElementById(`esparta-course-${decodeURIComponent(courseParam)}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    } else if (moduleParam) {
+      setTimeout(() => {
+        const el = document.getElementById(`custom-module-${decodeURIComponent(moduleParam)}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    }
+  }, [id]);
 
   useEffect(() => {
     // Determine which data to load based on the academy id
@@ -895,8 +937,8 @@ export const AcademyDetail = () => {
         {data.type === 'esparta' && data.items.map((course, idx) => {
           if (query && !searchMatches([course.name, ...(course.lessons || []).map(l => l.title)], query)) return null;
           return (
-            <details key={idx} className="glass-card" style={{ padding: '16px', borderRadius: '16px', cursor: 'pointer' }}>
-              <summary style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <details key={idx} id={`esparta-course-${course.name}`} className="glass-card" style={{ padding: '16px', borderRadius: '16px', cursor: 'pointer' }}>
+              <summary style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   {(() => {
                     const icon = (course.slug && SUBJECT_ICONS[course.slug]) || getCourseSvgData(course.name);
@@ -923,7 +965,44 @@ export const AcademyDetail = () => {
                   })()}
                   <span>{course.name}</span>
                 </div>
-                <span style={{ fontSize: '0.9rem', background: 'rgba(0,122,255,0.1)', color: '#007aff', padding: '4px 12px', borderRadius: '20px' }}>{course.lessons.length} clases</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.9rem', background: 'rgba(0,122,255,0.1)', color: '#007aff', padding: '4px 12px', borderRadius: '20px' }}>{course.lessons.length} clases</span>
+                  <AcademyBookmarkButton
+                    item={{
+                      id: `esparta-course-${course.slug || idx}`,
+                      title: `${course.name} - Esparta`,
+                      desc: `${course.lessons.length} clases`,
+                      category: course.name,
+                      driveUrl: course.lessons?.[0]?.url || (course.lessons?.[0]?.yt ? `https://www.youtube.com/watch?v=${course.lessons[0].yt}` : ''),
+                      academyName: 'Esparta',
+                      academyId: 'esparta',
+                      weekNum: null,
+                      area: course.name,
+                      saveType: 'course',
+                      backLink: `#/cursos/esparta?course=${encodeURIComponent(course.name)}`,
+                      videos: course.lessons.map((l, i) => ({
+                        nombre: `Clase ${l.n}: ${l.title || ''}`,
+                        url: l.url || (l.yt ? `https://www.youtube.com/watch?v=${l.yt}` : '')
+                      })),
+                      videoCount: course.lessons.length
+                    }}
+                    size="small"
+                    saveTypeLabel="Curso"
+                  />
+                  <span style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    color: 'var(--accent-color)',
+                    background: 'rgba(0, 122, 255, 0.1)',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    Ver clases ▼
+                  </span>
+                </div>
               </summary>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px', marginTop: '16px' }}>
                 {course.lessons.map((lesson, lIdx) => {
@@ -932,9 +1011,28 @@ export const AcademyDetail = () => {
                   return (
                     <div key={lIdx} style={{ background: 'rgba(150,150,150,0.05)', padding: '12px', borderRadius: '12px' }}>
                       <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>Clase {lesson.n}: {lesson.title || 'Clase'}</h4>
-                      <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#ff3b30', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>
-                        <PlayCircle size={18} /> Ver en YouTube
-                      </a>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#ff3b30', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>
+                          <PlayCircle size={18} /> Ver en YouTube
+                        </a>
+                        <AcademyBookmarkButton
+                          item={{
+                            id: `esparta-video-${course.slug || idx}-${lesson.n}`,
+                            title: `${lesson.title || `Clase ${lesson.n}`} - ${course.name}`,
+                            desc: `Esparta - ${course.name}`,
+                            category: course.name,
+                            driveUrl: url,
+                            academyName: 'Esparta',
+                            academyId: 'esparta',
+                            weekNum: null,
+                            area: course.name,
+                            saveType: 'video',
+                            backLink: `#/cursos/esparta?course=${encodeURIComponent(course.name)}&video=${lesson.n}`
+                          }}
+                          size="small"
+                          showText={false}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -1042,6 +1140,23 @@ export const AcademyDetail = () => {
                     >
                       <PlayCircle size={16} /> Abrir Grabación
                     </a>
+                    <AcademyBookmarkButton
+                      item={{
+                      id: `kelsen-video-${vIdx + 1}`,
+                      title: vid.titulo,
+                      desc: 'Kelsen - Grabación',
+                      category: 'Kelsen',
+                      driveUrl: vid.url,
+                      academyName: 'Kelsen',
+                      academyId: 'kelsen',
+                      weekNum: null,
+                      area: 'Kelsen',
+                      saveType: 'video',
+                      backLink: `#/cursos/kelsen?video=${vIdx + 1}`
+                      }}
+                      size="small"
+                      saveTypeLabel="Video"
+                    />
                   </motion.div>
                 ))}
             </div>
@@ -1099,7 +1214,7 @@ export const AcademyDetail = () => {
                   const isExpanded = selectedWeek !== 'all' || query.trim().length > 0 || expandedWeeks[weekItem.num];
 
                   return (
-                    <div key={`week-${wIdx}`} style={{ marginBottom: isExpanded ? '14px' : '0px' }}>
+                    <div key={`week-${wIdx}`} id={`briceno-week-${weekItem.num}`} style={{ marginBottom: isExpanded ? '14px' : '0px' }}>
                       {/* Week Header - Clickable Collapsible */}
                       <div 
                         onClick={() => {
@@ -1130,7 +1245,7 @@ export const AcademyDetail = () => {
                             ({filteredCourses.length} cursos con clases)
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                           <span style={{
                             padding: '4px 12px',
                             borderRadius: '12px',
@@ -1141,6 +1256,25 @@ export const AcademyDetail = () => {
                           }}>
                             {weekItem.status || 'Disponible'}
                           </span>
+                          <AcademyBookmarkButton
+                            item={{
+                              id: `briceno-week-${weekItem.num}`,
+                              title: `${weekItem.nombre} - Briceño 2027`,
+                              desc: `${filteredCourses.length} cursos con clases`,
+                              category: 'BRICENO',
+                              driveUrl: '',
+                              academyName: 'Briceño',
+                              academyId: 'briceno',
+                              weekNum: weekItem.num,
+                              area: null,
+                              saveType: 'week',
+                              backLink: `#/cursos/briceno?week=${weekItem.num}`,
+                              videos: filteredCourses.flatMap(c => (c.videos || []).map(v => ({ nombre: v.nombre, url: v.url, area: c.nombre }))),
+                              videoCount: filteredCourses.reduce((acc, c) => acc + (c.videos?.length || 0), 0)
+                            }}
+                            size="small"
+                            saveTypeLabel="Semana"
+                          />
                           {selectedWeek === 'all' && !query.trim() && (
                             <span style={{
                               fontSize: '0.82rem',
@@ -1247,19 +1381,40 @@ export const AcademyDetail = () => {
                                     </div>
 
                                     {!query.trim() && (
-                                      <span style={{
-                                        fontSize: '0.8rem',
-                                        fontWeight: 800,
-                                        color: 'var(--accent-color)',
-                                        background: 'rgba(0, 122, 255, 0.1)',
-                                        padding: '4px 12px',
-                                        borderRadius: '12px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}>
-                                        {isCourseExpanded ? 'Ocultar clases ▲' : 'Ver clases ▼'}
-                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <AcademyBookmarkButton
+                                          item={{
+                                            id: `briceno-course-${weekItem.num}-${subCat.nombre}`,
+                                            title: `${subCat.nombre} - ${weekItem.nombre}`,
+                                            desc: `${filteredVideos.length} clases en video`,
+                                            category: subCat.categoria || subCat.nombre,
+                                            driveUrl: '',
+                                            academyName: 'Briceño',
+                                            academyId: 'briceno',
+                                            weekNum: weekItem.num,
+                                            area: subCat.nombre,
+                                            saveType: 'course',
+                                            backLink: `#/cursos/briceno?week=${weekItem.num}&course=${encodeURIComponent(subCat.nombre)}`,
+                                            videos: filteredVideos.map(v => ({ nombre: v.nombre, url: v.url })),
+                                            videoCount: filteredVideos.length
+                                          }}
+                                          size="small"
+                                          saveTypeLabel="Curso"
+                                        />
+                                        <span style={{
+                                          fontSize: '0.8rem',
+                                          fontWeight: 800,
+                                          color: 'var(--accent-color)',
+                                          background: 'rgba(0, 122, 255, 0.1)',
+                                          padding: '4px 12px',
+                                          borderRadius: '12px',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px'
+                                        }}>
+                                          {isCourseExpanded ? 'Ocultar clases ▲' : 'Ver clases ▼'}
+                                        </span>
+                                      </div>
                                     )}
                                   </div>
 
@@ -1275,19 +1430,14 @@ export const AcademyDetail = () => {
                                       >
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '14px' }}>
                                           {filteredVideos.map((vid, vIdx) => (
-                                            <motion.a
+                                            <motion.div
                                               key={vIdx}
-                                              href={vid.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
                                               whileHover={{ scale: 1.02, y: -2 }}
-                                              whileTap={{ scale: 0.98 }}
                                               style={{
                                                 background: 'rgba(120, 120, 128, 0.07)',
                                                 border: '1px solid var(--card-border)',
                                                 padding: '16px',
                                                 borderRadius: '18px',
-                                                textDecoration: 'none',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 justifyContent: 'space-between',
@@ -1298,10 +1448,29 @@ export const AcademyDetail = () => {
                                               <h4 style={{ fontSize: '0.94rem', fontWeight: 700, margin: 0, color: 'var(--text-main)', lineHeight: 1.4 }}>
                                                 {vid.nombre}
                                               </h4>
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FF0000', fontWeight: 700, fontSize: '0.84rem' }}>
-                                                <PlayCircle size={18} /> Ver en YouTube ↗
+                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <a href={vid.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FF0000', fontWeight: 700, fontSize: '0.84rem', textDecoration: 'none' }}>
+                                                  <PlayCircle size={18} /> Ver ↗
+                                                </a>
+                                                <AcademyBookmarkButton
+                                                  item={{
+                                                  id: `briceno-video-${weekItem.num}-${subCat.nombre}-${vIdx + 1}`,
+                                                  title: `${vid.nombre} - ${subCat.nombre}`,
+                                                  desc: `${weekItem.nombre} - Briceño 2027`,
+                                                  category: subCat.categoria || subCat.nombre,
+                                                  driveUrl: vid.url,
+                                                  academyName: 'Briceño',
+                                                  academyId: 'briceno',
+                                                  weekNum: weekItem.num,
+                                                  area: subCat.nombre,
+                                                  saveType: 'video',
+                                                  backLink: `#/cursos/briceno?week=${weekItem.num}&course=${encodeURIComponent(subCat.nombre)}&video=${vIdx + 1}`
+                                                  }}
+                                                  size="small"
+                                                  showText={false}
+                                                />
                                               </div>
-                                            </motion.a>
+                                            </motion.div>
                                           ))}
                                         </div>
                                       </motion.div>
@@ -1367,19 +1536,14 @@ export const AcademyDetail = () => {
                         {/* Video Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '14px' }}>
                           {category.videos?.map((vidUrl, vIdx) => (
-                            <motion.a
+                            <motion.div
                               key={vIdx}
-                              href={vidUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               whileHover={{ scale: 1.02, y: -2 }}
-                              whileTap={{ scale: 0.98 }}
                               style={{
                                 background: 'rgba(120, 120, 128, 0.07)',
                                 border: '1px solid var(--card-border)',
                                 padding: '16px',
                                 borderRadius: '18px',
-                                textDecoration: 'none',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 justifyContent: 'space-between',
@@ -1389,10 +1553,29 @@ export const AcademyDetail = () => {
                               <h4 style={{ fontSize: '0.94rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                                 Clase Intensiva {vIdx + 1} - {category.nombre}
                               </h4>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FF0000', fontWeight: 700, fontSize: '0.84rem' }}>
-                                <PlayCircle size={18} /> Ver en YouTube ↗
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <a href={vidUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FF0000', fontWeight: 700, fontSize: '0.84rem', textDecoration: 'none' }}>
+                                  <PlayCircle size={18} /> Ver ↗
+                                </a>
+                                <AcademyBookmarkButton
+                                  item={{
+                                  id: `briceno-2026-video-${category.nombre}-${vIdx + 1}`,
+                                  title: `Clase Intensiva ${vIdx + 1} - ${category.nombre}`,
+                                  desc: 'Briceño 2026 - Clase Intensiva',
+                                  category: category.nombre,
+                                  driveUrl: vidUrl,
+                                  academyName: 'Briceño',
+                                  academyId: 'briceno',
+                                  weekNum: null,
+                                  area: category.nombre,
+                                  saveType: 'video',
+                                  backLink: `#/cursos/briceno?tab=2026&course=${encodeURIComponent(category.nombre)}&video=${vIdx + 1}`
+                                  }}
+                                  size="small"
+                                  showText={false}
+                                />
                               </div>
-                            </motion.a>
+                            </motion.div>
                           ))}
                         </div>
                       </div>
@@ -1584,6 +1767,24 @@ export const AcademyDetail = () => {
                                   <span>{item.docNombre || 'Material de Apoyo (PDF)'}</span>
                                 </a>
                               )}
+
+                              <AcademyBookmarkButton
+                                item={{
+                                id: `custom-video-${module.id || mIdx}-${item.id || itIdx}`,
+                                title: `${item.titulo} - ${data.name}`,
+                                desc: `${module.nombre}`,
+                                category: data.name,
+                                driveUrl: item.url || '',
+                                academyName: data.name,
+                                academyId: id,
+                                weekNum: null,
+                                area: module.nombre,
+                                saveType: 'video',
+                                backLink: `#/cursos/${id}?module=${encodeURIComponent(module.nombre)}&video=${itIdx + 1}`
+                                }}
+                                size="small"
+                                saveTypeLabel="Video"
+                              />
                             </div>
                           </motion.div>
                         ))}

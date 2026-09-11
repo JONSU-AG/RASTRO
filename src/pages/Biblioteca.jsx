@@ -325,20 +325,23 @@ export const Biblioteca = () => {
       {/* ──────────────── SECTION 1: MATERIAL OFICIAL ──────────────── */}
       {mainTab === 'documentos' && (
         <>
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '4px', justifyContent: 'flex-start', maxWidth: '100%' }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '4px', justifyContent: 'center', alignItems: 'center', maxWidth: '100%', flexWrap: 'wrap' }}>
             <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => setActiveDocTab('tomos')}
               style={{ 
-                padding: '10px 24px', 
+                padding: '12px 28px', 
                 borderRadius: '999px', 
                 fontWeight: 800, 
-                border: activeDocTab === 'tomos' ? 'none' : '1px solid rgba(255, 59, 48, 0.3)',
+                fontSize: '0.9rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                border: activeDocTab === 'tomos' ? 'none' : '2px solid rgba(255, 59, 48, 0.3)',
                 background: activeDocTab === 'tomos' ? 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%)' : 'var(--card-bg)',
-                color: activeDocTab === 'tomos' ? '#FFFFFF' : 'var(--text-secondary)',
+                color: activeDocTab === 'tomos' ? '#FFFFFF' : '#FF3B30',
                 cursor: 'pointer',
-                boxShadow: activeDocTab === 'tomos' ? '0 6px 18px rgba(255, 59, 48, 0.35)' : 'none',
+                boxShadow: activeDocTab === 'tomos' ? '0 6px 20px rgba(255, 59, 48, 0.4)' : '0 2px 8px rgba(0,0,0,0.06)',
                 transition: 'all 0.2s ease'
               }}
             >
@@ -346,18 +349,21 @@ export const Biblioteca = () => {
             </motion.button>
 
             <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => setActiveDocTab('practicas')}
               style={{ 
-                padding: '10px 24px', 
+                padding: '12px 28px', 
                 borderRadius: '999px', 
                 fontWeight: 800, 
-                border: activeDocTab === 'practicas' ? 'none' : '1px solid rgba(52, 199, 89, 0.3)',
+                fontSize: '0.9rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                border: activeDocTab === 'practicas' ? 'none' : '2px solid rgba(52, 199, 89, 0.3)',
                 background: activeDocTab === 'practicas' ? 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' : 'var(--card-bg)',
-                color: activeDocTab === 'practicas' ? '#FFFFFF' : 'var(--text-secondary)',
+                color: activeDocTab === 'practicas' ? '#FFFFFF' : '#34C759',
                 cursor: 'pointer',
-                boxShadow: activeDocTab === 'practicas' ? '0 6px 18px rgba(52, 199, 89, 0.35)' : 'none',
+                boxShadow: activeDocTab === 'practicas' ? '0 6px 20px rgba(52, 199, 89, 0.4)' : '0 2px 8px rgba(0,0,0,0.06)',
                 transition: 'all 0.2s ease'
               }}
             >

@@ -131,6 +131,14 @@ export const UserDirectChat = ({
     const q = query(collection(db, 'usuarios'));
     const unsub = onSnapshot(q, (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.id !== user?.uid).slice(0,12);
+      // Sort: admin users first
+      all.sort((a, b) => {
+        const aIsAdmin = ADMIN_EMAILS.includes(a.email?.toLowerCase()) || a.role === 'admin' || a.isAdmin === true;
+        const bIsAdmin = ADMIN_EMAILS.includes(b.email?.toLowerCase()) || b.role === 'admin' || b.isAdmin === true;
+        if (aIsAdmin && !bIsAdmin) return -1;
+        if (!aIsAdmin && bIsAdmin) return 1;
+        return 0;
+      });
       setCurrentUsers(all);
     }, () => setCurrentUsers([]));
     return () => unsub();
@@ -143,6 +151,14 @@ export const UserDirectChat = ({
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const term = userSearchQuery.toLowerCase();
       const filtered = all.filter(u => u.id !== user?.uid && ((u.displayName||'').toLowerCase().includes(term) || (u.email||'').toLowerCase().includes(term) || u.id.toLowerCase().includes(term))).slice(0,12);
+      // Sort: admin users first
+      filtered.sort((a, b) => {
+        const aIsAdmin = ADMIN_EMAILS.includes(a.email?.toLowerCase()) || a.role === 'admin' || a.isAdmin === true;
+        const bIsAdmin = ADMIN_EMAILS.includes(b.email?.toLowerCase()) || b.role === 'admin' || b.isAdmin === true;
+        if (aIsAdmin && !bIsAdmin) return -1;
+        if (!aIsAdmin && bIsAdmin) return 1;
+        return 0;
+      });
       setUserSearchResults(filtered);
     });
     return () => unsub();
@@ -589,22 +605,34 @@ export const UserDirectChat = ({
   if (isOwnProfile && !selectedPartnerUid) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-        <style>{`@media(min-width:900px){ .rastro-chat-grid{ grid-template-columns: 1.1fr 0.9fr !important; } } @media(max-width:899px){ .rastro-chat-tabs{ display:flex !important; } .rastro-chat-grid{ grid-template-columns:1fr !important; } }`}</style>
+        <style>{`
+          @media(min-width:900px){ 
+            .rastro-chat-grid{ grid-template-columns: 1.1fr 0.9fr !important; } 
+            .rastro-chat-tabs{ display:none !important; }
+            .rastro-chat-conv{ display:flex !important; } 
+            .rastro-chat-buscar{ display:flex !important; }
+          } 
+          @media(max-width:899px){ 
+            .rastro-chat-tabs{ display:flex !important; } 
+            .rastro-chat-grid{ grid-template-columns:1fr !important; }
+          }
+        `}</style>
         <div className="rastro-chat-tabs" style={{ display: 'none', gap: '8px', background: 'rgba(120,120,128,0.08)', padding: '4px', borderRadius: '14px' }}>
           <button onClick={() => setChatMobileTab('conversaciones')} style={{ flex:1, padding:'8px', borderRadius:'10px', border:'none', background: chatMobileTab==='conversaciones' ? 'var(--accent-color)' : 'transparent', color: chatMobileTab==='conversaciones' ? '#fff' : 'var(--text-secondary)', fontWeight:800, fontSize:'0.82rem', cursor:'pointer' }}>Conversaciones</button>
           <button onClick={() => setChatMobileTab('buscar')} style={{ flex:1, padding:'8px', borderRadius:'10px', border:'none', background: chatMobileTab==='buscar' ? 'var(--accent-color)' : 'transparent', color: chatMobileTab==='buscar' ? '#fff' : 'var(--text-secondary)', fontWeight:800, fontSize:'0.82rem', cursor:'pointer' }}>Buscar usuarios</button>
         </div>
-        <div className="rastro-chat-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '16px' }}>
-          <style>{`@media(min-width:900px){ .rastro-chat-conv{ display:flex !important; } .rastro-chat-buscar{ display:flex !important; } }`}</style>
+        <div className="rastro-chat-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
           <div className="ios-glass-card rastro-chat-conv" style={{
         borderRadius: '24px',
-        padding: '20px',
+        padding: 'clamp(14px, 3vw, 20px)',
         display: chatMobileTab==='buscar' ? 'none' : 'flex',
         flexDirection: 'column',
         gap: '16px',
         border: '1.5px solid rgba(16, 185, 129, 0.25)',
         background: 'var(--card-bg)',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.06)'
+        boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
       }}>
         {/* Inbox Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--card-border)', paddingBottom: '14px' }}>
@@ -853,7 +881,7 @@ export const UserDirectChat = ({
           )}
         </div>
       </div>
-          <div className="ios-glass-card rastro-chat-buscar" style={{ borderRadius: '24px', padding: '20px', display: chatMobileTab==='conversaciones' ? 'none' : 'flex', flexDirection: 'column', gap: '12px', border: '1.5px solid rgba(0,122,255,0.18)', background: 'var(--card-bg)', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
+          <div className="ios-glass-card rastro-chat-buscar" style={{ borderRadius: '24px', padding: 'clamp(14px, 3vw, 20px)', display: chatMobileTab==='conversaciones' ? 'none' : 'flex', flexDirection: 'column', gap: '12px', border: '1.5px solid rgba(0,122,255,0.18)', background: 'var(--card-bg)', boxShadow: '0 10px 30px rgba(0,0,0,0.06)', boxSizing: 'border-box', overflow: 'hidden' }}>
             <h3 style={{ margin:0, fontSize:'1.05rem', fontWeight:800, color:'var(--text-main)', display:'flex', alignItems:'center', gap:'8px' }}><Search size={18} style={{ color:'var(--accent-color)'}} /> Buscar usuarios</h3>
             <p style={{ margin:0, fontSize:'0.8rem', color:'var(--text-secondary)' }}>Por nombre, perfil o UID</p>
             <label style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'10px', padding:'8px 12px', borderRadius:'12px', background:'rgba(120,120,128,0.06)', border:'1px solid var(--card-border)', cursor:'pointer', userSelect:'none' }}>
@@ -868,31 +896,39 @@ export const UserDirectChat = ({
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:'8px', maxHeight:'420px', overflowY:'auto' }}>
               {userSearchQuery.trim() ? (
-                userSearchResults.length===0 ? <span style={{ fontSize:'0.82rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>Sin resultados</span> : userSearchResults.map(u=> (
-                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border:'1px solid var(--card-border)', background:'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
+                userSearchResults.length===0 ? <span style={{ fontSize:'0.82rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>Sin resultados</span> : userSearchResults.map(u=> {
+                  const isUserAdmin = ADMIN_EMAILS.includes(u.email?.toLowerCase()) || u.role === 'admin' || u.isAdmin === true;
+                  return (
+                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: isUserAdmin ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: isUserAdmin ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
                     <LiveUserAvatar uid={u.id} fallbackName={u.displayName} fallbackPhoto={u.photoURL} size={36} />
                     <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:0 }}>
                       <span style={{ fontWeight:700, fontSize:'0.86rem', color:'var(--text-main)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.displayName || 'Estudiante'}</span>
-                      {u.carrera && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
+                      {isUserAdmin && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
+                      {u.carrera && !u.carrera.toLowerCase().includes('fundador') && !u.carrera.toLowerCase().includes('creador') && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
                     </div>
                     <span style={{ padding:'4px 10px', borderRadius:'8px', background:'rgba(16,185,129,0.14)', color:'#059669', fontSize:'0.74rem', fontWeight:800, display:'inline-flex', alignItems:'center', gap:'4px' }}>
                       <MessageSquare size={12} /> Chatear
                     </span>
                   </button>
-                ))
+                  );
+                })
               ) : showCurrentUsers ? (
-                currentUsers.length===0 ? <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>No hay usuarios para mostrar</span> : currentUsers.map(u=> (
-                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border:'1px solid var(--card-border)', background:'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
+                currentUsers.length===0 ? <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', textAlign:'center', padding:'12px' }}>No hay usuarios para mostrar</span> : currentUsers.map(u=> {
+                  const isUserAdmin = ADMIN_EMAILS.includes(u.email?.toLowerCase()) || u.role === 'admin' || u.isAdmin === true;
+                  return (
+                  <button key={u.id} onClick={()=>{ setSelectedPartnerUid(u.id); setSelectedPartnerData({ partnerUid: u.id, partnerName: u.displayName || 'Estudiante RASTRO', partnerPhoto: u.photoURL || null }); }} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'14px', border: isUserAdmin ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--card-border)', background: isUserAdmin ? 'rgba(245, 158, 11, 0.06)' : 'rgba(120,120,128,0.04)', cursor:'pointer', textAlign:'left', transition:'all 0.15s ease' }}>
                     <LiveUserAvatar uid={u.id} fallbackName={u.displayName} fallbackPhoto={u.photoURL} size={36} />
                     <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:0 }}>
                       <span style={{ fontWeight:700, fontSize:'0.86rem', color:'var(--text-main)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.displayName || 'Estudiante'}</span>
-                      {u.carrera && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
+                      {isUserAdmin && <span style={{ padding:'1px 7px', borderRadius:'6px', background:'linear-gradient(135deg, #F59E0B, #D97706)', color:'#fff', fontSize:'0.65rem', fontWeight:800, whiteSpace:'nowrap', marginTop:'2px', alignSelf:'flex-start' }}>👑 Admin - Soporte</span>}
+                      {u.carrera && !u.carrera.toLowerCase().includes('fundador') && !u.carrera.toLowerCase().includes('creador') && <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{u.carrera}</span>}
                     </div>
                     <span style={{ padding:'4px 10px', borderRadius:'8px', background:'rgba(16,185,129,0.14)', color:'#059669', fontSize:'0.74rem', fontWeight:800, display:'inline-flex', alignItems:'center', gap:'4px' }}>
                       <MessageSquare size={12} /> Chatear
                     </span>
                   </button>
-                ))
+                  );
+                })
               ) : (
                 <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', textAlign:'center', padding:'8px' }}>Activa "Mostrar usuarios actuales" o escribe para buscar</span>
               )}
@@ -920,7 +956,7 @@ export const UserDirectChat = ({
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      height: '560px',
+      height: 'min(560px, 70vh)',
       width: '100%',
       maxWidth: '100%',
       boxSizing: 'border-box',
@@ -933,14 +969,15 @@ export const UserDirectChat = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 16px',
+        padding: '10px 12px',
         background: 'rgba(5, 150, 105, 0.08)',
         borderBottom: '1px solid var(--card-border)',
         backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)'
+        WebkitBackdropFilter: 'blur(10px)',
+        flexWrap: 'wrap',
+        gap: '8px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Back button if in own profile inbox */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
           {isOwnProfile && (
             <button
               type="button"
@@ -951,84 +988,83 @@ export const UserDirectChat = ({
               style={{
                 background: 'rgba(120, 120, 128, 0.1)',
                 border: 'none',
-                borderRadius: '12px',
-                padding: '6px 10px',
+                borderRadius: '10px',
+                padding: '6px 8px',
                 color: 'var(--text-main)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.8rem',
-                fontWeight: 700
+                flexShrink: 0
               }}
               title="Volver a lista de chats"
             >
-              <ArrowLeft size={16} /> <span className="hide-on-mobile">Chats</span>
+              <ArrowLeft size={18} />
             </button>
           )}
 
-          <Link to={`/usuario/${currentPartnerUid}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ position: 'relative' }}>
-              <LiveUserAvatar uid={currentPartnerUid} fallbackName={displayPartnerName} fallbackPhoto={displayPartnerPhoto} size={38} />
+          <Link to={`/usuario/${currentPartnerUid}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <LiveUserAvatar uid={currentPartnerUid} fallbackName={displayPartnerName} fallbackPhoto={displayPartnerPhoto} size={34} />
               <div style={{
                 position: 'absolute',
                 bottom: 0,
                 right: 0,
-                width: '10px',
-                height: '10px',
+                width: '9px',
+                height: '9px',
                 borderRadius: '50%',
                 background: '#10B981',
                 border: '1.5px solid var(--card-bg)'
               }} />
             </div>
 
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <LiveUserName uid={currentPartnerUid} fallbackName={displayPartnerName} />
               </div>
-              <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Lock size={10} /> Chat Privado Interno
+              <span style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <Lock size={9} /> Privado
               </span>
             </div>
           </Link>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{
-            padding: '3px 10px',
-            borderRadius: '12px',
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <span className="hide-on-mobile" style={{
+            padding: '3px 8px',
+            borderRadius: '10px',
             background: 'rgba(16, 185, 129, 0.15)',
             color: '#059669',
-            fontSize: '0.72rem',
+            fontSize: '0.68rem',
             fontWeight: 800,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '4px'
+            gap: '3px'
           }}>
-            🔒 Encriptado Local
+            🔒 Encriptado
           </span>
 
           <button
             type="button"
-            onClick={() => handleDeleteConversation(currentPartnerUid, displayPartnerName)}
-            title="Eliminar toda la conversación"
+            onClick={() => {
+              if (window.confirm(`¿Eliminar toda la conversación con ${displayPartnerName}? Esta acción no se puede deshacer.`)) {
+                handleDeleteConversation(currentPartnerUid, displayPartnerName);
+              }
+            }}
+            title="Eliminar conversación"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '5px 10px',
+              justifyContent: 'center',
+              padding: '6px',
               borderRadius: '10px',
               border: '1px solid rgba(239, 68, 68, 0.25)',
               background: 'rgba(239, 68, 68, 0.08)',
               color: '#EF4444',
-              fontSize: '0.74rem',
-              fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s ease'
             }}
           >
-            <Trash2 size={13} />
-            <span>Borrar Chat</span>
+            <Trash2 size={16} />
           </button>
         </div>
       </div>

@@ -76,7 +76,15 @@ export const toggleSaveMaterialItem = async (user, materialItem) => {
       driveUrl: materialItem.driveUrl || materialItem.url || (Array.isArray(materialItem) ? materialItem[2] : ''),
       author: materialItem.author || materialItem.uploadedBy?.displayName || materialItem.uploadedBy?.name || 'Comunidad RASTRO',
       authorUid: materialItem.authorUid || materialItem.uploadedBy?.uid || null,
-      savedAt: Date.now()
+      savedAt: Date.now(),
+      academyName: materialItem.academyName || null,
+      academyId: materialItem.academyId || null,
+      weekNum: materialItem.weekNum !== undefined ? materialItem.weekNum : null,
+      area: materialItem.area || null,
+      saveType: materialItem.saveType || null,
+      backLink: materialItem.backLink || null,
+      videos: materialItem.videos || null,
+      videoCount: materialItem.videoCount || null
     };
     updated = [newItem, ...currentSaved];
   }

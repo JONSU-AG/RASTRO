@@ -1468,3 +1468,10 @@ body {
     max-height: calc(100vh - 80px);
   }
 }
+
+/* Hide on mobile */
+@media (max-width: 600px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

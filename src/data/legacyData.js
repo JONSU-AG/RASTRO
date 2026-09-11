@@ -19,6 +19,11 @@ export const TOMOS = [
     "Material y Resúmenes Clave",
     "Fichas teóricas, formularios y resúmenes complementarios para reforzar el estudio.",
     "https://drive.google.com/drive/folders/1fNBpQ7M-QKWELu6S2aSsW340ULCZnM4z"
+  ],
+  [
+    "Temario y Matriz de Evaluación 2027",
+    "Temario oficial y matriz de evaluación para el proceso de admisión 2027.",
+    "./assets/TEMARIO-y-MATRIZ-ADMISION-2027.pdf"
   ]
 ];
 export const PRACTICAS = [
