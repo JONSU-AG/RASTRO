@@ -1934,7 +1934,7 @@ export const Simulador = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '26px', width: '100%', maxWidth: '100%' }}
             >
                {/* Area Selector with distinct vibrant colors */}
                <div style={{ 
@@ -2094,14 +2094,15 @@ export const Simulador = () => {
                         key={curso} 
                         className="ios-glass-card" 
                         style={{ 
-                          padding: '24px', 
-                          overflowX: 'auto',
+                          padding: 'clamp(16px, 3vw, 24px)', 
                           border: `1.5px solid ${catStyle.border}`,
-                          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.04)'
+                          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.04)',
+                          width: '100%',
+                          boxSizing: 'border-box'
                         }}
                       >
                         {/* Course Group Header with vibrant badge */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{ 
                               width: '40px', 
@@ -2110,13 +2111,14 @@ export const Simulador = () => {
                               background: catStyle.badgeBg,
                               display: 'flex', 
                               alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontSize: '1.25rem'
+                              justifyContent: 'center', 
+                              fontSize: '1.25rem',
+                              flexShrink: 0
                             }}>
                               {catStyle.icon}
                             </div>
                             <div>
-                              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                              <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
                                 {curso}
                               </h3>
                               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -2129,10 +2131,10 @@ export const Simulador = () => {
                             <span style={{ 
                               background: catStyle.lightBg, 
                               color: catStyle.color, 
-                              padding: '6px 14px', 
+                              padding: '5px 12px', 
                               borderRadius: '999px', 
                               fontWeight: 800, 
-                              fontSize: '0.85rem',
+                              fontSize: '0.82rem',
                               border: `1px solid ${catStyle.border}`
                             }}>
                               +{formatNum(courseSubtotal)} pts acumulados
@@ -2140,144 +2142,145 @@ export const Simulador = () => {
                           )}
                         </div>
                         
-                        <table style={{ width: '100%', minWidth: '560px', borderCollapse: 'separate', borderSpacing: '0 8px', textAlign: 'left' }}>
-                          <thead>
-                            <tr style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              <th style={{ padding: '10px 14px' }}>Asignatura</th>
-                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Preguntas</th>
-                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Valor c/u</th>
-                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Tus Aciertos</th>
-                              <th style={{ padding: '10px 14px', textAlign: 'right' }}>Subtotal</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {courseItems.map((item, idx) => {
-                               const currentAciertos = aciertos[item.asignatura] || 0;
-                               const subtotal = currentAciertos * item.valor;
-                               const hasAciertos = currentAciertos > 0;
-                               
-                               return (
-                                <tr 
-                                  key={idx} 
-                                  style={{ 
-                                    background: hasAciertos ? catStyle.lightBg : 'rgba(120, 120, 128, 0.04)',
-                                    borderRadius: '14px',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  <td style={{ padding: '14px', borderTopLeftRadius: '14px', borderBottomLeftRadius: '14px', color: 'var(--text-main)', fontWeight: 700 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <div style={{ width: '6px', height: '18px', borderRadius: '4px', background: catStyle.color }} />
-                                      <span>{item.asignatura}</span>
-                                    </div>
-                                  </td>
-
-                                  <td style={{ padding: '14px', color: 'var(--text-secondary)', textAlign: 'center', fontWeight: 700 }}>
-                                    <span style={{ background: 'rgba(120,120,128,0.1)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem' }}>
-                                      {item.preguntas}
+                        {/* 100% Responsive Subject List (Zero Horizontal Scroll on Mobile) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                          {courseItems.map((item, idx) => {
+                             const currentAciertos = aciertos[item.asignatura] || 0;
+                             const subtotal = currentAciertos * item.valor;
+                             const hasAciertos = currentAciertos > 0;
+                             
+                             return (
+                              <div 
+                                key={idx} 
+                                style={{ 
+                                  background: hasAciertos ? catStyle.lightBg : 'rgba(120, 120, 128, 0.05)',
+                                  borderRadius: '16px',
+                                  padding: '12px 14px',
+                                  border: hasAciertos ? `1.5px solid ${catStyle.border}` : '1.5px solid transparent',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '12px',
+                                  transition: 'all 0.2s ease',
+                                  boxSizing: 'border-box',
+                                  width: '100%'
+                                }}
+                              >
+                                {/* Left Side: Asignatura & Questions info */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '130px', flex: '1 1 auto' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ width: '4px', height: '16px', borderRadius: '4px', background: catStyle.color, flexShrink: 0 }} />
+                                    <span style={{ color: 'var(--text-main)', fontWeight: 800, fontSize: '0.92rem' }}>
+                                      {item.asignatura}
                                     </span>
-                                  </td>
-
-                                  <td style={{ padding: '14px', color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.88rem', fontWeight: 700 }}>
-                                    <span style={{ color: catStyle.color }}>
-                                      {formatNum(item.valor)} pts
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--text-secondary)', paddingLeft: '12px' }}>
+                                    <span style={{ background: 'rgba(120,120,128,0.12)', padding: '2px 7px', borderRadius: '6px', fontWeight: 700 }}>
+                                      {item.preguntas} preg.
                                     </span>
-                                  </td>
+                                    <span>•</span>
+                                    <span style={{ fontWeight: 600 }}>
+                                      {formatNum(item.valor)} pts c/u
+                                    </span>
+                                  </div>
+                                </div>
 
-                                  <td style={{ padding: '14px', textAlign: 'center' }}>
-                                    <div style={{ 
-                                      display: 'inline-flex', 
-                                      alignItems: 'center', 
-                                      background: 'var(--card-bg)', 
-                                      border: hasAciertos ? `1.5px solid ${catStyle.color}` : '1px solid var(--card-border)', 
-                                      borderRadius: '14px', 
-                                      padding: '2px 4px',
-                                      boxShadow: hasAciertos ? `0 4px 12px ${catStyle.lightBg}` : 'none'
-                                    }}>
-                                      <button 
-                                        onClick={() => handleAciertosChange(item.asignatura, item.preguntas, currentAciertos - 1)}
-                                        disabled={currentAciertos <= 0}
-                                        style={{ 
-                                          width: '28px', 
-                                          height: '28px', 
-                                          background: 'transparent', 
-                                          border: 'none', 
-                                          color: currentAciertos <= 0 ? 'var(--text-muted)' : 'var(--text-main)', 
-                                          cursor: currentAciertos <= 0 ? 'default' : 'pointer', 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
-                                          justifyContent: 'center',
-                                          borderRadius: '8px'
-                                        }}
-                                      >
-                                        <Minus size={14} strokeWidth={2.5} />
-                                      </button>
+                                {/* Right Side: Controls and Subtotal in one compact flex group */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                                  <div style={{ 
+                                    display: 'inline-flex', 
+                                    alignItems: 'center', 
+                                    background: 'var(--card-bg)', 
+                                    border: hasAciertos ? `1.5px solid ${catStyle.color}` : '1.5px solid var(--card-border)', 
+                                    borderRadius: '14px', 
+                                    padding: '2px 4px',
+                                    boxShadow: hasAciertos ? `0 4px 12px ${catStyle.lightBg}` : 'none'
+                                  }}>
+                                    <button 
+                                      onClick={() => handleAciertosChange(item.asignatura, item.preguntas, currentAciertos - 1)}
+                                      disabled={currentAciertos <= 0}
+                                      style={{ 
+                                        width: '32px', 
+                                        height: '32px', 
+                                        background: 'transparent', 
+                                        border: 'none', 
+                                        color: currentAciertos <= 0 ? 'var(--text-muted)' : 'var(--text-main)', 
+                                        cursor: currentAciertos <= 0 ? 'default' : 'pointer', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        borderRadius: '10px'
+                                      }}
+                                    >
+                                      <Minus size={15} strokeWidth={2.5} />
+                                    </button>
 
-                                      <input 
-                                        type="number"
-                                        min="0"
-                                        max={item.preguntas}
-                                        value={currentAciertos}
-                                        onChange={(e) => handleAciertosChange(item.asignatura, item.preguntas, e.target.value)}
-                                        style={{ 
-                                          width: '36px', 
-                                          textAlign: 'center', 
-                                          background: 'transparent', 
-                                          border: 'none', 
-                                          color: hasAciertos ? catStyle.color : 'var(--text-main)', 
-                                          fontWeight: 800, 
-                                          fontSize: '1rem', 
-                                          outline: 'none', 
-                                          WebkitAppearance: 'none', 
-                                          margin: 0 
-                                        }}
-                                      />
+                                    <input 
+                                      type="number"
+                                      min="0"
+                                      max={item.preguntas}
+                                      value={currentAciertos}
+                                      onChange={(e) => handleAciertosChange(item.asignatura, item.preguntas, e.target.value)}
+                                      style={{ 
+                                        width: '36px', 
+                                        textAlign: 'center', 
+                                        background: 'transparent', 
+                                        border: 'none', 
+                                        color: hasAciertos ? catStyle.color : 'var(--text-main)', 
+                                        fontWeight: 800, 
+                                        fontSize: '1rem', 
+                                        outline: 'none', 
+                                        WebkitAppearance: 'none', 
+                                        margin: 0 
+                                      }}
+                                    />
 
-                                      <button 
-                                        onClick={() => handleAciertosChange(item.asignatura, item.preguntas, currentAciertos + 1)}
-                                        disabled={currentAciertos >= item.preguntas}
-                                        style={{ 
-                                          width: '28px', 
-                                          height: '28px', 
-                                          background: 'transparent', 
-                                          border: 'none', 
-                                          color: currentAciertos >= item.preguntas ? 'var(--text-muted)' : catStyle.color, 
-                                          cursor: currentAciertos >= item.preguntas ? 'default' : 'pointer', 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
-                                          justifyContent: 'center',
-                                          borderRadius: '8px'
-                                        }}
-                                      >
-                                        <Plus size={14} strokeWidth={2.5} />
-                                      </button>
-                                    </div>
-                                  </td>
+                                    <button 
+                                      onClick={() => handleAciertosChange(item.asignatura, item.preguntas, currentAciertos + 1)}
+                                      disabled={currentAciertos >= item.preguntas}
+                                      style={{ 
+                                        width: '32px', 
+                                        height: '32px', 
+                                        background: 'transparent', 
+                                        border: 'none', 
+                                        color: currentAciertos >= item.preguntas ? 'var(--text-muted)' : catStyle.color, 
+                                        cursor: currentAciertos >= item.preguntas ? 'default' : 'pointer', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        borderRadius: '10px'
+                                      }}
+                                    >
+                                      <Plus size={15} strokeWidth={2.5} />
+                                    </button>
+                                  </div>
 
-                                  <td style={{ padding: '14px', borderTopRightRadius: '14px', borderBottomRightRadius: '14px', textAlign: 'right' }}>
+                                  <div style={{ minWidth: '60px', textAlign: 'right' }}>
                                     {hasAciertos ? (
                                       <span style={{ 
                                         background: catStyle.gradient, 
                                         color: '#FFFFFF', 
-                                        padding: '5px 12px', 
+                                        padding: '5px 10px', 
                                         borderRadius: '10px', 
                                         fontWeight: 800, 
-                                        fontSize: '0.9rem',
-                                        boxShadow: `0 4px 10px ${catStyle.lightBg}`
+                                        fontSize: '0.82rem',
+                                        boxShadow: `0 3px 8px ${catStyle.lightBg}`,
+                                        display: 'inline-block'
                                       }}>
                                         +{formatNum(subtotal)}
                                       </span>
                                     ) : (
-                                      <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                      <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>
                                         0.00
                                       </span>
                                     )}
-                                  </td>
-                                </tr>
-                               )
-                            })}
-                          </tbody>
-                        </table>
+                                  </div>
+                                </div>
+                              </div>
+                             );
+                          })}
+                        </div>
                       </div>
                     );
                  })}

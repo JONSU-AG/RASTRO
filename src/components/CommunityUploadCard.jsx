@@ -662,25 +662,51 @@ export const CommunityUploadCard = ({
 
       {/* ─── ACCIONES DEL MATERIAL (Abrir, Vista Previa, Compartir, Guardar, Comentar) ─── */}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
-        <a
-          href={item.driveFolderUrl || (item.driveFolderId ? `https://drive.google.com/drive/folders/${item.driveFolderId}` : (driveId ? `https://drive.google.com/file/d/${driveId}/view` : item.url))}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '8px 16px',
-            borderRadius: '12px',
-            background: 'var(--accent-color)',
-            color: '#FFFFFF',
-            textDecoration: 'none',
-            fontWeight: 700,
-            fontSize: '0.84rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <ExternalLink size={14} /> Abrir Recurso
-        </a>
+        {item.driveLinks && Array.isArray(item.driveLinks) && item.driveLinks.filter(Boolean).length > 1 ? (
+          item.driveLinks.filter(Boolean).map((dLink, i) => (
+            <a
+              key={i}
+              href={dLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '12px',
+                background: i === 0 ? 'var(--accent-color)' : 'rgba(0, 122, 255, 0.12)',
+                color: i === 0 ? '#FFFFFF' : 'var(--accent-color)',
+                border: i === 0 ? 'none' : '1px solid rgba(0, 122, 255, 0.25)',
+                textDecoration: 'none',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <ExternalLink size={13} /> Enlace {i + 1}
+            </a>
+          ))
+        ) : (
+          <a
+            href={item.driveFolderUrl || (item.driveFolderId ? `https://drive.google.com/drive/folders/${item.driveFolderId}` : (driveId ? `https://drive.google.com/file/d/${driveId}/view` : item.url))}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '12px',
+              background: 'var(--accent-color)',
+              color: '#FFFFFF',
+              textDecoration: 'none',
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <ExternalLink size={14} /> Abrir Recurso
+          </a>
+        )}
 
         {!hidePreviewToggle && (
           <button

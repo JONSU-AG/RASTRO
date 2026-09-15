@@ -1063,6 +1063,21 @@ export const Admin = () => {
     }
   };
 
+  const handleToggleOrstty = async () => {
+    const nextVal = siteSettings.orsttyEnabled === false ? true : false;
+    try {
+      await saveSiteSettings({ orsttyEnabled: nextVal });
+      showNotice(
+        nextVal ? "Asistente ORSTTY Activado ⚡" : "Asistente ORSTTY en Mantenimiento 🔧",
+        nextVal
+          ? "ORSTTY IA está ahora activo y disponible para todos los estudiantes."
+          : "ORSTTY IA ha sido pausado temporalmente por motivos de mantenimiento técnico."
+      );
+    } catch (err) {
+      showNotice("Error", err.message);
+    }
+  };
+
   const handleApproveAllPending = () => {
     if (pendientesList.length === 0) return;
     setConfirmModal({
@@ -1532,6 +1547,78 @@ export const Admin = () => {
     }
   };
 
+  const handleHideCourseFromReport = async (courseId, reportId = null) => {
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Ocultar Curso del Sistema?',
+      message: `El curso "${courseId}" dejará de ser visible públicamente para todos los estudiantes y quedará marcado como ocultado por moderación.`,
+      confirmText: 'Ocultar Curso',
+      onConfirm: async () => {
+        try {
+          try {
+            await updateDoc(doc(db, 'academias', courseId), {
+              oculto: true,
+              hidden: true,
+              reportsCount: 5,
+              enRevision: true,
+              updatedAt: serverTimestamp()
+            });
+          } catch (e) {
+            await toggleHideDefaultItem(courseId);
+          }
+
+          if (reportId) {
+            await updateDoc(doc(db, 'reportes', reportId), {
+              status: 'curso_ocultado',
+              resolvedAt: serverTimestamp(),
+              resolvedBy: user?.email || 'admin'
+            });
+          }
+          showNotice("Curso Ocultado", "El curso ha sido ocultado de la plataforma exitosamente.");
+        } catch (err) {
+          showNotice("Error", "Error al ocultar curso: " + err.message);
+        }
+      }
+    });
+  };
+
+  const handleRestoreCourseFromReport = async (courseId, reportId = null) => {
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Restaurar Visibilidad del Curso?',
+      message: `El curso "${courseId}" volverá a estar visible para todos los estudiantes y sus reportes se restablecerán a 0.`,
+      confirmText: 'Restaurar Curso',
+      onConfirm: async () => {
+        try {
+          try {
+            await updateDoc(doc(db, 'academias', courseId), {
+              oculto: false,
+              hidden: false,
+              reportsCount: 0,
+              enRevision: false,
+              updatedAt: serverTimestamp()
+            });
+          } catch (e) {
+            if (isDefaultItemHidden(courseId, siteSettings)) {
+              await toggleHideDefaultItem(courseId);
+            }
+          }
+
+          if (reportId) {
+            await updateDoc(doc(db, 'reportes', reportId), {
+              status: 'revisado',
+              resolvedAt: serverTimestamp(),
+              resolvedBy: user?.email || 'admin'
+            });
+          }
+          showNotice("Curso Restaurado", "El curso ha sido restaurado y ya es visible públicamente.");
+        } catch (err) {
+          showNotice("Error", "Error al restaurar curso: " + err.message);
+        }
+      }
+    });
+  };
+
   const handleClearWarning = (uid, userName) => {
     setConfirmModal({
       isOpen: true,
@@ -1607,9 +1694,10 @@ export const Admin = () => {
   const pendingReportsCount = reportsList.filter(r => r.status === 'pendiente' || !r.status).length;
 
   const filteredReports = reportsList.filter(rep => {
+    if (reportFilter === 'curso' && !(rep.targetType === 'curso' || rep.targetType === 'academia')) return false;
     if (reportFilter === 'perfil' && !(rep.targetType === 'perfil' || rep.targetType === 'user')) return false;
     if (reportFilter === 'material' && rep.targetType !== 'material') return false;
-    if (reportFilter === 'pendiente' && (rep.status === 'revisado' || rep.status === 'desestimado' || rep.status === 'aviso_enviado')) return false;
+    if (reportFilter === 'pendiente' && (rep.status === 'revisado' || rep.status === 'desestimado' || rep.status === 'aviso_enviado' || rep.status === 'curso_ocultado')) return false;
 
     if (searchQuery) {
       const match = searchMatches([
@@ -1787,6 +1875,120 @@ export const Admin = () => {
         </p>
       </header>
 
+      {/* Barra de Control de Sistema Rápido: ORSTTY y Auto-Aprobación */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        {/* Switch ORSTTY IA */}
+        <div style={{
+          background: 'var(--card-bg)',
+          border: siteSettings.orsttyEnabled === false ? '1.5px solid rgba(239, 68, 68, 0.35)' : '1.5px solid rgba(124, 58, 237, 0.35)',
+          borderRadius: '16px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: siteSettings.orsttyEnabled === false ? 'rgba(239, 68, 68, 0.12)' : 'rgba(124, 58, 237, 0.12)',
+              color: siteSettings.orsttyEnabled === false ? '#DC2626' : '#7C3AED',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <strong style={{ fontSize: '0.86rem', color: 'var(--text-main)', display: 'block' }}>
+                Asistente ORSTTY IA
+              </strong>
+              <span style={{ fontSize: '0.74rem', color: siteSettings.orsttyEnabled === false ? '#DC2626' : '#059669', fontWeight: 700 }}>
+                {siteSettings.orsttyEnabled === false ? '🔧 En Mantenimiento (Desactivado)' : '⚡ Activo para estudiantes'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleOrstty}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '10px',
+              border: 'none',
+              background: siteSettings.orsttyEnabled === false ? 'linear-gradient(135deg, #10B981, #059669)' : 'rgba(239, 68, 68, 0.15)',
+              color: siteSettings.orsttyEnabled === false ? '#FFF' : '#DC2626',
+              fontWeight: 800,
+              fontSize: '0.78rem',
+              cursor: 'pointer'
+            }}
+          >
+            {siteSettings.orsttyEnabled === false ? 'Activar' : 'Desactivar'}
+          </button>
+        </div>
+
+        {/* Switch Auto-Aprobación */}
+        <div style={{
+          background: 'var(--card-bg)',
+          border: '1.5px solid var(--card-border)',
+          borderRadius: '16px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(0, 122, 255, 0.12)',
+              color: 'var(--accent-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <CheckCircle size={20} />
+            </div>
+            <div>
+              <strong style={{ fontSize: '0.86rem', color: 'var(--text-main)', display: 'block' }}>
+                Auto-Aprobación de Aportes
+              </strong>
+              <span style={{ fontSize: '0.74rem', color: siteSettings.autoApproveUploads !== false ? '#059669' : '#D97706', fontWeight: 700 }}>
+                {siteSettings.autoApproveUploads !== false ? '⚡ Inmediata sin revisión' : '⏳ Requiere Aprobación manual'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleAutoApprove}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '10px',
+              border: '1px solid var(--card-border)',
+              background: 'rgba(120, 120, 128, 0.08)',
+              color: 'var(--text-main)',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: 'pointer'
+            }}
+          >
+            Cambiar
+          </button>
+        </div>
+      </div>
+
       {/* Admin organizado: Usuarios / Contenido / Configuración — reutiliza mismos tabs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         {[
@@ -1906,8 +2108,9 @@ export const Admin = () => {
               {[
                 { id: 'todos', label: `Todos (${reportsList.length})` },
                 { id: 'pendiente', label: `⏳ Pendientes (${pendingReportsCount})` },
-                { id: 'perfil', label: `👤 Perfiles (${reportsList.filter(r => r.targetType === 'perfil' || r.targetType === 'user').length})` },
-                { id: 'material', label: `📚 Materiales (${reportsList.filter(r => r.targetType === 'material').length})` }
+                { id: 'curso', label: `🎓 Cursos (${reportsList.filter(r => r.targetType === 'curso' || r.targetType === 'academia').length})` },
+                { id: 'material', label: `📚 Materiales (${reportsList.filter(r => r.targetType === 'material').length})` },
+                { id: 'perfil', label: `👤 Perfiles (${reportsList.filter(r => r.targetType === 'perfil' || r.targetType === 'user').length})` }
               ].map(flt => (
                 <button
                   key={flt.id}
@@ -1940,6 +2143,7 @@ export const Admin = () => {
           ) : (
             filteredReports.map((rep) => {
               const isProfileReport = rep.targetType === 'perfil' || rep.targetType === 'user';
+              const isCourseReport = rep.targetType === 'curso' || rep.targetType === 'academia';
               const targetUserUid = rep.reportedUser?.uid || (isProfileReport ? rep.targetId : null);
               const targetUserName = rep.reportedUser?.displayName || rep.targetTitle || 'Usuario';
               const targetUserEmail = rep.reportedUser?.email || '';
@@ -1954,7 +2158,9 @@ export const Admin = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '14px',
-                    border: rep.status === 'aviso_enviado' 
+                    border: rep.status === 'curso_ocultado'
+                      ? '1.5px solid rgba(239, 68, 68, 0.6)'
+                      : rep.status === 'aviso_enviado' 
                       ? '1.5px solid rgba(245, 158, 11, 0.4)' 
                       : rep.status === 'desestimado'
                       ? '1px solid var(--card-border)'
@@ -1970,10 +2176,18 @@ export const Admin = () => {
                         borderRadius: '10px',
                         fontSize: '0.76rem',
                         fontWeight: 800,
-                        background: isProfileReport ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0, 122, 255, 0.15)',
-                        color: isProfileReport ? '#9333EA' : 'var(--accent-color)'
+                        background: isCourseReport 
+                          ? 'rgba(124, 58, 237, 0.15)' 
+                          : isProfileReport 
+                          ? 'rgba(168, 85, 247, 0.15)' 
+                          : 'rgba(0, 122, 255, 0.15)',
+                        color: isCourseReport 
+                          ? '#7C3AED' 
+                          : isProfileReport 
+                          ? '#9333EA' 
+                          : 'var(--accent-color)'
                       }}>
-                        {isProfileReport ? '👤 REPORTE DE PERFIL' : `📌 REPORTE (${rep.targetType?.toUpperCase() || 'CONTENIDO'})`}
+                        {isCourseReport ? '🎓 REPORTE DE CURSO' : isProfileReport ? '👤 REPORTE DE PERFIL' : `📚 REPORTE (${rep.targetType?.toUpperCase() || 'CONTENIDO'})`}
                       </span>
 
                       <span style={{
@@ -1981,14 +2195,18 @@ export const Admin = () => {
                         borderRadius: '10px',
                         fontSize: '0.74rem',
                         fontWeight: 800,
-                        background: rep.status === 'aviso_enviado' 
+                        background: rep.status === 'curso_ocultado'
+                          ? 'rgba(239, 68, 68, 0.22)'
+                          : rep.status === 'aviso_enviado' 
                           ? 'rgba(245, 158, 11, 0.18)' 
                           : rep.status === 'desestimado' 
                           ? 'rgba(120, 120, 128, 0.15)' 
                           : rep.status === 'revisado' 
                           ? 'rgba(52, 168, 83, 0.18)' 
                           : 'rgba(239, 68, 68, 0.18)',
-                        color: rep.status === 'aviso_enviado' 
+                        color: rep.status === 'curso_ocultado'
+                          ? '#DC2626'
+                          : rep.status === 'aviso_enviado' 
                           ? '#D97706' 
                           : rep.status === 'desestimado' 
                           ? 'var(--text-secondary)' 
@@ -1996,7 +2214,9 @@ export const Admin = () => {
                           ? '#059669' 
                           : '#DC2626'
                       }}>
-                        {rep.status === 'aviso_enviado' 
+                        {rep.status === 'curso_ocultado'
+                          ? '🚫 Curso Ocultado'
+                          : rep.status === 'aviso_enviado' 
                           ? '✉️ Aviso Enviado' 
                           : rep.status === 'desestimado' 
                           ? '✓ Desestimado' 
@@ -2077,8 +2297,98 @@ export const Admin = () => {
                   </div>
 
                   {/* Admin Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid var(--card-border)' }}>
-                    {/* Optional Notice Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--card-border)' }}>
+                    {/* Botones Especiales si es un Reporte de Curso */}
+                    {isCourseReport && (
+                      <>
+                        <Link
+                          to={`/cursos/${rep.targetId}`}
+                          target="_blank"
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(124, 58, 237, 0.4)',
+                            background: 'rgba(124, 58, 237, 0.1)',
+                            color: '#7C3AED',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <ExternalLink size={15} /> Ver Curso
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleHideCourseFromReport(rep.targetId, rep.id)}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 3px 10px rgba(239, 68, 68, 0.25)'
+                          }}
+                        >
+                          <Ban size={15} /> Ocultar Curso del Sistema
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreCourseFromReport(rep.targetId, rep.id)}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            color: '#059669',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <CheckCircle size={15} /> Restaurar Visibilidad
+                        </button>
+                      </>
+                    )}
+
+                    {/* Botón Abrir Material si tiene URL de material */}
+                    {rep.targetUrl && !isCourseReport && (
+                      <a
+                        href={rep.targetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '12px',
+                          border: '1px solid var(--card-border)',
+                          background: 'rgba(120, 120, 128, 0.08)',
+                          color: 'var(--text-main)',
+                          fontWeight: 700,
+                          fontSize: '0.84rem',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <ExternalLink size={15} /> Abrir Material
+                      </a>
+                    )}
+
+                    {/* Optional Notice Button for User Profiles */}
                     {targetUserUid && (
                       <button
                         type="button"
@@ -2103,7 +2413,7 @@ export const Admin = () => {
                           boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)'
                         }}
                       >
-                        <Send size={15} /> Enviar Aviso en Pantalla (Opcional)
+                        <Send size={15} /> Enviar Aviso en Pantalla
                       </button>
                     )}
 
@@ -2125,7 +2435,7 @@ export const Admin = () => {
                         gap: '6px'
                       }}
                     >
-                      <CheckCircle size={15} /> Desestimar (Sin sanción)
+                      <CheckCircle size={15} /> Desestimar Reporte
                     </button>
 
                     {/* Mark Reviewed */}

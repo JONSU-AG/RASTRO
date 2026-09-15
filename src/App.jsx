@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { LiquidNavbar } from './components/LiquidNavbar';
 import { CookieBanner } from './components/CookieBanner';
 import { IOSModal } from './components/IOSModal';
+import { TermsModal } from './components/TermsModal';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { WarningBanner } from './components/WarningBanner';
 import { ChooseUsernameModal } from './components/ChooseUsernameModal';
@@ -136,46 +137,11 @@ export function App() {
             {/* Cookie & Terms Banner */}
             <CookieBanner onOpenTerms={() => setIsTermsOpen(true)} />
 
-            {/* Terms and Privacy iOS Modal */}
-            <IOSModal
+            {/* Super Terms & Privacy Modal (Centrado, amplio y protector) */}
+            <TermsModal
               isOpen={isTermsOpen}
               onClose={() => setIsTermsOpen(false)}
-              title="Términos, Condiciones & Privacidad"
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.88rem', lineHeight: 1.55, color: 'var(--text-main)' }}>
-                <div style={{
-                  padding: '12px 14px',
-                  borderRadius: '14px',
-                  background: 'rgba(0, 122, 255, 0.08)',
-                  border: '1px solid rgba(0, 122, 255, 0.2)',
-                  fontSize: '0.82rem',
-                  color: 'var(--text-main)',
-                  lineHeight: 1.45
-                }}>
-                  🛡️ <strong>Tu Seguridad y Privacidad Primero:</strong> En RASTRO protegemos tus datos, no los comercializamos, no los utilizamos con fines publicitarios ni te exhibimos de ninguna forma.
-                </div>
-
-                <p style={{ margin: 0 }}>
-                  <strong>1. Protección Total de Datos y No Exposición:</strong> Resguardamos tu información personal bajo estándares seguros en la nube. No vendemos, no intercambiamos ni monetizamos tus datos. Asimismo, <em>no te exhibimos</em>: tus contraseñas, configuraciones privadas y actividad personal permanecen estrictamente confidenciales. Solo son visibles aquellos elementos que tú decides configurar voluntariamente en tu perfil público comunitario (como nombre o aportes).
-                </p>
-
-                <p style={{ margin: 0 }}>
-                  <strong>2. Cookies Técnicas y Preferencias Locales:</strong> Con el fin de brindarte una navegación fluida, la plataforma utiliza cookies técnicas y almacenamiento local exclusivamente para funciones esenciales: recordar tus preferencias de visualización (modo oscuro o claro), guardar filtros académicos de búsqueda y mantener tu sesión activa de manera segura. No realizamos rastreo invasivo de hábitos ni publicidad dirigida.
-                </p>
-
-                <p style={{ margin: 0 }}>
-                  <strong>3. Propósito Educativo Comunitario:</strong> RASTRO es una iniciativa solidaria, libre y gratuita creada por y para la comunidad estudiantil con el fin de facilitar la preparación académica preuniversitaria sin fines de lucro.
-                </p>
-
-                <p style={{ margin: 0 }}>
-                  <strong>4. Almacenamiento Comunitario Neutro:</strong> La plataforma opera como una infraestructura neutra de almacenamiento comunitario donde los estudiantes comparten enlaces y apuntes académicos de buena fe para su estudio personal y colaborativo.
-                </p>
-
-                <p style={{ margin: 0 }}>
-                  <strong>5. Control de tu Cuenta y Retiro Amigable:</strong> Tienes pleno control sobre tu información; puedes modificar tus datos o solicitar la eliminación total de tu cuenta en cualquier momento desde los ajustes de tu perfil. Además, RASTRO respeta la autoría intelectual: si un autor o institución solicita el retiro de un recurso, se atenderá amigablemente y se retirará de inmediato a través del sistema de reportes.
-                </p>
-              </div>
-            </IOSModal>
+            />
           </div>
         </Router>
       </AuthProvider>

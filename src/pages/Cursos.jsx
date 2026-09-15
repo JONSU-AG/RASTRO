@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Book, Award, MessageCircle, Share2, Lock, AlertTriangle, Plus, Settings, Search, Sparkles, Layers, Video } from 'lucide-react';
+import { Shield, Book, Award, MessageCircle, Share2, Lock, AlertTriangle, Plus, Settings, Search, Sparkles, Layers, Video, Edit3, Trash2, Terminal, Flag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { InspirationalDailyBanner } from '../components/InspirationalDailyBanner';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToAccessSettings, checkAccessPermission, getCachedAccessSettings } from '../lib/accessControl';
 import { AccessGate } from '../components/AccessGate';
 import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { CommunityAcademyModal } from '../components/CommunityAcademyModal';
+import { ConsoleExtractorModal } from '../components/ConsoleExtractorModal';
+import { ReportModal } from '../components/ReportModal';
 
 export const WhatsAppIconSVG = ({ size = 18, color = "currentColor", style = {} }) => (
   <svg
@@ -30,6 +33,27 @@ export const Cursos = () => {
   const [customCursos, setCustomCursos] = useState([]);
   const [customAcademias, setCustomAcademias] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
+  const [academyToEdit, setAcademyToEdit] = useState(null);
+  const [isExtractorModalOpen, setIsExtractorModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [courseToReport, setCourseToReport] = useState(null);
+
+  const handleDeleteAcademy = async (acad) => {
+    const isOwner = user && acad.creatorUid && user.uid === acad.creatorUid;
+    if (!isAdmin && !isOwner) {
+      alert("Solo el creador o el administrador pueden eliminar este curso.");
+      return;
+    }
+    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar "${acad.nombre}"?`);
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoc(doc(db, 'academias', acad.id));
+    } catch (e) {
+      alert("Error al eliminar curso: " + e.message);
+    }
+  };
 
   useEffect(() => {
     const unsub = subscribeToAccessSettings((newSettings) => {
@@ -78,7 +102,7 @@ export const Cursos = () => {
   const staticPresets = [
     {
       id: 'esparta',
-      nombre: 'Academia Esparta',
+      nombre: 'Esparta',
       badge: '⚔️ ESPARTA',
       subtitulo: '18 Materias',
       descripcion: 'Preparación exigente y disciplinada para asegurar tu vacante universitaria.',
@@ -94,7 +118,7 @@ export const Cursos = () => {
     },
     {
       id: 'kelsen',
-      nombre: 'Academia Kelsen',
+      nombre: 'Kelsen',
       badge: '⚖️ KELSEN',
       subtitulo: 'Letras y Leyes',
       descripcion: 'Especialistas en humanidades, derecho, ciencias sociales y letras preuniversitarias.',
@@ -110,10 +134,10 @@ export const Cursos = () => {
     },
     {
       id: 'briceno',
-      nombre: 'Academia Briceño',
+      nombre: 'Briceño',
       badge: '🎓 BRICEÑO',
       subtitulo: '2027 EN CURSO',
-      descripcion: 'Ciclo 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
+      descripcion: 'Clases 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
       colorTheme: {
         primary: '#059669',
         gradient: 'linear-gradient(135deg, #059669, #10B981)',
@@ -127,7 +151,13 @@ export const Cursos = () => {
   ].filter(p => !customIds.has(p.id) && !customAcademias.some(a => a.id === p.id));
 
   // Merge custom academies (Briceño template), custom courses, and static presets
-  const allCourses = [...customAcademias, ...activeCustomCursos, ...staticPresets];
+  // Regla comunitaria: Cursos con 5 o más reportes se ocultan automáticamente para usuarios estándar
+  const allCourses = [...customAcademias, ...activeCustomCursos, ...staticPresets].filter(c => {
+    if (isAdmin) return !c.isHidden;
+    if (c.oculto === true || c.hidden === true || c.autoHidden === true) return false;
+    if (typeof c.reportsCount === 'number' && c.reportsCount >= 5) return false;
+    return !c.isHidden;
+  });
 
   const filteredCourses = allCourses.filter(c => {
     if (!searchQuery.trim()) return true;
@@ -248,8 +278,61 @@ export const Cursos = () => {
       <header style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.2rem)', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-            Academias y Cursos
+            Cursos
           </h1>
+
+          <button
+            onClick={() => {
+              if (!user) {
+                navigate('/auth');
+                return;
+              }
+              setAcademyToEdit(null);
+              setIsCommunityModalOpen(true);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              borderRadius: '99px',
+              background: 'linear-gradient(135deg, #007AFF 0%, #00C6FF 100%)',
+              border: 'none',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0, 122, 255, 0.35)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Plus size={16} />
+            <span>+ Crear Nuevo Curso</span>
+          </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => setIsExtractorModalOpen(true)}
+              title="Herramienta para descargar enlaces masivos desde la consola del navegador (Solo Administrador)"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: '99px',
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                color: '#0284C7',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Terminal size={15} />
+              <span>⚡ Extractor para Consola</span>
+            </button>
+          )}
 
           {isAdmin && (
             <Link
@@ -275,7 +358,7 @@ export const Cursos = () => {
         </div>
 
         <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '600px' }}>
-          Explora ciclos preuniversitarios, clases grabadas, módulos organizados y materiales de estudio.
+          Explora cursos preuniversitarios, clases grabadas, módulos organizados y materiales de estudio.
         </p>
 
         {/* Buscador de Cursos si hay más de 2 */}
@@ -284,7 +367,7 @@ export const Cursos = () => {
             <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               type="text"
-              placeholder="Buscar curso o academia..."
+              placeholder="Buscar cursos o materias..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               style={{
@@ -358,10 +441,97 @@ export const Cursos = () => {
                     }}>
                       {c.badge || '🎓 CURSO'}
                     </span>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                      {c.subtitulo || (totalModules > 0 ? `${totalModules} Módulos • ${totalVideos} Clases` : 'Contenido Activo')}
-                    </span>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, marginRight: '4px' }}>
+                        {c.subtitulo || (totalModules > 0 ? `${totalModules} Módulos` : 'Contenido Activo')}
+                      </span>
+
+                      {/* Botón Editar para usuarios autenticados si es custom */}
+                      {user && (c.template === 'briceno' || c.creatorUid || customAcademias.some(a => a.id === c.id)) && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setAcademyToEdit(c);
+                            setIsCommunityModalOpen(true);
+                          }}
+                          title="Editar información del curso"
+                          style={{
+                            background: 'rgba(120, 120, 128, 0.15)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '4px 7px',
+                            cursor: 'pointer',
+                            color: 'var(--text-main)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                      )}
+
+                      {/* Botón Reportar Curso (5 reportes lo ocultan) */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setCourseToReport(c);
+                          setIsReportModalOpen(true);
+                        }}
+                        title="Reportar este curso o solicitar retiro (5 reportes lo ocultan)"
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          color: '#EF4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        <Flag size={12} />
+                        <span>Reportar</span>
+                      </button>
+
+                      {/* Botón Eliminar: SOLO Creador o Admin */}
+                      {(isAdmin || (user && c.creatorUid && user.uid === c.creatorUid)) && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteAcademy(c);
+                          }}
+                          title="Eliminar curso (Solo creador o admin)"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '4px 7px',
+                            cursor: 'pointer',
+                            color: '#EF4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {c.creatorName && (
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>👤 Creado por: <strong style={{ color: 'var(--text-main)' }}>{c.creatorName}</strong></span>
+                    </div>
+                  )}
 
                   <h3 style={{ fontSize: 'clamp(1.18rem, 1.6vw, 1.35rem)', fontWeight: 800, marginBottom: '6px', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                     {c.nombre}
@@ -395,6 +565,35 @@ export const Cursos = () => {
           })}
         </section>
       )}
+
+      {/* Modal de Creación / Edición Comunitaria en Modo Simple */}
+      <CommunityAcademyModal
+        isOpen={isCommunityModalOpen}
+        onClose={() => {
+          setIsCommunityModalOpen(false);
+          setAcademyToEdit(null);
+        }}
+        academyToEdit={academyToEdit}
+      />
+
+      {/* Modal del Extractor de Enlaces para la Consola */}
+      <ConsoleExtractorModal
+        isOpen={isExtractorModalOpen}
+        onClose={() => setIsExtractorModalOpen(false)}
+      />
+
+      {/* Modal de Reporte Comunitario de Curso (5 reportes para auto-ocultar) */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setCourseToReport(null);
+        }}
+        targetId={courseToReport?.id}
+        targetTitle={courseToReport?.nombre || 'Curso'}
+        targetType="curso"
+        reportedUser={courseToReport?.creatorName || null}
+      />
     </div>
     </AccessGate>
   );

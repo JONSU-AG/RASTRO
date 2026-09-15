@@ -78,6 +78,8 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
   const [author, setAuthor] = useState('');
   const [category, setCategory] = useState('tomos');
   const [url, setUrl] = useState('');
+  const [driveLinks, setDriveLinks] = useState(['']);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [desc, setDesc] = useState('');
   const [librosCollections, setLibrosCollections] = useState([]);
   const [selectedBookCollectionId, setSelectedBookCollectionId] = useState('');
@@ -99,9 +101,12 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
     setAuthor('');
     setCategory('tomos');
     setUrl('');
+    setDriveLinks(['']);
     setDesc('');
     setSelectedFile(null);
     setSelectedFiles([]);
+    imagePreviews.forEach(p => URL.revokeObjectURL(p));
+    setImagePreviews([]);
     setUploadProgress(0);
     setSourceMode(initialSourceMode || 'link');
     setError(null);
@@ -116,6 +121,17 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
     }
   };
 
+  const handleRemoveImage = (indexToRemove) => {
+    const newFiles = selectedFiles.filter((_, i) => i !== indexToRemove);
+    setSelectedFiles(newFiles);
+    setSelectedFile(newFiles[0] || null);
+    if (imagePreviews[indexToRemove]) {
+      URL.revokeObjectURL(imagePreviews[indexToRemove]);
+    }
+    const newPreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
+    setImagePreviews(newPreviews);
+  };
+
   const handleInitialSubmit = (e) => {
     e.preventDefault();
 
@@ -123,12 +139,13 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
       setError('Por favor completa el título del material.');
       return;
     }
-    if (sourceMode === 'link' && !url.trim()) {
-      setError('Por favor ingresa el enlace de Drive o Web.');
+    const validDriveLinks = driveLinks.map(l => l.trim()).filter(Boolean);
+    if (sourceMode === 'link' && validDriveLinks.length === 0 && !url.trim()) {
+      setError('Por favor ingresa al menos un enlace en una casilla.');
       return;
     }
     if (sourceMode === 'file' && !selectedFile && selectedFiles.length === 0) {
-      setError('Por favor selecciona un archivo.');
+      setError('Por favor selecciona un archivo o imágenes.');
       return;
     }
     setError(null);
@@ -145,7 +162,8 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
       if (!user) {
         throw new Error('Debes iniciar sesión con Google para subir materiales a TU Google Drive.');
       }
-      let finalUrl = url.trim();
+      const validDriveLinks = driveLinks.map(l => l.trim()).filter(Boolean);
+      let finalUrl = validDriveLinks[0] || url.trim();
       let fileMeta = null;
       let driveFileId = null;
       let driveFolderId = null;
@@ -224,11 +242,14 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
         author: cleanAuthor,
         category: category,
         categoriaLabel: categoriaLabel,
-        type: sourceMode === 'file' 
-          ? (selectedFiles.length > 1 ? 'galeria' : (selectedFile?.type?.includes('pdf') ? 'pdf' : (selectedFile?.type?.includes('image') ? 'imagen' : 'archivo'))) 
-          : 'drive',
+        type: (imagesList.length > 1 || (sourceMode === 'file' && selectedFiles.length > 1))
+          ? 'galeria'
+          : (imagesList.length === 1 || selectedFile?.type?.includes('image')
+            ? 'imagen'
+            : (selectedFile?.type?.includes('pdf') ? 'pdf' : (sourceMode === 'file' ? 'archivo' : 'drive'))),
         sourceMode: sourceMode,
         url: finalUrl,
+        driveLinks: validDriveLinks.length > 0 ? validDriveLinks : (finalUrl ? [finalUrl] : []),
         desc: desc.trim(),
         fileMeta: fileMeta,
         images: imagesList,
@@ -644,7 +665,7 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
                     <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                     <input
                       type="text"
-                      placeholder="Ej. Profesor Jaime / Academia / Tu Nombre"
+                      placeholder="Ej. Profesor Jaime / Tu Nombre / Autor"
                       value={author}
                       onChange={(e) => setAuthor(e.target.value)}
                       style={{
@@ -750,83 +771,305 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
                 {/* 📌 FILA 5: Campo dinámico según el Método Seleccionado */}
                 {sourceMode === 'file' ? (
                   <div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <HardDrive size={13} /> Se guardará en <strong style={{ color: 'var(--accent-color)' }}>TU Google Drive / RASTRO</strong> como solo lectura (propietario: tú)
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <HardDrive size={13} /> Se guardará en <strong style={{ color: 'var(--accent-color)' }}>TU Google Drive / RASTRO</strong> (propietario: tú)
+                      </span>
+                      {selectedFiles.length > 0 && selectedFiles.every(f => f.type.startsWith('image/')) && (
+                        <span style={{ color: 'var(--accent-color)', fontWeight: 700, fontSize: '0.74rem' }}>
+                          📸 {selectedFiles.length} foto(s) seleccionada(s)
+                        </span>
+                      )}
                     </div>
-                    <div
-                      style={{
-                        position: 'relative',
-                        border: selectedFile ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)',
-                        borderRadius: '16px',
-                        padding: '14px 12px',
-                        textAlign: 'center',
-                        background: selectedFile ? 'rgba(0, 122, 255, 0.06)' : 'rgba(120, 120, 128, 0.05)',
-                        transition: 'all 0.2s ease',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => document.getElementById('device-file-input')?.click()}
-                    >
-                      <input
-                        id="device-file-input"
-                        type="file"
-                        accept="*/*"
-                        multiple
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          if (files.length > 0) {
-                            setSelectedFiles(files);
-                            setSelectedFile(files[0]);
-                            if (!title.trim()) {
-                              const cleanName = files[0].name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-                              setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
-                            }
-                          }
-                        }}
-                      />
 
-                      {(selectedFiles.length > 0 || selectedFile) ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                          <FileText size={22} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
-                          <div style={{ textAlign: 'left', overflow: 'hidden' }}>
-                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.86rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {selectedFiles.length > 1 ? `${selectedFiles.length} archivos` : selectedFile.name}
+                    <input
+                      id="device-file-input"
+                      type="file"
+                      accept="*/*"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const incoming = Array.from(e.target.files || []);
+                        if (incoming.length > 0) {
+                          const isImageUpload = incoming.every(f => f.type.startsWith('image/'));
+                          if (isImageUpload) {
+                            // Sin límite arbitrario: el usuario puede subir la cantidad que desee
+                            const existingImages = selectedFiles.filter(f => f.type.startsWith('image/'));
+                            const combined = [...existingImages, ...incoming];
+                            setSelectedFiles(combined);
+                            setSelectedFile(combined[0]);
+                            imagePreviews.forEach(p => URL.revokeObjectURL(p));
+                            const previews = combined.map(f => URL.createObjectURL(f));
+                            setImagePreviews(previews);
+                          } else {
+                            setSelectedFiles(incoming);
+                            setSelectedFile(incoming[0]);
+                            imagePreviews.forEach(p => URL.revokeObjectURL(p));
+                            setImagePreviews([]);
+                          }
+                          if (!title.trim()) {
+                            const cleanName = incoming[0].name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+                            setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+                          }
+                        }
+                      }}
+                    />
+
+                    {/* Previews para grupo de fotos / imágenes sin límite */}
+                    {imagePreviews.length > 0 ? (
+                      <div style={{
+                        border: '2px solid var(--accent-color)',
+                        borderRadius: '16px',
+                        padding: '12px',
+                        background: 'rgba(0, 122, 255, 0.04)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                      }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                          maxHeight: '170px',
+                          overflowY: 'auto',
+                          gap: '8px',
+                          paddingRight: '4px'
+                        }}>
+                          {imagePreviews.map((src, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                position: 'relative',
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                aspectRatio: '1/1',
+                                border: '1.5px solid rgba(0, 122, 255, 0.4)',
+                                background: '#000'
+                              }}
+                            >
+                              <img
+                                src={src}
+                                alt={`Foto ${idx + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                top: '3px',
+                                left: '3px',
+                                background: 'rgba(0,0,0,0.68)',
+                                color: '#fff',
+                                borderRadius: '5px',
+                                padding: '1px 4px',
+                                fontSize: '0.62rem',
+                                fontWeight: 800
+                              }}>
+                                #{idx + 1}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveImage(idx);
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '3px',
+                                  right: '3px',
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '50%',
+                                  background: 'rgba(255, 59, 48, 0.95)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800
+                                }}
+                                title="Eliminar esta foto"
+                              >
+                                ✕
+                              </button>
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {formatFileSize(selectedFiles.length > 1 ? selectedFiles.reduce((s, f) => s + (f.size || 0), 0) : selectedFile.size)} • <span style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Cambiar</span>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                          <span>📸 {imagePreviews.length} foto(s) seleccionada(s)</span>
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('device-file-input')?.click()}
+                            style={{
+                              background: 'rgba(0, 122, 255, 0.1)',
+                              border: 'none',
+                              color: 'var(--accent-color)',
+                              fontWeight: 700,
+                              padding: '4px 8px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontSize: '0.74rem'
+                            }}
+                          >
+                            + Agregar más fotos
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Caja estándar de subir archivos */
+                      <div
+                        style={{
+                          position: 'relative',
+                          border: selectedFile ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)',
+                          borderRadius: '16px',
+                          padding: '14px 12px',
+                          textAlign: 'center',
+                          background: selectedFile ? 'rgba(0, 122, 255, 0.06)' : 'rgba(120, 120, 128, 0.05)',
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => document.getElementById('device-file-input')?.click()}
+                      >
+                        {(selectedFiles.length > 0 || selectedFile) ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                            <FileText size={22} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
+                            <div style={{ textAlign: 'left', overflow: 'hidden' }}>
+                              <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.86rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {selectedFiles.length > 1 ? `${selectedFiles.length} archivos seleccionados` : selectedFile.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {formatFileSize(selectedFiles.length > 1 ? selectedFiles.reduce((s, f) => s + (f.size || 0), 0) : selectedFile.size)} • <span style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Cambiar archivo</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                          <UploadCloud size={20} style={{ color: 'var(--text-secondary)' }} />
-                          <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                            Toca para subir cualquier tipo de archivo
-                          </span>
-                        </div>
-                      )}
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <UploadCloud size={20} style={{ color: 'var(--text-secondary)' }} />
+                            <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.85rem' }}>
+                              Toca para subir archivos o grupo de fotos / imágenes
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Aviso siempre visible: Puedes subir la cantidad que quieras, tardará según cantidad y peso */}
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '12px',
+                      background: 'rgba(255, 149, 0, 0.08)',
+                      border: '1px solid rgba(255, 149, 0, 0.25)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.74rem',
+                      lineHeight: 1.4,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px'
+                    }}>
+                      <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>⏳</span>
+                      <span>
+                        <strong style={{ color: 'var(--text-main)' }}>Sin límite de archivos o fotos:</strong> Puedes subir la cantidad que quieras. Ten en cuenta que el tiempo de subida dependerá de la cantidad y peso de los archivos seleccionados.
+                      </span>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <input
-                      type="url"
-                      required={sourceMode === 'link'}
-                      placeholder="https://drive.google.com/... o enlace de descarga"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                  /* Modo Enlace: Casillas individuales para Drive o enlaces web */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Casillas para enlaces de Drive:</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--accent-color)', fontWeight: 600 }}>
+                        {driveLinks.filter(l => l.trim()).length} casilla(s) activa(s)
+                      </span>
+                    </div>
+
+                    {driveLinks.map((dLink, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <div style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(120, 120, 128, 0.12)',
+                          padding: '7px 9px',
+                          borderRadius: '10px',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          Casilla {idx + 1}
+                        </div>
+                        <input
+                          type="url"
+                          required={idx === 0 && sourceMode === 'link'}
+                          placeholder={`https://drive.google.com/... (enlace ${idx + 1})`}
+                          value={dLink}
+                          onChange={(e) => {
+                            const next = [...driveLinks];
+                            next[idx] = e.target.value;
+                            setDriveLinks(next);
+                            if (idx === 0) setUrl(e.target.value);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            borderRadius: '14px',
+                            border: '1.5px solid var(--card-border)',
+                            background: 'rgba(120, 120, 128, 0.08)',
+                            color: 'var(--text-main)',
+                            fontSize: '0.86rem',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        {driveLinks.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = driveLinks.filter((_, i) => i !== idx);
+                              setDriveLinks(next.length > 0 ? next : ['']);
+                              if (idx === 0 && next[0]) setUrl(next[0]);
+                            }}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              background: 'rgba(255, 59, 48, 0.12)',
+                              color: '#ff3b30',
+                              cursor: 'pointer',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.86rem'
+                            }}
+                            title="Quitar esta casilla"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setDriveLinks([...driveLinks, ''])}
                       style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: '14px',
-                        border: '1.5px solid var(--card-border)',
-                        background: 'rgba(120, 120, 128, 0.08)',
-                        color: 'var(--text-main)',
-                        fontSize: '0.88rem',
-                        outline: 'none',
-                        boxSizing: 'border-box'
+                        alignSelf: 'flex-start',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '10px',
+                        border: '1px dashed var(--accent-color)',
+                        background: 'rgba(0, 122, 255, 0.06)',
+                        color: 'var(--accent-color)',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        marginTop: '2px'
                       }}
-                    />
+                    >
+                      + Agregar otra casilla de Drive
+                    </button>
                   </div>
                 )}
 
@@ -948,11 +1191,15 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
                   </span>
                 </div>
 
-                {sourceMode === 'file' && selectedFile ? (
+                {sourceMode === 'file' && (selectedFiles.length > 0 || selectedFile) ? (
                   <div>
-                    <strong style={{ color: 'var(--text-secondary)' }}>Archivo:</strong>
+                    <strong style={{ color: 'var(--text-secondary)' }}>
+                      {selectedFiles.length > 1 ? 'Archivos a subir:' : 'Archivo:'}
+                    </strong>
                     <div style={{ color: 'var(--text-main)', fontWeight: 600, wordBreak: 'break-all' }}>
-                      📄 {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                      {selectedFiles.length > 1
+                        ? `📁 ${selectedFiles.length} archivos/fotos seleccionados (${formatFileSize(selectedFiles.reduce((s, f) => s + (f.size || 0), 0))})`
+                        : `📄 ${selectedFile?.name} (${formatFileSize(selectedFile?.size || 0)})`}
                     </div>
                   </div>
                 ) : (
@@ -1018,11 +1265,15 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
                 <Loader2 size={64} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
               </div>
               <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 6px', color: 'var(--text-main)' }}>
-                {sourceMode === 'file' ? 'Subiendo archivo...' : 'Registrando enlace en RASTRO...'}
+                {sourceMode === 'file' 
+                  ? (selectedFiles.length > 1 ? `Subiendo ${selectedFiles.length} archivos a tu Google Drive...` : 'Subiendo archivo a tu Google Drive...')
+                  : 'Registrando enlace en RASTRO...'}
               </h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '16px' }}>
                 {sourceMode === 'file' 
-                  ? `Guardando "${selectedFile?.name}" y sumando créditos.`
+                  ? (selectedFiles.length > 1 
+                      ? `Guardando lote de ${selectedFiles.length} archivos en tu carpeta RASTRO. El tiempo de subida depende de la cantidad y peso del contenido.`
+                      : `Guardando "${selectedFile?.name}" y sumando créditos.`)
                   : 'Conectando con servidores RASTRO...'}
               </p>
 

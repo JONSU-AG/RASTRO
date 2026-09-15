@@ -23,7 +23,7 @@ export const TOMOS = [
   [
     "Temario y Matriz de Evaluación 2027",
     "Temario oficial y matriz de evaluación para el proceso de admisión 2027.",
-    "./assets/TEMARIO-y-MATRIZ-ADMISION-2027.pdf"
+    "/assets/TEMARIO-y-MATRIZ-ADMISION-2027.pdf"
   ]
 ];
 export const PRACTICAS = [
@@ -31,16 +31,6 @@ export const PRACTICAS = [
     titulo: "CEPREQUINTOS 2027",
     descripcion: "Material en proceso y actualización constante para postulantes de 5to de secundaria.",
     carpeta: "https://drive.google.com/drive/folders/1RfSFh4w496DoJ3-TShLXjgTLOALnJKDr"
-  },
-  {
-    titulo: "Prácticas Academia Esparta",
-    descripcion: "Ejercicios resueltos, bancos y prácticas semanales de la Academia Esparta.",
-    carpeta: "https://drive.google.com/drive/folders/1Y8WeDnr-OwWse3RXxoMCqdHAOY7897_w"
-  },
-  {
-    titulo: "Academia Briceño",
-    descripcion: "Material de prácticas y ejercicios clasificados de la Academia Briceño.",
-    carpeta: "https://drive.google.com/drive/folders/1K8WKW14uvGDSNOF5ctlVlBrCFKktlsYK"
   },
   {
     titulo: "Prácticas CEPREUNSA",

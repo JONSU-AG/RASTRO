@@ -6,6 +6,7 @@ export const DEFAULT_SITE_SETTINGS = {
   allowPublicUploads: true,
   requireLoginToDownload: false,
   booksAutoSync: true,
+  orsttyEnabled: false, // Asistente ORSTTY desactivado temporalmente por funcionamiento/mantenimiento
   // Elementos predeterminados del sistema ocultados/eliminados por el Administrador:
   // Array de IDs tipo string, ej: ['default_fc_1', 'default_exam_1', 'default_tomo_0']
   hiddenDefaultItems: [],

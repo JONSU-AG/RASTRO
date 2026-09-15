@@ -188,13 +188,13 @@ export const AcademyDetail = () => {
             const collName = acadData.semanasCollection || `${id}_semanas`;
             setData({
               name: acadData.nombre || id,
-              badge: acadData.badge || '🎓 ACADEMIA',
+              badge: acadData.badge || '🎓 CURSO',
               subtitulo: acadData.subtitulo || '',
               descripcion: acadData.descripcion || '',
               colorTheme: acadData.colorTheme,
               driveUrl: acadData.driveUrl || '',
               driveText: acadData.driveText || '',
-              cicloName: acadData.cicloName || 'Ciclo 2027',
+              cicloName: acadData.cicloName || 'Clases 2027',
               semanasCollection: collName,
               type: 'briceno',
               isTemplateInstance: true
@@ -330,7 +330,7 @@ export const AcademyDetail = () => {
   if (!data) {
     return (
       <div className="page-container" style={{ padding: '24px', textAlign: 'center' }}>
-        <h2 style={{ color: 'var(--text-main)', marginTop: '40px' }}>Cargando o academia no encontrada...</h2>
+        <h2 style={{ color: 'var(--text-main)', marginTop: '40px' }}>Cargando o curso no encontrado...</h2>
         <Link to="/cursos" style={{ color: 'var(--accent-color)', textDecoration: 'none', display: 'inline-block', marginTop: '16px' }}>Volver a Cursos</Link>
       </div>
     );
@@ -396,7 +396,7 @@ export const AcademyDetail = () => {
               </span>
             )}
             <h1 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.5rem)', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
-              {data.type === 'custom' ? data.name : `Academia ${data.name}`}
+              {data.name}
             </h1>
             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.92rem', maxWidth: '650px' }}>
               {data.subtitulo || data.descripcion || 'Explora los cursos, semanas y videos organizados para tu preparación.'}
@@ -503,7 +503,7 @@ export const AcademyDetail = () => {
                 transition: 'all 0.2s ease',
                 whiteSpace: 'nowrap'
               }}
-              title="Abrir o cerrar panel de foro y preguntas de esta academia"
+              title="Abrir o cerrar panel de foro y preguntas"
             >
               <MessageSquare size={18} color="var(--accent-color)" />
               <span>💬 Foro & Preguntas</span>
@@ -518,11 +518,51 @@ export const AcademyDetail = () => {
                 {isForumOpen ? 'Ocultar ▲' : 'Ver ▼'}
               </span>
             </button>
+
+            {/* Botón de Banco de Prácticas Esparta (Reubicado desde Biblioteca) */}
+            {id === 'esparta' && (
+              <a
+                href="https://drive.google.com/drive/folders/1Y8WeDnr-OwWse3RXxoMCqdHAOY7897_w"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Banco Oficial de Prácticas y Ejercicios"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 18px',
+                  height: '48px',
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.14), rgba(249, 115, 22, 0.2))',
+                  border: '1.5px solid rgba(234, 88, 12, 0.4)',
+                  color: '#EA580C',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 16px rgba(234, 88, 12, 0.15)',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <HardDrive size={18} />
+                <span>📁 Banco de Prácticas y Ejercicios</span>
+                <span style={{
+                  background: '#EA580C',
+                  color: '#ffffff',
+                  padding: '2px 8px',
+                  borderRadius: '8px',
+                  fontSize: '0.72rem',
+                  fontWeight: 800
+                }}>
+                  Drive ↗
+                </span>
+              </a>
+            )}
           </div>
         )}
       </header>
 
-      {/* ─── FORO DESPLEGABLE PARA ACADEMIAS QUE NO SON BRICEÑO ─── */}
+      {/* ─── FORO DESPLEGABLE PARA CURSOS QUE NO SON BRICEÑO ─── */}
       {data.type !== 'briceno' && (
         <AnimatePresence>
           {isForumOpen && (
@@ -534,8 +574,8 @@ export const AcademyDetail = () => {
               style={{ overflow: 'hidden', marginBottom: '24px' }}
             >
               <CommentsSection
-                targetId={`academia-${data?.type}`}
-                targetTitle={`Academia ${data?.name}`}
+                targetId={`curso-${data?.type}`}
+                targetTitle={data?.name}
                 targetType="course"
                 promptHint={`¿Estudiando con ${data?.name}? Comparte qué temas vinieron en tu simulacro o indexa clases clave 👇`}
                 indexableVideos={indexableVideos}
@@ -548,7 +588,7 @@ export const AcademyDetail = () => {
 
       {data.type === 'briceno' && (
         <div style={{ marginBottom: '32px' }}>
-          {/* Cycles Header / Cards */}
+          {/* Header / Cards */}
           {id === 'briceno' ? (
             <div style={{
               display: 'grid',
@@ -556,7 +596,7 @@ export const AcademyDetail = () => {
               gap: '16px',
               marginBottom: '20px'
             }}>
-              {/* Card 1: Ciclo Actual 2027 */}
+              {/* Card 1: Clases 2027 */}
               <motion.div
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -596,14 +636,14 @@ export const AcademyDetail = () => {
                   </span>
                 </div>
                 <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Ciclo Actual 2027
+                  Clases 2027
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                  En el ciclo actual, las clases se suben constantemente. Clases organizadas por semanas y materias.
+                  Clases actualizadas constantemente, organizadas por semanas y materias.
                 </p>
               </motion.div>
 
-              {/* Card 2: Ciclo Intensivo 2026 */}
+              {/* Card 2: Intensivo 2026 */}
               <motion.div
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -643,11 +683,34 @@ export const AcademyDetail = () => {
                   </span>
                 </div>
                 <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Ciclo Intensivo 2026
+                  Intensivo 2026
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
                   Bancos y clases intensivas clasificadas por materias clave.
                 </p>
+                <div style={{ marginTop: '10px' }}>
+                  <a
+                    href="https://drive.google.com/drive/folders/1K8WKW14uvGDSNOF5ctlVlBrCFKktlsYK"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '5px 12px',
+                      borderRadius: '10px',
+                      background: 'rgba(168, 85, 247, 0.22)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      color: '#9333EA',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <HardDrive size={13} /> 📁 Prácticas Intensivo (Drive ↗)
+                  </a>
+                </div>
               </motion.div>
             </div>
           ) : (
@@ -683,7 +746,7 @@ export const AcademyDetail = () => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <h3 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {data.cicloName || 'Ciclo en Curso'}
+                      {data.cicloName || 'Clases en Curso'}
                     </h3>
                     <span style={{
                       padding: '3px 10px',
@@ -789,7 +852,7 @@ export const AcademyDetail = () => {
                   href={data.driveUrl || "https://drive.google.com/drive/folders/1sGaLVsVGtWeggLUWtw_vB14iwH3mHHH1"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={data.driveText || "Material usado en clases (se actualiza constantemente en el ciclo actual)"}
+                  title={data.driveText || "Material usado en clases (se actualiza constantemente)"}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1004,16 +1067,84 @@ export const AcademyDetail = () => {
                   </span>
                 </div>
               </summary>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px', marginTop: '16px' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', 
+                gap: '8px', 
+                marginTop: '14px' 
+              }}>
                 {course.lessons.map((lesson, lIdx) => {
                   const url = lesson.url || `https://www.youtube.com/watch?v=${lesson.yt}`;
                   if (query && !searchMatches([course.name, lesson.title], query)) return null;
                   return (
-                    <div key={lIdx} style={{ background: 'rgba(150,150,150,0.05)', padding: '12px', borderRadius: '12px' }}>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>Clase {lesson.n}: {lesson.title || 'Clase'}</h4>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#ff3b30', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>
-                          <PlayCircle size={18} /> Ver en YouTube
+                    <div 
+                      key={lIdx} 
+                      style={{ 
+                        background: 'rgba(120, 120, 128, 0.06)', 
+                        border: '1px solid var(--card-border)',
+                        padding: '8px 12px', 
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        minHeight: '44px',
+                        boxSizing: 'border-box',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                        <span style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: 'rgba(255, 59, 48, 0.14)',
+                          color: '#FF3B30',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {lesson.n}
+                        </span>
+                        <span 
+                          style={{ 
+                            fontSize: '0.86rem', 
+                            fontWeight: 700, 
+                            color: 'var(--text-main)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title={`Clase ${lesson.n}: ${lesson.title || 'Clase'}`}
+                        >
+                          {lesson.title || `Clase ${lesson.n}`}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px', 
+                            color: '#FF3B30', 
+                            background: 'rgba(255, 59, 48, 0.1)',
+                            border: '1px solid rgba(255, 59, 48, 0.2)',
+                            padding: '5px 10px',
+                            borderRadius: '10px',
+                            textDecoration: 'none', 
+                            fontWeight: 700, 
+                            fontSize: '0.76rem',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <PlayCircle size={13} /> Ver
                         </a>
                         <AcademyBookmarkButton
                           item={{
@@ -1489,6 +1620,81 @@ export const AcademyDetail = () => {
             ) : (
               /* Ciclo Intensivo 2026 - Áreas con SVG */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                {/* Segundo botón de Briceño: Banco de Prácticas Ciclo Intensivo 2026 */}
+                <div
+                  className="glass-card"
+                  style={{
+                    padding: '16px 22px',
+                    borderRadius: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                    flexWrap: 'wrap',
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.14), rgba(99, 102, 241, 0.08))',
+                    border: '1.5px solid rgba(168, 85, 247, 0.35)',
+                    boxShadow: '0 4px 18px rgba(168, 85, 247, 0.12)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: 'rgba(168, 85, 247, 0.22)',
+                      color: '#9333EA',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.3rem'
+                    }}>
+                      📁
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        Banco de Prácticas y Ejercicios - Intensivo 2026
+                      </h4>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Materiales y prácticas clasificadas por áreas académicas.
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href="https://drive.google.com/drive/folders/1K8WKW14uvGDSNOF5ctlVlBrCFKktlsYK"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 20px',
+                      borderRadius: '14px',
+                      background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <HardDrive size={16} />
+                    <span>📁 Abrir Prácticas en Drive</span>
+                    <span style={{
+                      background: 'rgba(255,255,255,0.25)',
+                      color: '#ffffff',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: '8px'
+                    }}>
+                      Drive ↗
+                    </span>
+                  </a>
+                </div>
+
                 {bricenoAreasData
                   .filter(category => searchMatches([category.nombre], query))
                   .map((category, idx) => {
@@ -1828,11 +2034,13 @@ export const AcademyDetail = () => {
         )}
       </section>
 
-      <ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} onSubmit={(data) => {
-        console.log("Report from AcademyDetail:", data);
-        setIsReportOpen(false);
-        setIsSuccessOpen(true);
-      }} />
+      <ReportModal 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
+        targetId={data?.id || id}
+        targetTitle={data?.name || 'Curso'}
+        targetType="curso"
+      />
 
       <SuccessModal 
         isOpen={isSuccessOpen} 

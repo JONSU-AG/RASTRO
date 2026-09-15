@@ -96,12 +96,8 @@ export const Biblioteca = () => {
         // Filter out items with >= 3 reports or marked hidden / oculto
         const visibleDocs = docs.filter(item => (!item.oculto && !item.hidden && (item.reportsCount || 0) < 3));
 
-        // 👑 PRIORIDAD MÁXIMA VIP PARA EL CREADOR / ADMINISTRADOR
+        // 🕒 ORDENAMIENTO POR EL MÁS ACTUAL (Cronológico descendente)
         visibleDocs.sort((a, b) => {
-          const aIsAdmin = a.isOfficial || a.uploadedBy?.isCreator || a.uploadedBy?.isAdmin || isAuthorOfFirebase(a.uploadedBy?.email) || (a.uploadedBy?.email && ADMIN_EMAILS.includes(a.uploadedBy.email.toLowerCase()));
-          const bIsAdmin = b.isOfficial || b.uploadedBy?.isCreator || b.uploadedBy?.isAdmin || isAuthorOfFirebase(b.uploadedBy?.email) || (b.uploadedBy?.email && ADMIN_EMAILS.includes(b.uploadedBy.email.toLowerCase()));
-          if (aIsAdmin && !bIsAdmin) return -1;
-          if (!aIsAdmin && bIsAdmin) return 1;
           const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.timestamp || 0);
           const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.timestamp || 0);
           return timeB - timeA;
@@ -186,7 +182,10 @@ export const Biblioteca = () => {
 
     // 3. Direct PDF url fallback
     if (url.match(/\.pdf$/i)) {
-      return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+      }
+      return url;
     }
 
     return url;
@@ -547,27 +546,54 @@ export const Biblioteca = () => {
 
                       {/* Botones de acción */}
                       <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-                        <button 
-                          onClick={() => window.open(link, '_blank')}
-                          style={{ 
-                            flex: 1,
-                            padding: '12px 18px', 
-                            background: `linear-gradient(135deg, ${accentThemeColor}, ${isTomo ? '#FF6B6B' : '#30D158'})`, 
-                            color: '#FFFFFF', 
-                            border: 'none', 
-                            borderRadius: '14px', 
-                            fontWeight: 800, 
-                            fontSize: '0.88rem', 
-                            display: 'flex', 
-                            justifyContent: 'center', 
-                            alignItems: 'center', 
-                            gap: '8px', 
-                            cursor: 'pointer',
-                            boxShadow: `0 4px 14px ${isTomo ? 'rgba(255, 59, 48, 0.3)' : 'rgba(52, 199, 89, 0.3)'}`
-                          }}
-                        >
-                          <ExternalLink size={16} /> Abrir en Drive
-                        </button>
+                        {link && link.match(/\.pdf$/i) ? (
+                          <a 
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ 
+                              flex: 1,
+                              padding: '12px 18px', 
+                              background: 'linear-gradient(135deg, #FF3B30, #FF6B6B)', 
+                              color: '#FFFFFF', 
+                              border: 'none', 
+                              borderRadius: '14px', 
+                              fontWeight: 800, 
+                              fontSize: '0.88rem', 
+                              display: 'flex', 
+                              justifyContent: 'center', 
+                              alignItems: 'center', 
+                              gap: '8px', 
+                              cursor: 'pointer',
+                              textDecoration: 'none',
+                              boxShadow: '0 4px 14px rgba(255, 59, 48, 0.3)'
+                            }}
+                          >
+                            <FileText size={16} /> Ver Temario y Matriz (PDF)
+                          </a>
+                        ) : (
+                          <button 
+                            onClick={() => window.open(link, '_blank')}
+                            style={{ 
+                              flex: 1,
+                              padding: '12px 18px', 
+                              background: `linear-gradient(135deg, ${accentThemeColor}, ${isTomo ? '#FF6B6B' : '#30D158'})`, 
+                              color: '#FFFFFF', 
+                              border: 'none', 
+                              borderRadius: '14px', 
+                              fontWeight: 800, 
+                              fontSize: '0.88rem', 
+                              display: 'flex', 
+                              justifyContent: 'center', 
+                              alignItems: 'center', 
+                              gap: '8px', 
+                              cursor: 'pointer',
+                              boxShadow: `0 4px 14px ${isTomo ? 'rgba(255, 59, 48, 0.3)' : 'rgba(52, 199, 89, 0.3)'}`
+                            }}
+                          >
+                            <ExternalLink size={16} /> Abrir en Drive
+                          </button>
+                        )}
                         <BookmarkButton
                           item={{
                             id: itemId,

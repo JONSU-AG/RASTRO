@@ -212,7 +212,8 @@ export const AdminAcademiasManager = ({ onNotice, setConfirmModal }) => {
       driveUrl: '',
       driveText: 'Material usado en clases',
       cicloName: 'Ciclo 2027',
-      colorTheme: ACADEMY_COLOR_PRESETS[0]
+      colorTheme: ACADEMY_COLOR_PRESETS[0],
+      isHidden: false
     });
     setIsNewAcademyModalOpen(true);
   };
@@ -229,7 +230,8 @@ export const AdminAcademiasManager = ({ onNotice, setConfirmModal }) => {
       driveUrl: acad.driveUrl || '',
       driveText: acad.driveText || 'Material usado en clases',
       cicloName: acad.cicloName || 'Ciclo 2027',
-      colorTheme: acad.colorTheme || ACADEMY_COLOR_PRESETS[0]
+      colorTheme: acad.colorTheme || ACADEMY_COLOR_PRESETS[0],
+      isHidden: acad.isHidden || false
     });
     setIsNewAcademyModalOpen(true);
   };
@@ -269,6 +271,7 @@ export const AdminAcademiasManager = ({ onNotice, setConfirmModal }) => {
       driveText: academyForm.driveText?.trim() || 'Material usado en clases',
       cicloName: academyForm.cicloName.trim() || 'Ciclo 2027',
       colorTheme: academyForm.colorTheme || ACADEMY_COLOR_PRESETS[0],
+      isHidden: academyForm.isHidden || false,
       template: 'briceno',
       updatedAt: serverTimestamp()
     };
@@ -1440,6 +1443,25 @@ if __name__ == "__main__":
                       }}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 14px', borderRadius: '12px', border: academyForm.isHidden ? '1.5px solid #EF4444' : '1.5px solid var(--card-border)', background: academyForm.isHidden ? 'rgba(239, 68, 68, 0.08)' : 'var(--card-bg)' }}>
+                    <input
+                      type="checkbox"
+                      checked={academyForm.isHidden}
+                      onChange={(e) => setAcademyForm({ ...academyForm, isHidden: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.86rem', fontWeight: 800, color: academyForm.isHidden ? '#EF4444' : 'var(--text-main)' }}>
+                        Bloquear / Ocultar Academia
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Al activar esto, la academia ya no será visible en la pantalla principal para los alumnos.
+                      </span>
+                    </div>
+                  </label>
                 </div>
 
                 <div>
