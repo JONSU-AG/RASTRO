@@ -30,7 +30,7 @@ import { ADMIN_EMAILS, isAuthorOfFirebase, useAuth } from '../context/AuthContex
 import { LiveUserAvatar, LiveUserName } from './LiveUserAvatar';
 import { BookmarkButton } from './BookmarkButton';
 import { FollowButton } from './FollowButton';
-import { getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId } from '../lib/storageHelper';
+import { getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId, getDirectFileViewerUrl } from '../lib/storageHelper';
 import { PdfSheetPreview } from './PdfSheetPreview';
 import { ImageGalleryCarousel } from './ImageGalleryCarousel';
 
@@ -121,9 +121,16 @@ export const CommunityUploadCard = ({
   const authorPhoto = item.uploadedBy?.photoURL;
   const canDelete = Boolean(user && (user.uid === authorUid || user.uid === profileUid || isAdmin));
   const isImage = isImageItem(item);
-  const isFolder = item.type === 'drive' || item.url?.includes('/folders/') || item.url?.includes('folderview');
-  const driveId = getDriveFileId(item.url);
-  const previewUrl = getDrivePreviewUrl(item.url) || (getPreviewUrl ? getPreviewUrl(item.url) : item.url);
+  const driveId = item.driveFileId || getDriveFileId(item.driveUrl) || getDriveFileId(item.url);
+  const isFolder = Boolean(
+    !driveId && (
+      item.url?.includes('/folders/') || 
+      item.url?.includes('folderview') || 
+      item.driveUrl?.includes('/folders/') ||
+      (item.type === 'drive' && !item.driveFileId)
+    )
+  );
+  const previewUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : (getDrivePreviewUrl(item.url) || (getPreviewUrl ? getPreviewUrl(item.url) : item.url));
 
   const triggerNotice = (title, message, type = 'info') => {
     if (setNoticeModal) {
@@ -666,7 +673,7 @@ export const CommunityUploadCard = ({
           item.driveLinks.filter(Boolean).map((dLink, i) => (
             <a
               key={i}
-              href={dLink}
+              href={getDirectFileViewerUrl(dLink)}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -688,7 +695,7 @@ export const CommunityUploadCard = ({
           ))
         ) : (
           <a
-            href={item.driveFolderUrl || (item.driveFolderId ? `https://drive.google.com/drive/folders/${item.driveFolderId}` : (driveId ? `https://drive.google.com/file/d/${driveId}/view` : item.url))}
+            href={getDirectFileViewerUrl(item)}
             target="_blank"
             rel="noopener noreferrer"
             style={{

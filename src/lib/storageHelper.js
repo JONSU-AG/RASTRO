@@ -10,6 +10,10 @@ const RUMBO_FOLDER_NAME = 'RUMBO';
 // ── Extracción de IDs ──
 export const getDriveFileId = (rawUrl) => {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
+  // Si es explícitamente un enlace a carpeta, NO es un ID de archivo
+  if (rawUrl.includes('/folders/') || rawUrl.includes('folderview') || rawUrl.includes('embeddedfolderview')) {
+    return null;
+  }
   const m =
     rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
     rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
@@ -19,15 +23,58 @@ export const getDriveFileId = (rawUrl) => {
   return m ? m[1] : null;
 };
 
-export const getDriveFolderId = getDriveFileId;
+export const getDriveFolderId = (rawUrl) => {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const m = rawUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+};
 
-// ── URLs Drive ──
+// ── URLs Drive (Siempre configuradas en modo LECTOR /view) ──
 export const getDriveViewUrl = (rawUrlOrId) => {
   const id = getDriveFileId(rawUrlOrId) || rawUrlOrId;
   if (!id || typeof id !== 'string' || id.length < 10) return rawUrlOrId || '';
   // Evitar ficheros locales
   if (String(rawUrlOrId).startsWith('data:') || String(rawUrlOrId).startsWith('blob:')) return rawUrlOrId;
   return `https://drive.google.com/file/d/${id}/view`;
+};
+
+// Obtiene de forma inequívoca el enlace directo de LECTOR para cualquier material
+export const getDirectFileViewerUrl = (itemOrUrl) => {
+  if (!itemOrUrl) return '#';
+  if (typeof itemOrUrl === 'string') {
+    const fileId = getDriveFileId(itemOrUrl);
+    if (fileId) return `https://drive.google.com/file/d/${fileId}/view`;
+    return itemOrUrl;
+  }
+
+  // 1. Si es un objeto de material, buscar ID de archivo primero
+  const fileId =
+    itemOrUrl.driveFileId ||
+    getDriveFileId(itemOrUrl.driveUrl) ||
+    getDriveFileId(itemOrUrl.url);
+
+  if (fileId) {
+    return `https://drive.google.com/file/d/${fileId}/view`;
+  }
+
+  // 2. Si tiene una lista de enlaces
+  if (Array.isArray(itemOrUrl.driveLinks) && itemOrUrl.driveLinks.length > 0) {
+    const firstLink = itemOrUrl.driveLinks.find(Boolean);
+    const linkFileId = getDriveFileId(firstLink);
+    if (linkFileId) return `https://drive.google.com/file/d/${linkFileId}/view`;
+    if (firstLink && !firstLink.includes('/folders/')) return firstLink;
+  }
+
+  // 3. Si tiene una URL directa (imagen, PDF externo, YouTube) que no sea carpeta
+  if (itemOrUrl.url && !itemOrUrl.url.includes('/folders/') && !itemOrUrl.url.includes('folderview')) {
+    return itemOrUrl.url;
+  }
+  if (itemOrUrl.driveUrl && !itemOrUrl.driveUrl.includes('/folders/') && !itemOrUrl.driveUrl.includes('folderview')) {
+    return itemOrUrl.driveUrl;
+  }
+
+  // 4. Fallback: Si es genuinamente una carpeta sin archivos específicos
+  return itemOrUrl.driveFolderUrl || (itemOrUrl.driveFolderId ? `https://drive.google.com/drive/folders/${itemOrUrl.driveFolderId}` : (itemOrUrl.url || itemOrUrl.driveUrl || '#'));
 };
 
 export const getDrivePreviewUrl = (rawUrlOrId) => {

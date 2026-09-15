@@ -38,7 +38,7 @@ import { TOMOS, PRACTICAS } from '../data/legacyData';
 import { searchMatches } from '../lib/searchHelper';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, increment, query, orderBy } from 'firebase/firestore';
-import { getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId } from '../lib/storageHelper';
+import { getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId, getDirectFileViewerUrl } from '../lib/storageHelper';
 import { subscribeToSiteSettings, toggleHideDefaultItem, isDefaultItemHidden, getCachedSiteSettings } from '../lib/siteSettings';
 
 export const Biblioteca = () => {
@@ -1182,10 +1182,11 @@ export const Biblioteca = () => {
                               }}
                             >
                               {(libro.recursos || []).map((recurso, rIdx) => {
-                                const targetUrl = recurso.url || recurso.link || recurso.driveUrl || '';
-                                const driveId = getDriveFileId(targetUrl);
+                                const rawUrl = recurso.url || recurso.link || recurso.driveUrl || '';
+                                const driveId = getDriveFileId(rawUrl);
+                                const targetUrl = getDirectFileViewerUrl(recurso);
                                 // Usar la miniatura ultra liviana de Google Drive (sz=w400) para carga inmediata de la 1ra hoja
-                                const primaryCover = recurso.portadaUrl || recurso.thumbUrl || (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w400` : getDirectImageUrl(targetUrl));
+                                const primaryCover = recurso.portadaUrl || recurso.thumbUrl || (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w400` : getDirectImageUrl(rawUrl));
                                 return (
                                   <motion.a
                                     key={recurso.id || rIdx}

@@ -52,7 +52,7 @@ import { searchMatches } from '../lib/searchHelper';
 import { WhatsAppIconSVG, TikTokIconSVG } from '../components/AliadosCarousel';
 import { db, auth } from '../lib/firebase';
 import { deleteUser } from 'firebase/auth';
-import { uploadFileReliable, getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId } from '../lib/storageHelper';
+import { uploadFileReliable, getDirectImageUrl, getDriveThumbnailUrl, getDriveFileId, getDirectFileViewerUrl } from '../lib/storageHelper';
 import { 
   doc, 
   getDoc, 
@@ -2342,9 +2342,9 @@ export const UserProfile = () => {
                               <PlayCircle size={16} /> Ver Video
                             </a>
                           )}
-                          {!isAcademy && item.driveUrl && (
+                          {!isAcademy && (item.driveUrl || item.url || item.driveFileId) && (
                             <a
-                              href={getDriveFileId(item.driveUrl) ? `https://drive.google.com/file/d/${getDriveFileId(item.driveUrl)}/view` : item.driveUrl}
+                              href={getDirectFileViewerUrl(item)}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{

@@ -3408,7 +3408,7 @@ export const Admin = () => {
             top: 0, left: 0, right: 0, bottom: 0,
             background: 'rgba(0,0,0,0.7)',
             backdropFilter: 'blur(8px)',
-            zIndex: 9999,
+            zIndex: 1000150,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3422,7 +3422,7 @@ export const Admin = () => {
               maxWidth: '520px', 
               padding: '24px', 
               borderRadius: '28px', 
-              maxHeight: '85vh', 
+              maxHeight: 'min(90dvh, 620px)', 
               display: 'flex',
               flexDirection: 'column',
               boxSizing: 'border-box',
@@ -3853,7 +3853,7 @@ export const Admin = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999,
+          zIndex: 1000150,
           padding: '16px'
         }}>
           <div className="glass-card" style={{
@@ -3863,7 +3863,10 @@ export const Admin = () => {
             borderRadius: '24px',
             border: '1.5px solid rgba(245, 158, 11, 0.4)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.35)',
-            background: 'var(--card-bg)'
+            background: 'var(--card-bg)',
+            maxHeight: 'min(90dvh, 600px)',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch'
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

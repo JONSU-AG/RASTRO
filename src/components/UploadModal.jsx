@@ -376,8 +376,11 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 11000,
-          padding: '16px'
+          zIndex: 1000150,
+          padding: '12px',
+          paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+          boxSizing: 'border-box'
         }}
         onClick={handleClose}
       >
@@ -389,14 +392,14 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
           style={{
             width: '100%',
             maxWidth: '540px',
-            maxHeight: '88vh',
+            maxHeight: 'min(92dvh, 720px)',
             overflow: 'auto',
             WebkitOverflowScrolling: 'touch',
             background: 'var(--card-bg)',
             border: '1.5px solid var(--card-border)',
             borderRadius: '28px',
-            padding: '22px 24px',
-            paddingBottom: 'max(22px, env(safe-area-inset-bottom))',
+            padding: '20px 22px',
+            paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
             boxShadow: '0 25px 50px rgba(0,0,0,0.45)',
             color: 'var(--text-main)',
             position: 'relative',

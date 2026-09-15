@@ -965,7 +965,7 @@ export const UserDirectChat = ({
     {showDeleteModal && (
       <div 
         onClick={() => setShowDeleteModal(false)}
-        style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'20px', backdropFilter:'blur(4px)', WebkitBackdropFilter:'blur(4px)' }}
+        style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000150, padding:'20px', backdropFilter:'blur(4px)', WebkitBackdropFilter:'blur(4px)' }}
       >
         <div 
           onClick={e => e.stopPropagation()}
@@ -1422,7 +1422,7 @@ export const UserDirectChat = ({
               bottom: 0,
               background: 'rgba(0,0,0,0.5)',
               backdropFilter: 'blur(4px)',
-              zIndex: 9999,
+              zIndex: 1000150,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1645,7 +1645,7 @@ export const UserDirectChat = ({
               inset: 0,
               background: 'rgba(0,0,0,0.85)',
               backdropFilter: 'blur(8px)',
-              zIndex: 9999,
+              zIndex: 1000150,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

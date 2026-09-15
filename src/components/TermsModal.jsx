@@ -50,7 +50,7 @@ export const TermsModal = ({ isOpen, onClose }) => {
             borderRadius: '28px',
             width: '100%',
             maxWidth: '720px',
-            maxHeight: '90vh',
+            maxHeight: 'min(90dvh, 740px)',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 30px 70px rgba(0,0,0,0.45), 0 10px 24px rgba(0,0,0,0.25)',

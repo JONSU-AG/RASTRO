@@ -37,7 +37,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { uploadFileReliable, uploadMultipleFilesToDrive, getDriveThumbnailUrl, getDriveFileId, getDirectImageUrl } from '../lib/storageHelper';
+import { uploadFileReliable, uploadMultipleFilesToDrive, getDriveThumbnailUrl, getDriveFileId, getDirectImageUrl, getDirectFileViewerUrl } from '../lib/storageHelper';
 import { ImageGalleryCarousel } from './ImageGalleryCarousel';
 import { ConfirmModal, NoticeModal } from './ConfirmModal';
 import { CommunityUploadCard } from './CommunityUploadCard';
@@ -481,7 +481,7 @@ export const PostItemCard = ({
             title={item.title || 'Documento PDF'}
             category={item.category || item.materia || 'Material Académico'}
             height={280}
-            isFolder={item.type === 'drive' || item.url?.includes('/folders/') || item.url?.includes('folderview')}
+            isFolder={Boolean(!getDriveFileId(item.url) && !item.driveFileId && (item.type === 'drive' || item.url?.includes('/folders/') || item.url?.includes('folderview')))}
           />
         </div>
       )}
@@ -490,7 +490,7 @@ export const PostItemCard = ({
       {!isComment && (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
           <a
-            href={getDriveFileId(item.url) ? `https://drive.google.com/file/d/${getDriveFileId(item.url)}/view` : item.url}
+            href={getDirectFileViewerUrl(item)}
             target="_blank"
             rel="noopener noreferrer"
             style={{

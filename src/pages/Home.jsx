@@ -1501,7 +1501,7 @@ export const Home = () => {
             background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
-            zIndex: 99999,
+            zIndex: 1000150,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1521,6 +1521,9 @@ export const Home = () => {
               padding: '28px 24px',
               maxWidth: '420px',
               width: '100%',
+              maxHeight: 'min(90dvh, 520px)',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
               textAlign: 'center',
               boxShadow: '0 25px 60px rgba(0,0,0,0.5)'
             }}

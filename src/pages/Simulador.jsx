@@ -988,19 +988,31 @@ export const Simulador = () => {
                     position: 'fixed',
                     inset: 0,
                     background: 'rgba(0,0,0,0.65)',
-                    backdropFilter: 'blur(8px)',
-                    zIndex: 9999,
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    zIndex: 1000150,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '20px'
+                    padding: '12px',
+                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+                    boxSizing: 'border-box'
                   }}>
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       className="ios-glass-card"
-                      style={{ width: '100%', maxWidth: '480px', padding: '28px', borderRadius: '26px' }}
+                      style={{
+                        width: '100%',
+                        maxWidth: '480px',
+                        maxHeight: 'min(92dvh, 660px)',
+                        overflowY: 'auto',
+                        padding: '24px 20px',
+                        borderRadius: '26px',
+                        boxSizing: 'border-box'
+                      }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
@@ -1650,20 +1662,31 @@ export const Simulador = () => {
                     position: 'fixed',
                     inset: 0,
                     background: 'rgba(0,0,0,0.65)',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                    zIndex: 9999,
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    zIndex: 1000150,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '20px'
+                    padding: '12px',
+                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+                    boxSizing: 'border-box'
                   }}>
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       className="ios-glass-card"
-                      style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', padding: '26px', borderRadius: '26px' }}
+                      style={{
+                        width: '100%',
+                        maxWidth: '560px',
+                        maxHeight: 'min(92dvh, 700px)',
+                        overflowY: 'auto',
+                        padding: '22px 20px',
+                        borderRadius: '26px',
+                        boxSizing: 'border-box'
+                      }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--card-border)', paddingBottom: '12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2309,11 +2332,14 @@ export const Simulador = () => {
             background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
-            zIndex: 99999,
+            zIndex: 1000150,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px'
+            padding: '12px',
+            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+            boxSizing: 'border-box'
           }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2323,7 +2349,7 @@ export const Simulador = () => {
               style={{
                 width: '100%',
                 maxWidth: '620px',
-                maxHeight: '85vh',
+                maxHeight: 'min(92dvh, 700px)',
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: '28px',

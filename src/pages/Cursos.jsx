@@ -393,7 +393,7 @@ export const Cursos = () => {
           </p>
         </div>
       ) : (
-        <section className="academy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', width: '100%', maxWidth: '1200px', margin: '0 auto', boxSizing: 'border-box' }}>
+        <section className="academy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '20px', width: '100%', maxWidth: '1200px', margin: '0 auto', boxSizing: 'border-box' }}>
           {filteredCourses.map((c) => {
             const theme = c.colorTheme || {};
             const primaryColor = theme.primary || '#7C3AED';

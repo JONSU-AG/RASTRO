@@ -27,11 +27,11 @@ export const ConfirmModal = ({
           background: 'rgba(0, 0, 0, 0.7)',
           backdropFilter: 'blur(14px)',
           WebkitBackdropFilter: 'blur(14px)',
-          zIndex: 99999,
+          zIndex: 1000150,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px'
+          padding: '16px'
         }}
       >
         <motion.div
@@ -155,11 +155,11 @@ export const NoticeModal = ({
           background: 'rgba(0, 0, 0, 0.7)',
           backdropFilter: 'blur(14px)',
           WebkitBackdropFilter: 'blur(14px)',
-          zIndex: 99999,
+          zIndex: 1000150,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px'
+          padding: '16px'
         }}
       >
         <motion.div

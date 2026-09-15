@@ -22,11 +22,14 @@ export const ConsoleExtractorModal = ({ isOpen, onClose }) => {
           inset: 0,
           background: 'rgba(0, 0, 0, 0.7)',
           backdropFilter: 'blur(10px)',
-          zIndex: 99999,
+          WebkitBackdropFilter: 'blur(10px)',
+          zIndex: 1000150,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '16px',
+          padding: '12px',
+          paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
           boxSizing: 'border-box'
         }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -41,7 +44,7 @@ export const ConsoleExtractorModal = ({ isOpen, onClose }) => {
             borderRadius: '26px',
             width: '100%',
             maxWidth: '620px',
-            maxHeight: '90vh',
+            maxHeight: 'min(92dvh, 700px)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',

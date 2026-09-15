@@ -160,11 +160,15 @@ export const LibrosCollectionModal = ({
         bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.72)',
         backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 99999,
-        padding: '12px'
+        zIndex: 1000150,
+        padding: '12px',
+        paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        boxSizing: 'border-box'
       }}
       onClick={onClose}
     >
@@ -178,7 +182,7 @@ export const LibrosCollectionModal = ({
         style={{
           width: '100%',
           maxWidth: '780px',
-          maxHeight: '92vh',
+          maxHeight: 'min(92dvh, 760px)',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: '24px',

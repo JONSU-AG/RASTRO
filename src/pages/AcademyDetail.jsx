@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { subscribeToAccessSettings, checkAccessPermission, getCachedAccessSettings } from '../lib/accessControl';
 import { AccessGate } from '../components/AccessGate';
 import { AcademyBookmarkButton } from '../components/AcademyBookmarkButton';
+import { getDirectFileViewerUrl } from '../lib/storageHelper';
 
 const getCourseSvgData = (courseName) => {
   const defaultIcon = {
@@ -1952,7 +1953,7 @@ export const AcademyDetail = () => {
 
                               {item.docUrl && (
                                 <a
-                                  href={item.docUrl}
+                                  href={getDirectFileViewerUrl(item.docUrl)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   style={{
