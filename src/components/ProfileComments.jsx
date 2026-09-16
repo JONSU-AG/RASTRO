@@ -196,7 +196,8 @@ export const PostItemCard = ({
           postId: item.id,
           profileUid: profileUid,
           postTitle: item.title || item.text || 'Publicación',
-          message: `comentó en tu publicación: "${text.slice(0, 45)}"`,
+          text: text,
+          message: `comentó en tu publicación: "${text.slice(0, 160)}"`,
           read: false,
           createdAt: serverTimestamp(),
           timestamp: Date.now()
@@ -1004,13 +1005,14 @@ export const ProfileComments = ({ profileUid, profileName = 'este usuario', user
           await addDoc(collection(db, 'notificaciones'), {
             recipientUid: profileUid,
             senderUid: user.uid,
-            senderName: user.displayName || 'Estudiante RASTRO',
+            senderName: user.displayName || 'Estudiante RUMBO',
             senderPhoto: user.photoURL || null,
             type: 'wall_post',
             postId: newPostRef.id,
             profileUid: profileUid,
             targetPath: `/usuario/${profileUid}?tab=muro&postId=${newPostRef.id}`,
-            message: `publicó en tu muro: "${newComment.trim().slice(0, 45)}"`,
+            text: newComment.trim(),
+            message: `publicó en tu muro: "${newComment.trim().slice(0, 160)}"`,
             read: false,
             createdAt: serverTimestamp(),
             timestamp: Date.now()
@@ -1032,13 +1034,14 @@ export const ProfileComments = ({ profileUid, profileName = 'este usuario', user
             return addDoc(collection(db, 'notificaciones'), {
               recipientUid: followerUid,
               senderUid: user.uid,
-              senderName: user.displayName || 'Estudiante RASTRO',
+              senderName: user.displayName || 'Estudiante RUMBO',
               senderPhoto: user.photoURL || null,
               type: 'wall_post',
               postId: newPostRef.id,
               profileUid: user.uid,
               targetPath: `/usuario/${user.uid}?tab=muro&postId=${newPostRef.id}`,
-              message: `publicó en su muro: "${newComment.trim().slice(0, 45)}"`,
+              text: newComment.trim(),
+              message: `publicó en su muro: "${newComment.trim().slice(0, 160)}"`,
               read: false,
               createdAt: serverTimestamp(),
               timestamp: Date.now()

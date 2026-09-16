@@ -10,7 +10,12 @@ export const DEFAULT_SITE_SETTINGS = {
   // Elementos predeterminados del sistema ocultados/eliminados por el Administrador:
   // Array de IDs tipo string, ej: ['default_fc_1', 'default_exam_1', 'default_tomo_0']
   hiddenDefaultItems: [],
+  // Elementos reportados por estudiantes/comunidad ocultados automáticamente (1 reporte):
+  hiddenReportedItems: [],
 };
+
+const LOCAL_STORAGE_KEY = 'rastro_site_settings_cached';
+const LOCAL_REPORTED_KEY = 'rastro_hidden_reported_items';
 
 // Verifica si un elemento predeterminado está oculto por el admin
 export const isDefaultItemHidden = (id, settings = null) => {
@@ -18,6 +23,74 @@ export const isDefaultItemHidden = (id, settings = null) => {
   const current = settings || getCachedSiteSettings();
   const hiddenList = current.hiddenDefaultItems || [];
   return hiddenList.includes(String(id));
+};
+
+// Verifica si un elemento (flashcard o pregunta de examen) ha sido reportado y ocultado
+export const isReportedItemHidden = (id, settings = null) => {
+  if (!id) return false;
+  const idStr = String(id);
+
+  // 1. Caché local inmediata (sincrónica en memoria/localStorage)
+  try {
+    const raw = localStorage.getItem(LOCAL_REPORTED_KEY);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.includes(idStr)) return true;
+    }
+  } catch {}
+
+  // 2. Settings globales (Firestore y caché)
+  const current = settings || getCachedSiteSettings();
+  const hiddenReported = current.hiddenReportedItems || [];
+  return hiddenReported.includes(idStr);
+};
+
+// Oculta inmediatamente un elemento reportado (flashcard o pregunta) con 1 reporte
+export const hideReportedItem = async (id) => {
+  if (!id) return false;
+  const idStr = String(id);
+
+  // 1. Guardar de inmediato en localStorage para respuesta instantánea en la sesión activa
+  try {
+    const raw = localStorage.getItem(LOCAL_REPORTED_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    if (!list.includes(idStr)) {
+      list.push(idStr);
+      localStorage.setItem(LOCAL_REPORTED_KEY, JSON.stringify(list));
+    }
+  } catch {}
+
+  // 2. Persistir en site_settings (Firestore y cachedSiteSettings)
+  const current = getCachedSiteSettings();
+  const currentHidden = Array.isArray(current.hiddenReportedItems) ? [...current.hiddenReportedItems] : [];
+  if (!currentHidden.includes(idStr)) {
+    currentHidden.push(idStr);
+    await saveSiteSettings({ hiddenReportedItems: currentHidden });
+  }
+  return true;
+};
+
+// Restaura un elemento reportado si el admin decide rehabilitarlo
+export const unhideReportedItem = async (id) => {
+  if (!id) return false;
+  const idStr = String(id);
+
+  try {
+    const raw = localStorage.getItem(LOCAL_REPORTED_KEY);
+    if (raw) {
+      let list = JSON.parse(raw);
+      list = list.filter(item => item !== idStr);
+      localStorage.setItem(LOCAL_REPORTED_KEY, JSON.stringify(list));
+    }
+  } catch {}
+
+  const current = getCachedSiteSettings();
+  const currentHidden = Array.isArray(current.hiddenReportedItems) ? [...current.hiddenReportedItems] : [];
+  if (currentHidden.includes(idStr)) {
+    const updated = currentHidden.filter(item => item !== idStr);
+    await saveSiteSettings({ hiddenReportedItems: updated });
+  }
+  return true;
 };
 
 // Oculta o desoculta un elemento predeterminado en Firestore y local
@@ -37,8 +110,6 @@ export const toggleHideDefaultItem = async (id) => {
   await saveSiteSettings({ hiddenDefaultItems: updatedHidden });
   return updatedHidden.includes(idStr);
 };
-
-const LOCAL_STORAGE_KEY = 'rastro_site_settings_cached';
 
 export const getCachedSiteSettings = () => {
   try {

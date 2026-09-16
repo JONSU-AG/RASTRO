@@ -315,7 +315,8 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
             postId: newDocRef.id,
             profileUid: user.uid,
             postTitle: uploadData.title,
-            message: `📚 ${uploadData.ownerName} publicó material nuevo — "${uploadData.title.slice(0,40)}"`,
+            text: uploadData.title,
+            message: `publicó nuevo material — "${uploadData.title.slice(0, 120)}"`,
             read: false,
             createdAt: serverTimestamp(),
             timestamp: Date.now()

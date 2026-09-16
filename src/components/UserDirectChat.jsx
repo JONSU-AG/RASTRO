@@ -369,14 +369,15 @@ export const UserDirectChat = ({
           await addDoc(collection(db, 'notificaciones'), {
             recipientUid: currentPartnerUid,
             senderUid: user.uid,
-            senderName: userData?.displayName || user.displayName || 'Estudiante RASTRO',
+            senderName: userData?.displayName || user.displayName || 'Estudiante RUMBO',
             senderPhoto: user.photoURL || null,
             type: 'chat',
             conversationId: conversationId,
             targetPath: `/chats?with=${user.uid}`,
+            text: text ? text.trim() : '',
             message: imageUrl 
-              ? (text ? `📷 Te envió una foto con mensaje: "${text.slice(0, 30)}"` : '📷 Te envió una imagen') 
-              : `te envió un mensaje privado: "${text.slice(0, 45)}"`,
+              ? (text ? `📷 Te envió una foto: "${text.slice(0, 160)}"` : '📷 Te envió una imagen') 
+              : `te envió un mensaje: "${text.slice(0, 180)}"`,
             read: false,
             createdAt: serverTimestamp(),
             timestamp: now

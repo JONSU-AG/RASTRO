@@ -116,17 +116,30 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const handleSendTestNotification = async () => {
-    setTestSuccessMsg('Enviando notificación de prueba...');
     if (systemNotifState.soundEnabled) {
       playNotificationSound(systemNotifState.soundType);
     }
-    await triggerSystemNotification({
+    if (systemNotifState.permission !== 'granted') {
+      const res = await requestSystemNotificationPermission();
+      refreshSystemStatus();
+      if (!res.success) {
+        setTestSuccessMsg('Debes permitir las notificaciones en el navegador.');
+        setTimeout(() => setTestSuccessMsg(''), 3500);
+        return;
+      }
+    }
+    setTestSuccessMsg('Enviando notificación de prueba...');
+    const ok = await triggerSystemNotification({
       title: '🎓 Rumbo - Aviso del Sistema',
       body: '¡Esta es una notificación de prueba en tu dispositivo con sonido!',
       data: { url: '/cursos' }
     });
-    setTestSuccessMsg('¡Notificación enviada!');
-    setTimeout(() => setTestSuccessMsg(''), 3000);
+    if (ok) {
+      setTestSuccessMsg('¡Notificación enviada con éxito!');
+    } else {
+      setTestSuccessMsg('Revisa los permisos de notificación de tu navegador.');
+    }
+    setTimeout(() => setTestSuccessMsg(''), 3500);
   };
 
   const toggleGroupExpand = (groupKey) => {
@@ -1055,7 +1068,7 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                                     </span>
                                   </div>
                                   <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)', margin: '2px 0' }}>
-                                    {n.title || 'Aviso Oficial RASTRO'}
+                                    {n.title || 'Aviso Oficial RUMBO'}
                                   </div>
                                   <div style={{
                                     fontSize: '0.84rem',
@@ -1074,7 +1087,7 @@ export const NotificationsModal = ({ isOpen, onClose }) => {
                               ) : (
                                 <div style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
                                   <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>
-                                    {n.senderName || 'Estudiante RASTRO'}
+                                    {n.senderName || 'Estudiante RUMBO'}
                                   </span>{' '}
                                   {n.message}
                                 </div>

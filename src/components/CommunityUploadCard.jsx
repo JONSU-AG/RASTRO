@@ -358,7 +358,8 @@ export const CommunityUploadCard = ({
           postId: item.id,
           profileUid: authorUid,
           postTitle: item.title || 'Material de Biblioteca',
-          message: `comentó en tu material: "${text.slice(0, 45)}"`,
+          text: text,
+          message: `comentó en tu material: "${text.slice(0, 160)}"`,
           read: false,
           createdAt: serverTimestamp(),
           timestamp: Date.now()

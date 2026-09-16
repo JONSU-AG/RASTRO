@@ -36,9 +36,9 @@ import {
 } from 'firebase/firestore';
 
 const COLOR_PRESETS = [
-  { name: 'Rojo Esparta', primary: '#FF3B30', gradient: 'linear-gradient(135deg, #FF3B30, #FF5252)', bg: 'rgba(255, 59, 48, 0.08)', border: 'rgba(255, 59, 48, 0.35)' },
-  { name: 'Azul Kelsen', primary: '#007AFF', gradient: 'linear-gradient(135deg, #007AFF, #00C6FF)', bg: 'rgba(0, 122, 255, 0.08)', border: 'rgba(0, 122, 255, 0.35)' },
-  { name: 'Verde Briceño', primary: '#059669', gradient: 'linear-gradient(135deg, #059669, #10B981)', bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.35)' },
+  { name: 'Rojo Carmesí', primary: '#FF3B30', gradient: 'linear-gradient(135deg, #FF3B30, #FF5252)', bg: 'rgba(255, 59, 48, 0.08)', border: 'rgba(255, 59, 48, 0.35)' },
+  { name: 'Azul Real', primary: '#007AFF', gradient: 'linear-gradient(135deg, #007AFF, #00C6FF)', bg: 'rgba(0, 122, 255, 0.08)', border: 'rgba(0, 122, 255, 0.35)' },
+  { name: 'Verde Esmeralda', primary: '#059669', gradient: 'linear-gradient(135deg, #059669, #10B981)', bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.35)' },
   { name: 'Morado Premium', primary: '#7C3AED', gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)', bg: 'rgba(124, 58, 237, 0.08)', border: 'rgba(124, 58, 237, 0.35)' },
   { name: 'Ámbar Intenso', primary: '#D97706', gradient: 'linear-gradient(135deg, #D97706, #F59E0B)', bg: 'rgba(217, 119, 6, 0.08)', border: 'rgba(217, 119, 6, 0.35)' },
   { name: 'Rosa Vibrante', primary: '#DB2777', gradient: 'linear-gradient(135deg, #DB2777, #EC4899)', bg: 'rgba(219, 39, 119, 0.08)', border: 'rgba(219, 39, 119, 0.35)' },

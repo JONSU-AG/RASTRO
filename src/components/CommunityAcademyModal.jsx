@@ -1,38 +1,65 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Plus, HardDrive, Calendar, BookOpen, Layers, CheckCircle2, AlertCircle, Link as LinkIcon, Info, Terminal, Copy, Check } from 'lucide-react';
+import { X, Sparkles, Plus, HardDrive, Calendar, BookOpen, Layers, AlertCircle, Terminal, Copy, Check, Palette, Tag, Type, Eye, ArrowRight } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { AI_PROMPT_TEMPLATE, parseVideoLinksAuto } from '../lib/consoleExtractorScript';
 import { ConsoleExtractorModal } from './ConsoleExtractorModal';
 
-export const AREA_PRESETS = {
-  'Biomédicas': {
-    name: 'Biomédicas',
-    badge: '🧬 BIOMÉDICAS',
-    primary: '#10B981',
-    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    badgeGradient: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-    bg: 'linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, var(--card-bg) 65%)',
-    border: 'rgba(16, 185, 129, 0.35)',
-    shadow: 'rgba(16, 185, 129, 0.12)',
-    btnShadow: 'rgba(16, 185, 129, 0.25)'
+export const COLOR_THEMES = {
+  'esparta': {
+    id: 'esparta',
+    name: 'Rojo Carmesí',
+    badge: 'INTENSIVO',
+    primary: '#FF3B30',
+    gradient: 'linear-gradient(135deg, #FF3B30 0%, #FF5252 100%)',
+    badgeGradient: 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%)',
+    bg: 'linear-gradient(180deg, rgba(255, 59, 48, 0.06) 0%, var(--card-bg) 60%)',
+    border: 'rgba(255, 59, 48, 0.35)',
+    shadow: 'rgba(255, 59, 48, 0.12)',
+    btnShadow: 'rgba(255, 59, 48, 0.25)'
   },
-  'Ingenierías': {
-    name: 'Ingenierías',
-    badge: '⚙️ INGENIERÍAS',
+  'kelsen': {
+    id: 'kelsen',
+    name: 'Azul Real',
+    badge: 'PREPARACIÓN',
     primary: '#007AFF',
-    gradient: 'linear-gradient(135deg, #007AFF 0%, #2563EB 100%)',
+    gradient: 'linear-gradient(135deg, #007AFF 0%, #0A84FF 100%)',
     badgeGradient: 'linear-gradient(135deg, #007AFF 0%, #00C6FF 100%)',
-    bg: 'linear-gradient(180deg, rgba(0, 122, 255, 0.08) 0%, var(--card-bg) 65%)',
+    bg: 'linear-gradient(180deg, rgba(0, 122, 255, 0.06) 0%, var(--card-bg) 60%)',
     border: 'rgba(0, 122, 255, 0.35)',
     shadow: 'rgba(0, 122, 255, 0.12)',
     btnShadow: 'rgba(0, 122, 255, 0.25)'
   },
-  'Sociales': {
-    name: 'Ciencias Sociales',
-    badge: '🏛️ SOCIALES',
+  'briceno': {
+    id: 'briceno',
+    name: 'Verde Esmeralda',
+    badge: 'CIENCIAS',
+    primary: '#059669',
+    gradient: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+    badgeGradient: 'linear-gradient(135deg, #059669 0%, #34D399 100%)',
+    bg: 'linear-gradient(180deg, rgba(5, 150, 105, 0.06) 0%, var(--card-bg) 60%)',
+    border: 'rgba(5, 150, 105, 0.35)',
+    shadow: 'rgba(5, 150, 105, 0.12)',
+    btnShadow: 'rgba(5, 150, 105, 0.25)'
+  },
+  'violeta': {
+    id: 'violeta',
+    name: 'Violeta / Púrpura',
+    badge: 'INTEGRAL',
+    primary: '#8B5CF6',
+    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+    badgeGradient: 'linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%)',
+    bg: 'linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, var(--card-bg) 65%)',
+    border: 'rgba(139, 92, 246, 0.35)',
+    shadow: 'rgba(139, 92, 246, 0.12)',
+    btnShadow: 'rgba(139, 92, 246, 0.25)'
+  },
+  'sociales': {
+    id: 'sociales',
+    name: 'Sociales / Ámbar',
+    badge: 'SOCIALES',
     primary: '#F59E0B',
     gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
     badgeGradient: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
@@ -41,20 +68,67 @@ export const AREA_PRESETS = {
     shadow: 'rgba(245, 158, 11, 0.12)',
     btnShadow: 'rgba(245, 158, 11, 0.25)'
   },
-  'General': {
-    name: 'General / Todas',
-    badge: '🌐 GENERAL',
-    primary: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-    badgeGradient: 'linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%)',
-    bg: 'linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, var(--card-bg) 65%)',
-    border: 'rgba(139, 92, 246, 0.35)',
-    shadow: 'rgba(139, 92, 246, 0.12)',
-    btnShadow: 'rgba(139, 92, 246, 0.25)'
+  'ingenierias': {
+    id: 'ingenierias',
+    name: 'Ingenierías / Cian',
+    primary: '#0284C7',
+    gradient: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+    badgeGradient: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
+    bg: 'linear-gradient(180deg, rgba(2, 132, 199, 0.08) 0%, var(--card-bg) 65%)',
+    border: 'rgba(2, 132, 199, 0.35)',
+    shadow: 'rgba(2, 132, 199, 0.12)',
+    btnShadow: 'rgba(2, 132, 199, 0.25)'
+  },
+  'biomedicas': {
+    id: 'biomedicas',
+    name: 'Biomédicas / Esmeralda',
+    badge: 'BIOMÉDICAS',
+    primary: '#10B981',
+    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+    badgeGradient: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+    bg: 'linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, var(--card-bg) 65%)',
+    border: 'rgba(16, 185, 129, 0.35)',
+    shadow: 'rgba(16, 185, 129, 0.12)',
+    btnShadow: 'rgba(16, 185, 129, 0.25)'
+  },
+  'rosa': {
+    id: 'rosa',
+    name: 'Rosa Neón',
+    badge: 'DESTACADO',
+    primary: '#EC4899',
+    gradient: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+    badgeGradient: 'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+    bg: 'linear-gradient(180deg, rgba(236, 72, 153, 0.08) 0%, var(--card-bg) 65%)',
+    border: 'rgba(236, 72, 153, 0.35)',
+    shadow: 'rgba(236, 72, 153, 0.12)',
+    btnShadow: 'rgba(236, 72, 153, 0.25)'
   }
 };
 
-// Common subjects quick list
+export const AREA_PRESETS = COLOR_THEMES;
+
+const BADGE_SUGGESTIONS = [
+  'INTENSIVO',
+  '2027 EN CURSO',
+  'CIENCIAS',
+  'LETRAS',
+  'BIOMÉDICAS',
+  'INGENIERÍAS',
+  'SOCIALES',
+  'PREPARACIÓN',
+  'REPASO',
+  'ANUAL'
+];
+
+const SUBTITLE_SUGGESTIONS = [
+  'Ciclo Intensivo',
+  '2027 EN CURSO',
+  'Clases y Materiales',
+  'Preparación Integral',
+  'Ciencias y Letras',
+  'Repaso y Solucionarios'
+];
+
 export const SUGGESTED_SUBJECTS = [
   'Biología',
   'Anatomía',
@@ -80,14 +154,16 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
   const { user, isAdmin } = useAuth();
 
   const [nombre, setNombre] = useState('');
-  const [area, setArea] = useState('General');
+  const [badge, setBadge] = useState('');
+  const [subtitulo, setSubtitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [selectedThemeKey, setSelectedThemeKey] = useState('esparta');
   const [tipoEstructura, setTipoEstructura] = useState('semanas'); // 'semanas' | 'cursos'
   const [driveUrl, setDriveUrl] = useState('');
   const [driveText, setDriveText] = useState('Materiales y Clases en Drive');
-  const [descripcion, setDescripcion] = useState('');
   const [cicloName, setCicloName] = useState('Ciclo 2027');
-  
-  // Modo simple para subida múltiple de enlaces
+
+  // Modo de subida rápida de enlaces
   const [includeInitialLinks, setIncludeInitialLinks] = useState(false);
   const [initialSubject, setInitialSubject] = useState('Biología');
   const [initialLinksText, setInitialLinksText] = useState('');
@@ -103,20 +179,31 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
   useEffect(() => {
     if (academyToEdit) {
       setNombre(academyToEdit.nombre || '');
-      setArea(academyToEdit.area || 'General');
+      setBadge(academyToEdit.badge || '');
+      setSubtitulo(academyToEdit.subtitulo || '');
+      setDescripcion(academyToEdit.descripcion || '');
+      
+      // Match theme key or fallback
+      const foundTheme = Object.keys(COLOR_THEMES).find(k => 
+        k.toLowerCase() === (academyToEdit.area || '').toLowerCase() || 
+        (academyToEdit.colorTheme?.primary && COLOR_THEMES[k].primary === academyToEdit.colorTheme.primary)
+      );
+      setSelectedThemeKey(foundTheme || 'esparta');
+
       setTipoEstructura(academyToEdit.tipoEstructura || 'semanas');
       setDriveUrl(academyToEdit.driveUrl || '');
       setDriveText(academyToEdit.driveText || 'Materiales y Clases en Drive');
-      setDescripcion(academyToEdit.descripcion || '');
       setCicloName(academyToEdit.cicloName || 'Ciclo 2027');
       setIncludeInitialLinks(false);
     } else {
       setNombre('');
-      setArea('General');
+      setBadge('');
+      setSubtitulo('');
+      setDescripcion('');
+      setSelectedThemeKey('esparta');
       setTipoEstructura('semanas');
       setDriveUrl('');
       setDriveText('Materiales y Clases en Drive');
-      setDescripcion('');
       setCicloName('Ciclo 2027');
       setIncludeInitialLinks(false);
       setInitialSubject('Biología');
@@ -137,12 +224,14 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
 
   const parsedInitialLinks = useMemo(() => parseVideoLinksAuto(initialLinksText), [initialLinksText]);
 
+  const activeTheme = COLOR_THEMES[selectedThemeKey] || COLOR_THEMES['esparta'];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
     if (!user) {
-      setErrorMsg('Debes iniciar sesión para compartir o editar un curso.');
+      setErrorMsg('Debes iniciar sesión para crear o editar un curso.');
       return;
     }
 
@@ -160,17 +249,20 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
     setIsSubmitting(true);
 
     try {
-      const activeTheme = AREA_PRESETS[area] || AREA_PRESETS['General'];
       const collName = `${cleanSlug}_semanas`;
+
+      const finalBadge = badge.trim().toUpperCase() || (nombre.trim() ? nombre.trim().toUpperCase().slice(0, 16) : activeTheme.badge);
+      const finalSubtitulo = subtitulo.trim() || 'Clases y Materiales';
+      const finalDescripcion = descripcion.trim() || 'Clases grabadas, módulos organizados y materiales de estudio de la comunidad.';
 
       const payload = {
         id: cleanSlug,
         nombre: nombre.trim(),
-        badge: activeTheme.badge,
-        area: area,
+        badge: finalBadge,
+        area: selectedThemeKey,
         tipoEstructura: tipoEstructura,
-        subtitulo: `${area} • Clases Organizadas`,
-        descripcion: descripcion.trim() || `Clases y materiales organizados del curso de ${area}.`,
+        subtitulo: finalSubtitulo,
+        descripcion: finalDescripcion,
         semanasCollection: collName,
         driveUrl: driveUrl.trim(),
         driveText: driveText.trim() || 'Materiales en Drive',
@@ -187,10 +279,10 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
         payload.createdAt = serverTimestamp();
       }
 
-      // 1. Guardar documento principal de la academia
+      // 1. Guardar documento principal del curso en la colección comunitaria
       await setDoc(doc(db, 'academias', cleanSlug), payload, { merge: true });
 
-      // 2. Si el usuario ingresó enlaces iniciales en modo simple, creamos la primera semana/módulo
+      // 2. Si el usuario ingresó enlaces iniciales, creamos la primera semana/módulo
       if (includeInitialLinks && parsedInitialLinks.length > 0) {
         const weekNum = parseInt(initialWeekNum, 10) || 1;
         const weekDocId = `semana_${weekNum}`;
@@ -201,7 +293,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
           data: [
             {
               nombre: initialSubject,
-              categoria: area,
+              categoria: selectedThemeKey,
               videos: parsedInitialLinks
             }
           ]
@@ -213,15 +305,13 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
       onSaved(payload);
       onClose();
     } catch (err) {
-      console.error('Error saving community academy:', err);
+      console.error('Error saving community course:', err);
       setErrorMsg('Error al guardar: ' + err.message);
       setIsSubmitting(false);
     }
   };
 
   if (!isOpen) return null;
-
-  const currentTheme = AREA_PRESETS[area] || AREA_PRESETS['General'];
 
   return (
     <AnimatePresence>
@@ -249,35 +339,35 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
           style={{
             background: 'var(--card-bg)',
-            border: `1.5px solid ${currentTheme.border}`,
+            border: `1.5px solid ${activeTheme.border}`,
             borderRadius: '26px',
             width: '100%',
-            maxWidth: '560px',
-            maxHeight: 'min(92dvh, 740px)',
+            maxWidth: '580px',
+            maxHeight: 'min(92dvh, 760px)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            boxShadow: `0 24px 60px rgba(0, 0, 0, 0.35), 0 0 30px ${currentTheme.shadow}`,
+            boxShadow: `0 24px 60px rgba(0, 0, 0, 0.35), 0 0 30px ${activeTheme.shadow}`,
             boxSizing: 'border-box'
           }}
         >
           {/* Header */}
           <div style={{
             padding: '20px 24px',
-            background: currentTheme.gradient,
+            background: activeTheme.gradient,
             color: '#FFFFFF',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.5rem' }}>🏛️</span>
+              <BookOpen size={22} color="#FFF" />
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>
                   {isEditMode ? 'Editar Curso' : 'Crear Nuevo Curso'}
                 </h2>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>
-                  Modo Simple • Colaborativo para la comunidad
+                  Estilo comunitario • 100% personalizable
                 </span>
               </div>
             </div>
@@ -321,14 +411,15 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                 </div>
               )}
 
-              {/* Nombre del Curso */}
+              {/* 1. Nombre del Curso */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  Nombre del Curso *
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  <Type size={14} color={activeTheme.primary} />
+                  <span>Nombre del Curso *</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej: Física Preuniversitaria, Aritmética y Álgebra, Repaso UNSA..."
+                  placeholder="Ej: Ciclo Intensivo, Semestral, Ciencias y Letras, Medicina..."
                   value={nombre}
                   onChange={e => setNombre(e.target.value)}
                   required
@@ -346,45 +437,246 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                 />
               </div>
 
-              {/* Selector de Área */}
+              {/* 2. Etiqueta / Badge Superior */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
-                  Selecciona el Área
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    <Tag size={14} color={activeTheme.primary} />
+                    <span>Etiqueta Superior (Badge)</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Personalizable</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ej: INTENSIVO, PREPARACIÓN, CIENCIAS, LETRAS, ANUAL..."
+                  value={badge}
+                  onChange={e => setBadge(e.target.value)}
+                  maxLength={20}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '14px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'rgba(120, 120, 128, 0.05)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    boxSizing: 'border-box',
+                    textTransform: 'uppercase'
+                  }}
+                />
+                {/* Sugerencias rápidas de Badge */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {BADGE_SUGGESTIONS.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setBadge(s)}
+                      style={{
+                        padding: '3px 9px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--card-border)',
+                        background: badge === s ? activeTheme.primary : 'rgba(120, 120, 128, 0.08)',
+                        color: badge === s ? '#FFFFFF' : 'var(--text-secondary)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Subtítulo del Curso */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Subtítulo o Indicador
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Personalizable</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ej: Ciclo Intensivo, 2027 EN CURSO, Clases y Materiales..."
+                  value={subtitulo}
+                  onChange={e => setSubtitulo(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '14px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'rgba(120, 120, 128, 0.05)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {/* Sugerencias de subtítulo */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {SUBTITLE_SUGGESTIONS.map(sub => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => setSubtitulo(sub)}
+                      style={{
+                        padding: '3px 9px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--card-border)',
+                        background: subtitulo === sub ? activeTheme.primary : 'rgba(120, 120, 128, 0.08)',
+                        color: subtitulo === sub ? '#FFFFFF' : 'var(--text-secondary)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Estilo Visual y Paleta de Colores */}
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+                  <Palette size={14} color={activeTheme.primary} />
+                  <span>Estilo Visual y Colores</span>
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                  {Object.keys(AREA_PRESETS).map(key => {
-                    const preset = AREA_PRESETS[key];
-                    const isSelected = area === key;
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  {Object.keys(COLOR_THEMES).map(key => {
+                    const theme = COLOR_THEMES[key];
+                    const isSelected = selectedThemeKey === key;
                     return (
                       <button
                         type="button"
                         key={key}
-                        onClick={() => setArea(key)}
+                        onClick={() => setSelectedThemeKey(key)}
                         style={{
                           padding: '10px 12px',
                           borderRadius: '14px',
-                          border: isSelected ? `2px solid ${preset.primary}` : '1px solid var(--card-border)',
-                          background: isSelected ? preset.gradient : 'rgba(120, 120, 128, 0.05)',
+                          border: isSelected ? `2px solid ${theme.primary}` : '1px solid var(--card-border)',
+                          background: isSelected ? theme.gradient : 'rgba(120, 120, 128, 0.05)',
                           color: isSelected ? '#FFFFFF' : 'var(--text-main)',
                           fontWeight: 800,
-                          fontSize: '0.84rem',
+                          fontSize: '0.82rem',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
+                          gap: '8px',
                           transition: 'all 0.2s ease',
-                          boxShadow: isSelected ? `0 4px 14px ${preset.shadow}` : 'none'
+                          boxShadow: isSelected ? `0 4px 12px ${theme.shadow}` : 'none'
                         }}
                       >
-                        <span>{preset.badge}</span>
+                        <span style={{
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: isSelected ? '#FFFFFF' : theme.primary,
+                          display: 'inline-block',
+                          flexShrink: 0
+                        }} />
+                        <span style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {theme.name}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Selector de Estructura */}
+              {/* 5. Descripción */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  Descripción del Curso
+                </label>
+                <textarea
+                  placeholder="Describe la orientación del curso, materias o enfoque..."
+                  value={descripcion}
+                  onChange={e => setDescripcion(e.target.value)}
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '14px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'rgba(120, 120, 128, 0.05)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.88rem',
+                    boxSizing: 'border-box',
+                    resize: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 6. Live Preview de la Tarjeta */}
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+                  <Eye size={14} color={activeTheme.primary} />
+                  <span>Vista Previa de la Tarjeta</span>
+                </label>
+                <div 
+                  className="glass-card" 
+                  style={{ 
+                    padding: '16px 20px', 
+                    borderRadius: '20px', 
+                    border: `1.5px solid ${activeTheme.border}`, 
+                    background: activeTheme.bg, 
+                    boxShadow: `0 8px 20px ${activeTheme.shadow}`, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    boxSizing: 'border-box' 
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ 
+                      background: activeTheme.badgeGradient, 
+                      color: '#FFFFFF', 
+                      padding: '3px 10px', 
+                      borderRadius: '999px', 
+                      fontWeight: 800, 
+                      fontSize: '0.76rem', 
+                      boxShadow: `0 2px 6px ${activeTheme.btnShadow}` 
+                    }}>
+                      {badge.trim().toUpperCase() || (nombre.trim() ? nombre.trim().toUpperCase().slice(0, 16) : 'TU ETIQUETA')}
+                    </span>
+                    <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                      {subtitulo.trim() || 'Subtítulo del curso'}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '1.18rem', fontWeight: 800, marginBottom: '6px', color: 'var(--text-main)', letterSpacing: '-0.02em', margin: '0 0 6px' }}>
+                    {nombre.trim() || 'Nombre de tu Curso'}
+                  </h3>
+
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '14px', fontSize: '0.84rem', lineHeight: 1.45 }}>
+                    {descripcion.trim() || 'Clases grabadas, módulos organizados y materiales de estudio de la comunidad.'}
+                  </p>
+
+                  <div style={{ 
+                    width: '100%', 
+                    textAlign: 'center', 
+                    padding: '9px 12px', 
+                    background: activeTheme.gradient, 
+                    color: '#FFFFFF', 
+                    borderRadius: '12px', 
+                    fontWeight: 800, 
+                    fontSize: '0.86rem', 
+                    boxShadow: `0 4px 12px ${activeTheme.btnShadow}`, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px', 
+                    boxSizing: 'border-box' 
+                  }}>
+                    <span>Ingresar a {nombre.trim() ? nombre.trim().replace(/^(Academia|Curso|Ciclo)\s+/i, '') : 'Curso'}</span>
+                    <ArrowRight size={15} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 7. Formato de Organización */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
                   Formato de Organización
@@ -396,7 +688,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                     style={{
                       padding: '12px',
                       borderRadius: '14px',
-                      border: tipoEstructura === 'semanas' ? `2px solid ${currentTheme.primary}` : '1px solid var(--card-border)',
+                      border: tipoEstructura === 'semanas' ? `2px solid ${activeTheme.primary}` : '1px solid var(--card-border)',
                       background: tipoEstructura === 'semanas' ? 'rgba(0, 122, 255, 0.1)' : 'rgba(120, 120, 128, 0.05)',
                       color: 'var(--text-main)',
                       fontWeight: 800,
@@ -408,10 +700,10 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                       gap: '4px'
                     }}
                   >
-                    <span style={{ fontSize: '1.2rem' }}>📅</span>
+                    <Calendar size={22} color={activeTheme.primary} />
                     <span>Por Semanas</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      Semana 1, 2, 3...
+                      Semana 01, 02, 03...
                     </span>
                   </button>
 
@@ -421,7 +713,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                     style={{
                       padding: '12px',
                       borderRadius: '14px',
-                      border: tipoEstructura === 'cursos' ? `2px solid ${currentTheme.primary}` : '1px solid var(--card-border)',
+                      border: tipoEstructura === 'cursos' ? `2px solid ${activeTheme.primary}` : '1px solid var(--card-border)',
                       background: tipoEstructura === 'cursos' ? 'rgba(0, 122, 255, 0.1)' : 'rgba(120, 120, 128, 0.05)',
                       color: 'var(--text-main)',
                       fontWeight: 800,
@@ -433,22 +725,22 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                       gap: '4px'
                     }}
                   >
-                    <span style={{ fontSize: '1.2rem' }}>📚</span>
-                    <span>Por Curso Directo</span>
+                    <Layers size={22} color={activeTheme.primary} />
+                    <span>Por Materia Directa</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      Materia por materia
+                      Asignatura por asignatura
                     </span>
                   </button>
                 </div>
               </div>
 
-              {/* Enlace Principal de Recursos */}
+              {/* 8. Enlace de Recursos o Drive Principal */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
                   Enlace de Recursos o Drive Principal (Opcional)
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <HardDrive size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: currentTheme.primary }} />
+                  <HardDrive size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: activeTheme.primary }} />
                   <input
                     type="url"
                     placeholder="https://drive.google.com/drive/folders/..."
@@ -468,31 +760,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                 </div>
               </div>
 
-              {/* Descripción breve */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  Descripción breve
-                </label>
-                <textarea
-                  placeholder="Ej: Clases completas, resolución de problemas y material de apoyo."
-                  value={descripcion}
-                  onChange={e => setDescripcion(e.target.value)}
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '14px',
-                    border: '1.5px solid var(--card-border)',
-                    background: 'rgba(120, 120, 128, 0.05)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.88rem',
-                    boxSizing: 'border-box',
-                    resize: 'none'
-                  }}
-                />
-              </div>
-
-              {/* Sección Integrada: Carga Rápida de Múltiples Enlaces para un curso */}
+              {/* 9. Sección: Carga Rápida de Enlaces Iniciales */}
               {!isEditMode && (
                 <div style={{
                   padding: '16px 18px',
@@ -501,15 +769,14 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                     ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.09), rgba(0, 122, 255, 0.09))' 
                     : 'rgba(120, 120, 128, 0.05)',
                   border: includeInitialLinks 
-                    ? `1.5px solid ${currentTheme.primary}` 
+                    ? `1.5px solid ${activeTheme.primary}` 
                     : '1px solid var(--card-border)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '14px',
                   transition: 'all 0.25s ease',
-                  boxShadow: includeInitialLinks ? `0 6px 20px ${currentTheme.shadow || 'rgba(0,0,0,0.08)'}` : 'none'
+                  boxShadow: includeInitialLinks ? `0 6px 20px ${activeTheme.shadow || 'rgba(0,0,0,0.08)'}` : 'none'
                 }}>
-                  {/* Encabezado con switch interactivo integrado */}
                   <div 
                     onClick={() => setIncludeInitialLinks(!includeInitialLinks)}
                     style={{ 
@@ -526,7 +793,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                         width: '38px',
                         height: '38px',
                         borderRadius: '12px',
-                        background: includeInitialLinks ? currentTheme.gradient : 'rgba(120, 120, 128, 0.12)',
+                        background: includeInitialLinks ? activeTheme.gradient : 'rgba(120, 120, 128, 0.12)',
                         color: includeInitialLinks ? '#FFF' : 'var(--text-secondary)',
                         display: 'flex',
                         alignItems: 'center',
@@ -538,12 +805,12 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                       </div>
                       <div>
                         <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)', display: 'block' }}>
-                          ⚡ Cargar clases o videos ahora mismo
+                          Cargar clases o videos ahora mismo
                         </span>
                         <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                           {includeInitialLinks 
                             ? 'Pega enlaces de YouTube, Drive o Zoom para estructurar las clases' 
-                            : 'Opcional: Si tienes links listos, actívalo para subirlos juntos'}
+                            : 'Opcional: Si tienes enlaces listos, actívalo para subirlos juntos'}
                         </span>
                       </div>
                     </div>
@@ -554,7 +821,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                         width: '46px',
                         height: '26px',
                         borderRadius: '13px',
-                        background: includeInitialLinks ? currentTheme.primary : 'rgba(120, 120, 128, 0.25)',
+                        background: includeInitialLinks ? activeTheme.primary : 'rgba(120, 120, 128, 0.25)',
                         position: 'relative',
                         transition: 'background 0.25s ease',
                         flexShrink: 0,
@@ -661,7 +928,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                               title="Copia el prompt para estructurar tus enlaces con IA"
                             >
                               {copiedPrompt ? <Check size={12} /> : <Copy size={12} />}
-                              <span>{copiedPrompt ? '¡Prompt Copiado!' : '📋 Copiar Prompt IA'}</span>
+                              <span>{copiedPrompt ? 'Prompt Copiado' : 'Copiar Prompt IA'}</span>
                             </button>
 
                             {isAdmin && (
@@ -684,7 +951,7 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                                 title="Script extractor para pegar en consola del navegador (Solo Admin)"
                               >
                                 <Terminal size={12} color="#007AFF" />
-                                <span>⚡ Script Consola</span>
+                                <span>Script Consola</span>
                               </button>
                             )}
                           </div>
@@ -706,8 +973,8 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                             boxSizing: 'border-box'
                           }}
                         />
-                        <span style={{ fontSize: '0.74rem', color: currentTheme.primary, fontWeight: 700 }}>
-                          ✨ Se detectaron {parsedInitialLinks.length} clases listas para guardar con su SVG automático.
+                        <span style={{ fontSize: '0.74rem', color: activeTheme.primary, fontWeight: 700 }}>
+                          Se detectaron {parsedInitialLinks.length} clases listas para guardar.
                         </span>
                       </div>
                     </motion.div>
@@ -750,12 +1017,12 @@ export const CommunityAcademyModal = ({ isOpen, onClose, academyToEdit = null, o
                   padding: '11px 24px',
                   borderRadius: '14px',
                   border: 'none',
-                  background: currentTheme.gradient,
+                  background: activeTheme.gradient,
                   color: '#FFFFFF',
                   fontWeight: 900,
                   fontSize: '0.92rem',
                   cursor: isSubmitting ? 'wait' : 'pointer',
-                  boxShadow: `0 6px 18px ${currentTheme.btnShadow}`,
+                  boxShadow: `0 6px 18px ${activeTheme.btnShadow}`,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px'

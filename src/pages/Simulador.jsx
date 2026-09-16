@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -28,20 +28,27 @@ import {
   Loader2,
   Maximize2,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock,
+  Shuffle,
+  ArrowLeft,
+  BarChart3
 } from 'lucide-react';
 import { InspirationalDailyBanner } from '../components/InspirationalDailyBanner';
-import { datosSimulador, DEFAULT_FLASHCARDS, DEFAULT_EXAM_QUESTIONS as examData } from '../data/simuladorData';
+import { datosSimulador, DEFAULT_FLASHCARDS, DEFAULT_EXAM_QUESTIONS as examData, calculateExamScore, normalizeAsignatura } from '../data/simuladorData';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { ReportModal } from '../components/ReportModal';
-import { uploadFileReliable } from '../lib/storageHelper';
-import { subscribeToSiteSettings, toggleHideDefaultItem, isDefaultItemHidden, getCachedSiteSettings } from '../lib/siteSettings';
+import { subscribeToSiteSettings, toggleHideDefaultItem, isDefaultItemHidden, isReportedItemHidden, hideReportedItem, getCachedSiteSettings } from '../lib/siteSettings';
+import { SimulacroOficialExam } from '../components/SimulacroOficialExam';
+import { SimuladorSelect } from '../components/SimuladorSelect';
 
 export const cleanOptionText = (text) => {
   if (!text) return '';
-  return String(text).replace(/^[A-Ea-e][\)\.\:\-]\s*|^\([A-Ea-e]\)\s*/, '').trim();
+  let cleaned = String(text).trim();
+  cleaned = cleaned.replace(/^([A-Ea-e1-5])[\.\)\-\:\s]+/, '');
+  return cleaned.trim();
 };
 
 export const normalizeAnswerIndex = (ans, options = null) => {
@@ -90,6 +97,153 @@ export const normalizeAnswerIndex = (ans, options = null) => {
   return 0;
 };
 
+export const isTheoryQuickCard = (qText, aText = '', subject = '') => {
+  if (!qText) return false;
+  const q = String(qText).trim();
+  const qLower = q.toLowerCase();
+  const a = String(aText || '').trim();
+  const aLower = a.toLowerCase();
+  const sub = String(subject || '').toLowerCase();
+
+  // 1. Longitud adecuada para una flashcard (enunciado completo con contexto propio)
+  if (q.length < 12 || q.length > 110) return false;
+  if (q.includes('\n')) return false;
+
+  // 2. Mínimo 4 palabras en el enunciado
+  const words = q.split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+
+  // 3. Materias puramente conceptuales (excluir cálculo numérico y aptitud verbal de series/analogías)
+  const excludedSubjects = [
+    'álgebra', 'algebra', 
+    'aritmética', 'aritmetica', 
+    'geometría', 'geometria', 
+    'trigonometría', 'trigonometria', 
+    'raz. mat', 'razonamiento mat',
+    'raz. lógico', 'razonamiento lógico',
+    'matemática', 'matematica',
+    'lectura', 'comp. lectora', 'comprensión lectora',
+    'raz. verbal', 'razonamiento verbal'
+  ];
+  if (excludedSubjects.some(s => sub.includes(s))) {
+    return false;
+  }
+
+  // 4. Palabras clave de ejercicios matemáticos, problemas físicos, vectores y figuras
+  const exerciseKeywords = [
+    'calcule', 'calcular', 'calcula', 'calculo',
+    'halle', 'hallar', 'halla',
+    'resuelva', 'resolver', 'simplifique', 'simplificar',
+    'opere', 'operar', 'despeje', 'despejar',
+    'determine el valor', 'hallar el valor',
+    'un móvil', 'un movil', 'un proyectil', 'un bloque', 'un tren', 'un auto', 'un coche',
+    'se lanza', 'parte del reposo', 'recorre una distancia', 'plano inclinado',
+    'vector', 'módulo', 'modulo', 'resultante',
+    'm/s', 'km/h', 'cm/s', 'm/s2', 'm/s²', 'm/s^2', 'rad/s',
+    'newtons', 'joules', 'watts', 'pascales', 'ohmios',
+    'mol/l', 'mg/l', 'g/ml', '0,', '0.',
+    'en la figura', 'del gráfico', 'del grafico', 'figura adjunta', 'siguiente figura', 'imagen', 'observado', 'adjunt',
+    'el valor de x', 'el valor de y', 'el valor numérico',
+    'cuánto mide', 'cuánto vale', 'cuánto tiempo', 'cuántos metros', 'cuántos segundos',
+    'pirámide', 'piramide', 'núclido', 'nuclido', 'esquema', 'mapa', 'en el mapa', 'del mapa'
+  ];
+  if (exerciseKeywords.some(kw => qLower.includes(kw))) {
+    return false;
+  }
+
+  // 5. CERO Verdadero o Falso (ni en la pregunta ni como respuesta)
+  const vfKeywords = ['verdader', 'fals', '(v)', '(f)', 'v o f', 'v/f', 'verdad'];
+  if (vfKeywords.some(k => qLower.includes(k)) || /\b[vf]{2,5}\b/i.test(qLower)) return false;
+  if (
+    aLower === 'verdadero' || aLower === 'falso' || 
+    aLower === 'v' || aLower === 'f' || 
+    aLower.startsWith('verdader') || aLower.startsWith('fals') ||
+    /^[vf\s\-\,\.]+$/i.test(aLower)
+  ) {
+    return false;
+  }
+
+  // 6. CERO "Marca la incorrecta", falsedades o excepciones (LA PREGUNTA DEBE ENSEÑAR LA VERDAD)
+  const incorrectOrNegativeKw = [
+    'incorrect', 'marca la incorrecta', 'marque la incorrecta', 'afirmación incorrecta',
+    'enunciado incorrecto', 'opción incorrecta', 'alternativa incorrecta', 'proposición incorrecta',
+    'falsa', 'falso', 'no corresponde', 'no pertenece', 'no es correcto', 'no es correcta',
+    'no constituye', 'no representa', 'no se relaciona', 'no presenta', 'no contiene',
+    'no puede', 'no debe', 'no es una', 'no es un', 'excepto', 'salvo', 'contradice', 'incompatible'
+  ];
+  if (incorrectOrNegativeKw.some(k => qLower.includes(k))) return false;
+  if (/\bno\s+(es|corresponde|pertenece|constituye|presenta|describe|guarda|forma|se|debe|puede)\b/i.test(q)) return false;
+
+  // 7. CERO dependencias de alternativas (preguntas que sólo tienen sentido si ves A, B, C, D, E)
+  const optionDependentKw = [
+    'cuál de los siguientes', 'cuál de las siguientes', 'cual de los siguientes', 'cual de las siguientes',
+    'de los siguientes', 'de las siguientes', 'cuál de estos', 'cuál de estas',
+    'alternativa', 'opción', 'opcion', 'señale la', 'señala la', 'indique la', 'indica la',
+    'marque la', 'marca la', 'seleccione la', 'selecciona la', 'identifique la', 'identifica la',
+    'en cuál', 'en cual', 'qué oración', 'que oracion', 'cuál oración', 'cual oracion', 'oración que', 'oracion que',
+    'representación correcta', 'representacion correcta'
+  ];
+  if (optionDependentKw.some(k => qLower.includes(k))) return false;
+
+  // 8. CERO Ordenamiento, Secuencias, Cronología, Relaciones o Proposiciones múltiples
+  const orderKeywords = [
+    'relacion', 'relacione', 'relacionar', 'orden', 'ordene', 'ordenar', 
+    'secuencia', 'cronolog', 'emparejar', 'asociar', 'columna',
+    'proposicion', 'afirmacion', 'enunciado', 'es correcto:', 'son correctas', 
+    'cuáles de', 'cuantos de', 'cuantas de', 'solo i', 'solo ii', 'solo iii'
+  ];
+  if (orderKeywords.some(k => qLower.includes(k))) return false;
+  if (/\b(I|II|III|IV|V)\b/.test(q)) return false;
+
+  // 9. CERO oraciones con espacios en blanco para rellenar (ej. "____")
+  if (q.includes('___') || q.includes('…')) return false;
+
+  // 10. CERO comprensión lectora dependiente de un texto o párrafo externo no visible
+  const readingTextKw = [
+    'según el texto', 'de acuerdo al texto', 'del texto se', 'en el texto', 
+    'el autor del texto', 'en el fragmento', 'del fragmento', 'párrafo', 'parrafo',
+    'what can we infer', 'in the text', 'according to the text', 'in the passage',
+    'el autor concluye', 'el tono general', 'la expresión “', 'la expresión "',
+    'tipo de texto', 'estructura del texto'
+  ];
+  if (readingTextKw.some(k => qLower.includes(k))) return false;
+
+  // 11. Validaciones estrictas sobre la respuesta (debe ser una sola respuesta rápida, directa y verdadera)
+  if (a) {
+    // Entre 2 y 40 caracteres (término, concepto, autor o ley puntual)
+    if (a.length < 2 || a.length > 40) return false;
+
+    // Descartar si contiene punto y coma, guiones de separación o explicaciones extensas
+    if (a.includes(';') || a.includes('–') || a.includes('- ') || a.includes(' -')) return false;
+    if (aLower.startsWith('because') || aLower.startsWith('porque') || aLower.startsWith('debido a') || aLower.startsWith('dado que')) return false;
+
+    // Descartar si la respuesta es una combinación de alternativas, números o relación
+    if (/\b(solo|sólo)\s+(i|ii|iii|iv|v|1|2|3)\b/i.test(aLower)) return false;
+    if (/\b(i|ii|iii|iv|v)\s*(y|,|e|-)\s*(i|ii|iii|iv|v)\b/i.test(aLower)) return false;
+    if (/\b\d+\s*,\s*\d+/i.test(aLower) || /\b\d+\s+y\s+\d+/i.test(aLower)) return false;
+    if (/\b\d+[a-e]\b/i.test(aLower) || /\b[a-e]\d+\b/i.test(aLower) || /\bI[a-e]\b/i.test(aLower)) return false;
+    if (/[a-e]\s*[-–]\s*\d+/i.test(aLower) || /\d+\s*[-–]\s*[a-e]/i.test(aLower)) return false;
+    if (/\b(todas|ninguna|todas son|ninguna de las|todas las anteriores)\b/i.test(aLower)) return false;
+  }
+
+  // 12. Expresiones algebraicas numéricas o ecuaciones
+  if (/[a-zA-Z0-9]\s*=\s*[a-zA-Z0-9]/.test(q) || /\d+\s*[+\-*/^]\s*\d+/.test(q)) {
+    return false;
+  }
+
+  // 13. Presencia excesiva de números (propio de problemas con datos numéricos)
+  const numbersCount = (q.match(/\d+/g) || []).length;
+  if (numbersCount >= 3) {
+    return false;
+  }
+
+  return true;
+};
+
+
+// Alias para compatibilidad
+export const isTheoryQuestion = isTheoryQuickCard;
+
 function formatNum(n) {
   if (Number.isInteger(n)) return String(n);
   return Number(n.toFixed(4)).toString();
@@ -98,7 +252,7 @@ function formatNum(n) {
 const AREA_CONFIG = {
   'Sociales': {
     name: 'Ciencias Sociales',
-    badge: '🏛️ Sociales',
+    badge: 'Sociales',
     activeGradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
     activeShadow: '0 8px 24px rgba(245, 158, 11, 0.4)',
     border: 'rgba(245, 158, 11, 0.45)',
@@ -108,7 +262,7 @@ const AREA_CONFIG = {
   },
   'Ingenierías': {
     name: 'Ingenierías',
-    badge: '⚙️ Ingenierías',
+    badge: 'Ingenierías',
     activeGradient: 'linear-gradient(135deg, #007AFF 0%, #2563EB 100%)',
     activeShadow: '0 8px 24px rgba(0, 122, 255, 0.4)',
     border: 'rgba(0, 122, 255, 0.45)',
@@ -118,7 +272,7 @@ const AREA_CONFIG = {
   },
   'Biomédicas': {
     name: 'Biomédicas',
-    badge: '🧬 Biomédicas',
+    badge: 'Biomédicas',
     activeGradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
     activeShadow: '0 8px 24px rgba(16, 185, 129, 0.4)',
     border: 'rgba(16, 185, 129, 0.45)',
@@ -140,19 +294,9 @@ const getCategoryStyle = (curso) => {
       color: '#2563EB'
     };
   }
-  if (c.includes('mate') || c.includes('álgebra') || c.includes('geom') || c.includes('trig') || c.includes('arit')) {
+  if (c.includes('matemática') || c.includes('álgebra') || c.includes('aritmética') || c.includes('geometría') || c.includes('trigonometría')) {
     return {
       icon: '📐',
-      gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-      lightBg: 'rgba(139, 92, 246, 0.1)',
-      border: 'rgba(139, 92, 246, 0.35)',
-      badgeBg: 'rgba(139, 92, 246, 0.15)',
-      color: '#7C3AED'
-    };
-  }
-  if (c.includes('cien') || c.includes('físic') || c.includes('quím') || c.includes('bio') || c.includes('anat')) {
-    return {
-      icon: '🧪',
       gradient: 'linear-gradient(135deg, #10B981 0%, #047857 100%)',
       lightBg: 'rgba(16, 185, 129, 0.1)',
       border: 'rgba(16, 185, 129, 0.35)',
@@ -160,8 +304,18 @@ const getCategoryStyle = (curso) => {
       color: '#059669'
     };
   }
+  if (c.includes('ciencia') || c.includes('física') || c.includes('química') || c.includes('biología')) {
+    return {
+      icon: '🔬',
+      gradient: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+      lightBg: 'rgba(236, 72, 153, 0.1)',
+      border: 'rgba(236, 72, 153, 0.35)',
+      badgeBg: 'rgba(236, 72, 153, 0.15)',
+      color: '#DB2777'
+    };
+  }
   return {
-    icon: '📚',
+    icon: '🏛️',
     gradient: 'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)',
     lightBg: 'rgba(245, 158, 11, 0.1)',
     border: 'rgba(245, 158, 11, 0.35)',
@@ -173,17 +327,51 @@ const getCategoryStyle = (curso) => {
 export const Simulador = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('puntaje'); // Default to puntaje to show user
+  const tabsNavRef = useRef(null);
   const [reportData, setReportData] = useState({ isOpen: false, targetId: null, targetTitle: '', targetType: 'flashcard' });
   const [siteSettings, setSiteSettings] = useState(getCachedSiteSettings);
+  const [reportedItemIds, setReportedItemIds] = useState(() => {
+    try {
+      const raw = localStorage.getItem('rastro_hidden_reported_items');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Subscribe to site settings for hidden default items
   useEffect(() => {
     const unsub = subscribeToSiteSettings((s) => setSiteSettings(s));
     return () => unsub();
   }, []);
+
+  // Soporte de desplazamiento horizontal con rueda del mouse y auto-centrado de pestaña activa
+  useEffect(() => {
+    const el = tabsNavRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY * 0.85;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  useEffect(() => {
+    if (tabsNavRef.current) {
+      const activeBtn = tabsNavRef.current.querySelector(`[data-tab="${activeTab}"]`);
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [activeTab]);
   
   // Flashcards state
-  const [communityCards, setCommunityCards] = useState(DEFAULT_FLASHCARDS);
+  const [firestoreCards, setFirestoreCards] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState('Todos');
   const [cardSearch, setCardSearch] = useState('');
   const [cardAuthorFilter, setCardAuthorFilter] = useState('todos');
@@ -203,7 +391,7 @@ export const Simulador = () => {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
           const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          setCommunityCards([...docs, ...DEFAULT_FLASHCARDS]);
+          setFirestoreCards(docs);
         }
       }, (err) => {
         console.warn("Flashcards listener error:", err);
@@ -217,6 +405,12 @@ export const Simulador = () => {
   const handleSaveFlashcard = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!newCard.q.trim() || !newCard.a.trim() || creating) return;
+
+    if (!isTheoryQuickCard(newCard.q.trim(), newCard.a.trim(), newCard.subject)) {
+      alert("Las flashcards son exclusivamente para teoría con una sola respuesta directa. No se permiten ejercicios, preguntas de verdadero/falso ni relaciones de orden.");
+      return;
+    }
+
     setCreating(true);
     try {
       const cardPayload = {
@@ -227,7 +421,7 @@ export const Simulador = () => {
       };
 
       if (editingCardId) {
-        const isDefault = editingCardId === '1' || editingCardId === '2' || editingCardId === '3' || editingCardId === '4' || String(editingCardId).startsWith('default_fc_');
+        const isDefault = DEFAULT_FLASHCARDS.some(fc => String(fc.id) === String(editingCardId)) || String(editingCardId).startsWith('default_fc_');
         if (isDefault) {
           // Si era predeterminada, la ocultamos y creamos un aporte con los datos editados
           const defaultId = String(editingCardId).startsWith('default_fc_') ? String(editingCardId) : `default_fc_${editingCardId}`;
@@ -272,6 +466,52 @@ export const Simulador = () => {
     setIsCreateOpen(true);
   };
 
+  // Exam Questions State (Community + CEPREUNSA Oficial + Defaults)
+  const [cepreQuestions, setCepreQuestions] = useState([]);
+  const [isCepreLoading, setIsCepreLoading] = useState(false);
+
+  // Integración de banco CEPREUNSA a Flashcards (solo teoría de una sola respuesta directa)
+  const cepreFlashcards = useMemo(() => {
+    if (!cepreQuestions || cepreQuestions.length === 0) return [];
+
+    // Filtrar exclusivamente preguntas teóricas, directas y con respuesta puntual (sin V/F, sin orden)
+    const shortCepre = cepreQuestions.filter(item => {
+      const fcId = `cepre_fc_${item.id}`;
+      if (reportedItemIds.includes(fcId) || isReportedItemHidden(fcId, siteSettings)) return false;
+
+      const q = (item.q || '').trim();
+      const asig = item.asignatura || item.subject || item.curso || '';
+      const ansIdx = typeof item.answer === 'number' ? item.answer : 0;
+      const optRaw = Array.isArray(item.options) ? item.options[ansIdx] : '';
+      const optClean = cleanOptionText(optRaw);
+
+      return isTheoryQuickCard(q, optClean, asig);
+    });
+
+    return shortCepre.map(item => {
+      const letters = ['A', 'B', 'C', 'D', 'E'];
+      const correctLetter = letters[item.answer] || '';
+      const optionText = item.options?.[item.answer] ? cleanOptionText(item.options[item.answer]) : '';
+
+      return {
+        id: `cepre_fc_${item.id}`,
+        q: item.q.trim(),
+        a: optionText, // Respuesta rápida directa y limpia
+        claveLetra: correctLetter,
+        subject: normalizeAsignatura(item.asignatura || item.subject || item.curso || 'General'),
+        options: item.options,
+        answer: item.answer,
+        imageUrl: item.imageUrl || item.img || '',
+        authorName: 'Banco CEPREUNSA',
+        authorUid: 'cepreunsa'
+      };
+    });
+  }, [cepreQuestions, reportedItemIds, siteSettings]);
+
+  const communityCards = useMemo(() => {
+    return [...firestoreCards, ...cepreFlashcards, ...DEFAULT_FLASHCARDS];
+  }, [firestoreCards, cepreFlashcards]);
+
   // Group Flashcards Authors for filtering
   const flashcardAuthors = useMemo(() => {
     const map = {};
@@ -287,8 +527,22 @@ export const Simulador = () => {
 
   const filteredCards = useMemo(() => {
     return communityCards.filter(c => {
+      // Excluir si ha sido reportada (con 1 solo reporte se deja de mostrar)
+      if (reportedItemIds.includes(String(c.id)) || isReportedItemHidden(c.id, siteSettings)) {
+        return false;
+      }
+
+      // Exclusivamente teoría con respuesta directa y rápida (sin V/F, sin orden, sin ejercicios)
+      const qClean = (c.q || '').trim();
+      const aClean = (c.a || '').trim();
+      if (!qClean || !aClean) return false;
+
+      if (!isTheoryQuickCard(qClean, aClean, c.subject)) {
+        return false;
+      }
+
       // Si es una tarjeta predeterminada y el admin la ha ocultado, se excluye
-      const isDefault = c.id === '1' || c.id === '2' || c.id === '3' || c.id === '4' || String(c.id).startsWith('default_fc_');
+      const isDefault = DEFAULT_FLASHCARDS.some(fc => String(fc.id) === String(c.id)) || String(c.id).startsWith('default_fc_');
       if (isDefault) {
         const defaultId = String(c.id).startsWith('default_fc_') ? String(c.id) : `default_fc_${c.id}`;
         if (isDefaultItemHidden(defaultId, siteSettings)) {
@@ -297,7 +551,7 @@ export const Simulador = () => {
       }
 
       const matchSubject = selectedSubject === 'Todos' || c.subject === selectedSubject;
-      const qText = (c.q || '').toLowerCase();
+      const qText = qClean.toLowerCase();
       const aText = (c.a || '').toLowerCase();
       const sText = (c.subject || '').toLowerCase();
       const authorText = (c.authorName || '').toLowerCase();
@@ -309,7 +563,7 @@ export const Simulador = () => {
 
       return matchSubject && matchSearch && matchAuthor;
     });
-  }, [communityCards, selectedSubject, cardSearch, cardAuthorFilter, siteSettings]);
+  }, [communityCards, selectedSubject, cardSearch, cardAuthorFilter, siteSettings, reportedItemIds]);
 
   const activeCardIndex = Math.min(currentCard, Math.max(0, filteredCards.length - 1));
 
@@ -323,14 +577,32 @@ export const Simulador = () => {
     setCurrentCard((prev) => (prev - 1 + filteredCards.length) % Math.max(1, filteredCards.length));
   };
 
-  // Exam Questions State (Community + Default)
   const [communityExamQuestions, setCommunityExamQuestions] = useState(examData);
   const [examSearch, setExamSearch] = useState('');
   const [examAuthorFilter, setExamAuthorFilter] = useState('todos');
+  const [examAsignaturaFilter, setExamAsignaturaFilter] = useState('todas');
+  const [examSemanaFilter, setExamSemanaFilter] = useState('todas');
+  const [examMode, setExamMode] = useState('simulacro'); // 'simulacro' (60), 'rapido' (15), 'todo' (todas)
+  const [customRapidoCount, setCustomRapidoCount] = useState(15);
+  const [examShuffleSeed, setExamShuffleSeed] = useState(0);
+  const [examTimerSeconds, setExamTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [userExamAnswers, setUserExamAnswers] = useState({}); // { [qIndex]: optionIndex }
-  const [examResultsModal, setExamResultsModal] = useState({ isOpen: false, score: 0, total: 0, details: [] });
+  const [examResultsModal, setExamResultsModal] = useState({ 
+    isOpen: false, 
+    score: 0, 
+    total: 0, 
+    wrongCount: 0, 
+    blankCount: 0, 
+    unsaWeightedScore: 0, 
+    percentage: 0, 
+    aciertosPorAsignatura: {}, 
+    details: [],
+    elapsedTime: '00:00'
+  });
   const [isExamCreateOpen, setIsExamCreateOpen] = useState(false);
   const [editingExamId, setEditingExamId] = useState(null);
   const [examImageUploading, setExamImageUploading] = useState(false);
@@ -343,8 +615,47 @@ export const Simulador = () => {
     opt3: '',
     opt4: '',
     answer: 0,
+    asignatura: 'Biología',
+    explanation: '',
     imageUrl: ''
   });
+
+  // Cargar banco oficial de solucionarios CEPREUNSA en segundo plano
+  useEffect(() => {
+    setIsCepreLoading(true);
+    import('../data/bancoPreguntasCepreunsa.json')
+      .then((mod) => {
+        const list = mod.default || mod;
+        if (Array.isArray(list) && list.length > 0) {
+          setCepreQuestions(list);
+        }
+      })
+      .catch((err) => {
+        console.warn("Notice loading CEPREUNSA question bank:", err);
+      })
+      .finally(() => {
+        setIsCepreLoading(false);
+      });
+  }, []);
+
+  // Cronómetro del examen
+  useEffect(() => {
+    let interval = null;
+    if (activeTab === 'examen' && isTimerRunning && !examResultsModal.isOpen) {
+      interval = setInterval(() => {
+        setExamTimerSeconds(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeTab, isTimerRunning, examResultsModal.isOpen]);
+
+  const formatTimer = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   // Subscribe to community exam questions
   useEffect(() => {
@@ -382,6 +693,8 @@ export const Simulador = () => {
         q: newExamQuestion.q.trim(),
         options: rawOptions,
         answer: normalizeAnswerIndex(newExamQuestion.answer, rawOptions),
+        asignatura: newExamQuestion.asignatura || 'General',
+        explanation: (newExamQuestion.explanation || '').trim(),
         imageUrl: (newExamQuestion.imageUrl || '').trim(),
         authorName: user?.displayName || 'Estudiante RASTRO',
         authorUid: user?.uid || null,
@@ -401,7 +714,7 @@ export const Simulador = () => {
         await addDoc(collection(db, 'preguntas_examen'), payload);
       }
 
-      setNewExamQuestion({ q: '', opt0: '', opt1: '', opt2: '', opt3: '', opt4: '', answer: 0, imageUrl: '' });
+      setNewExamQuestion({ q: '', opt0: '', opt1: '', opt2: '', opt3: '', opt4: '', answer: 0, asignatura: 'Biología', explanation: '', imageUrl: '' });
       setEditingExamId(null);
       setIsExamCreateOpen(false);
     } catch (err) {
@@ -421,6 +734,8 @@ export const Simulador = () => {
       opt3: qItem.options?.[3] || '',
       opt4: qItem.options?.[4] || '',
       answer: normalizeAnswerIndex(qItem.answer, qItem.options),
+      asignatura: qItem.asignatura || 'Biología',
+      explanation: qItem.explanation || '',
       imageUrl: qItem.imageUrl || qItem.img || ''
     });
     setIsExamCreateOpen(true);
@@ -439,8 +754,30 @@ export const Simulador = () => {
     return Object.values(map);
   }, [communityExamQuestions]);
 
+  // Lista combinada de preguntas de la comunidad + banco CEPREUNSA (excluyendo reportadas)
+  const allAvailableExamQuestions = useMemo(() => {
+    return [...communityExamQuestions, ...cepreQuestions].filter(q => {
+      return !reportedItemIds.includes(String(q.id)) && !isReportedItemHidden(q.id, siteSettings);
+    });
+  }, [communityExamQuestions, cepreQuestions, reportedItemIds, siteSettings]);
+
+  // Asignaturas disponibles extraídas del banco de preguntas
+  const availableExamAsignaturas = useMemo(() => {
+    const set = new Set();
+    allAvailableExamQuestions.forEach(q => {
+      const asig = normalizeAsignatura(q.asignatura || q.subject || q.curso);
+      if (asig && asig !== 'General') set.add(asig);
+    });
+    return Array.from(set).sort();
+  }, [allAvailableExamQuestions]);
+
   const filteredExamQuestions = useMemo(() => {
-    return communityExamQuestions.filter(item => {
+    let list = allAvailableExamQuestions.filter(item => {
+      // Excluir si ha sido reportada (con 1 solo reporte se deja de mostrar)
+      if (reportedItemIds.includes(String(item.id)) || isReportedItemHidden(item.id, siteSettings)) {
+        return false;
+      }
+
       // Si es una pregunta predeterminada y el admin la ha ocultado, se excluye
       const isDefault = item.id === 1 || item.id === 2 || String(item.id).startsWith('default_exam_');
       if (isDefault) {
@@ -448,6 +785,17 @@ export const Simulador = () => {
         if (isDefaultItemHidden(defaultId, siteSettings)) {
           return false;
         }
+      }
+
+      // Filtro por Asignatura
+      if (examAsignaturaFilter !== 'todas') {
+        const asig = normalizeAsignatura(item.asignatura || item.subject || item.curso);
+        if (asig !== examAsignaturaFilter) return false;
+      }
+
+      // Filtro por Semana
+      if (examSemanaFilter !== 'todas') {
+        if (String(item.semana) !== String(examSemanaFilter)) return false;
       }
 
       const qText = (item.q || '').toLowerCase();
@@ -461,7 +809,53 @@ export const Simulador = () => {
 
       return matchSearch && matchAuthor;
     });
-  }, [communityExamQuestions, examSearch, examAuthorFilter, siteSettings]);
+
+    // Barajado aleatorio real para que las preguntas siempre aparezcan mezcladas
+    if (list.length > 0) {
+      const shuffled = [...list];
+      let s = (examShuffleSeed + 1) * 37 + 1013904223;
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        s = (s * 9301 + 49297) % 233280;
+        const rnd = s / 233280;
+        const j = Math.floor(rnd * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      if (examMode === 'rapido') {
+        const count = Math.max(1, customRapidoCount || 15);
+        return shuffled.slice(0, count);
+      }
+      if (examMode === 'simulacro') {
+        return shuffled.slice(0, 60);
+      }
+      return shuffled;
+    }
+
+    return list;
+  }, [allAvailableExamQuestions, examSearch, examAuthorFilter, examAsignaturaFilter, examSemanaFilter, examMode, customRapidoCount, examShuffleSeed, siteSettings, reportedItemIds]);
+
+  // Función para finalizar y calcular puntaje del examen automáticamente
+  const handleFinishExam = (answers = userExamAnswers) => {
+    const results = calculateExamScore({
+      questions: filteredExamQuestions,
+      userAnswers: answers,
+      area: simArea,
+      simData: datosSimulador
+    });
+
+    setExamResultsModal({
+      isOpen: true,
+      score: results.score,
+      total: results.total,
+      wrongCount: results.wrongCount,
+      blankCount: results.blankCount,
+      unsaWeightedScore: results.unsaWeightedScore,
+      percentage: results.percentage,
+      aciertosPorAsignatura: results.aciertosPorAsignatura,
+      details: results.details,
+      elapsedTime: formatTimer(examTimerSeconds)
+    });
+  };
 
   // Simulador Puntaje State
   const [simArea, setSimArea] = useState('Sociales');
@@ -569,91 +963,228 @@ export const Simulador = () => {
         </p>
       </motion.div>
 
-      {/* Tabs with high-contrast vibrant styles */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          marginBottom: '36px', 
-          background: 'var(--card-bg)', 
-          padding: '8px', 
-          borderRadius: '24px', 
-          backdropFilter: 'blur(20px)', 
-          border: '1.5px solid var(--card-border)', 
-          flexWrap: 'wrap', 
+      {/* Tabs with high-contrast vibrant styles - iOS Segmented Horizontal Scroll Bar with Clear Scroll Indicators */}
+      <div style={{ width: '100%', maxWidth: '840px', marginBottom: '18px' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Botón Flecha Izquierda */}
+          <button
+            type="button"
+            onClick={() => tabsNavRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              border: '1.5px solid var(--card-border)',
+              background: 'var(--card-bg)',
+              color: 'var(--primary-color, #007AFF)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+              transition: 'all 0.2s ease'
+            }}
+            title="Desplazar a la izquierda"
+            aria-label="Desplazar pestañas a la izquierda"
+          >
+            <ChevronLeft size={17} />
+          </button>
+
+          {/* Contenedor desplazable con pestañas */}
+          <div 
+            ref={tabsNavRef}
+            style={{ 
+              display: 'flex', 
+              gap: '6px', 
+              background: 'var(--card-bg)', 
+              padding: '5px', 
+              borderRadius: '20px', 
+              backdropFilter: 'blur(20px)', 
+              border: '1.5px solid var(--card-border)', 
+              flexWrap: 'nowrap', 
+              overflowX: 'auto',
+              flex: 1,
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)'
+            }}>
+            <button 
+              data-tab="simulacro_oficial"
+              onClick={() => setActiveTab('simulacro_oficial')}
+              style={{ 
+                padding: '7px 13px', 
+                borderRadius: '14px', 
+                border: activeTab === 'simulacro_oficial' ? 'none' : '1px solid transparent', 
+                background: activeTab === 'simulacro_oficial' ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'transparent',
+                color: activeTab === 'simulacro_oficial' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: 800,
+                fontSize: '0.80rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: activeTab === 'simulacro_oficial' ? '0 6px 16px rgba(16, 185, 129, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}>
+              <Award size={14} />
+              🎯 Simulacro (80)
+            </button>
+
+            <button 
+              data-tab="examen"
+              onClick={() => setActiveTab('examen')}
+              style={{ 
+                padding: '7px 13px', 
+                borderRadius: '14px', 
+                border: activeTab === 'examen' ? 'none' : '1px solid transparent', 
+                background: activeTab === 'examen' ? 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)' : 'transparent',
+                color: activeTab === 'examen' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: 800,
+                fontSize: '0.80rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: activeTab === 'examen' ? '0 6px 16px rgba(244, 63, 94, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}>
+              <Brain size={14} />
+              Examen Rápido
+            </button>
+
+            <button 
+              data-tab="puntaje"
+              onClick={() => setActiveTab('puntaje')}
+              style={{ 
+                padding: '7px 13px', 
+                borderRadius: '14px', 
+                border: activeTab === 'puntaje' ? 'none' : '1px solid transparent', 
+                background: activeTab === 'puntaje' ? 'linear-gradient(135deg, #007AFF 0%, #00C6FF 100%)' : 'transparent',
+                color: activeTab === 'puntaje' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: 800,
+                fontSize: '0.80rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: activeTab === 'puntaje' ? '0 6px 16px rgba(0, 122, 255, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}>
+              <Calculator size={14} />
+              Calculadora
+            </button>
+
+            <button 
+              data-tab="flashcards"
+              onClick={() => setActiveTab('flashcards')}
+              style={{ 
+                padding: '7px 13px', 
+                borderRadius: '14px', 
+                border: activeTab === 'flashcards' ? 'none' : '1px solid transparent', 
+                background: activeTab === 'flashcards' ? 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)' : 'transparent',
+                color: activeTab === 'flashcards' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: 800,
+                fontSize: '0.80rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: activeTab === 'flashcards' ? '0 6px 16px rgba(99, 102, 241, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}>
+              <Layers size={14} />
+              Flashcards
+            </button>
+          </div>
+
+          {/* Botón Flecha Derecha */}
+          <button
+            type="button"
+            onClick={() => tabsNavRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              border: '1.5px solid var(--card-border)',
+              background: 'var(--card-bg)',
+              color: 'var(--primary-color, #007AFF)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+              transition: 'all 0.2s ease'
+            }}
+            title="Desplazar a la derecha"
+            aria-label="Desplazar pestañas a la derecha"
+          >
+            <ChevronRight size={17} />
+          </button>
+        </div>
+
+        {/* Indicador visual de desplazamiento horizontal */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)'
+          gap: '6px',
+          marginTop: '6px'
         }}>
-        <button 
-          onClick={() => setActiveTab('flashcards')}
-          style={{ 
-            padding: '12px 22px', 
-            borderRadius: '16px', 
-            border: activeTab === 'flashcards' ? 'none' : '1px solid transparent', 
-            background: activeTab === 'flashcards' ? 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)' : 'transparent',
-            color: activeTab === 'flashcards' ? '#FFFFFF' : 'var(--text-secondary)',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
+          <span style={{
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: '8px',
-            boxShadow: activeTab === 'flashcards' ? '0 8px 20px rgba(99, 102, 241, 0.35)' : 'none',
-            transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
-          }}>
-          <Layers size={18} />
-          Flashcards
-        </button>
-
-        <button 
-          onClick={() => setActiveTab('examen')}
-          style={{ 
-            padding: '12px 22px', 
-            borderRadius: '16px', 
-            border: activeTab === 'examen' ? 'none' : '1px solid transparent', 
-            background: activeTab === 'examen' ? 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)' : 'transparent',
-            color: activeTab === 'examen' ? '#FFFFFF' : 'var(--text-secondary)',
+            gap: '6px',
+            padding: '3px 12px',
+            borderRadius: '999px',
+            background: 'rgba(0, 122, 255, 0.08)',
+            border: '1px solid rgba(0, 122, 255, 0.2)',
+            color: 'var(--primary-color, #007AFF)',
+            fontSize: '0.72rem',
             fontWeight: 800,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: activeTab === 'examen' ? '0 8px 20px rgba(244, 63, 94, 0.35)' : 'none',
-            transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            letterSpacing: '0.01em'
           }}>
-          <Brain size={18} />
-          Examen Rápido
-        </button>
-
-        <button 
-          onClick={() => setActiveTab('puntaje')}
-          style={{ 
-            padding: '12px 22px', 
-            borderRadius: '16px', 
-            border: activeTab === 'puntaje' ? 'none' : '1px solid transparent', 
-            background: activeTab === 'puntaje' ? 'linear-gradient(135deg, #007AFF 0%, #00C6FF 100%)' : 'transparent',
-            color: activeTab === 'puntaje' ? '#FFFFFF' : 'var(--text-secondary)',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: activeTab === 'puntaje' ? '0 8px 20px rgba(0, 122, 255, 0.35)' : 'none',
-            transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
-          }}>
-          <Calculator size={18} />
-          Calculadora de Puntaje
-        </button>
-      </motion.div>
+            <span>‹ ⟷ ›</span>
+            <span>Desliza horizontalmente para ver las 4 secciones</span>
+            <span>‹ ⟷ ›</span>
+          </span>
+        </div>
+      </div>
 
       {/* Content Area */}
-      <div style={{ width: '100%', maxWidth: '840px' }}>
+      <div style={{ width: '100%', maxWidth: '980px' }}>
         
         <AnimatePresence mode="wait">
+          {activeTab === 'simulacro_oficial' && (
+            <motion.div
+              key="simulacro_oficial"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              style={{ width: '100%' }}
+            >
+              <SimulacroOficialExam
+                bancoQuestions={allAvailableExamQuestions}
+                initialArea={simArea}
+                onTransferToCalculator={(aciertosPorAsig, area) => {
+                  setSimArea(area);
+                  setAciertos(prev => ({ ...prev, ...aciertosPorAsig }));
+                  setActiveTab('puntaje');
+                }}
+              />
+            </motion.div>
+          )}
+
           {activeTab === 'flashcards' && (
             <motion.div 
               key="flashcards"
@@ -676,7 +1207,7 @@ export const Simulador = () => {
                     type="text"
                     value={cardSearch}
                     onChange={(e) => { setCardSearch(e.target.value); setCurrentCard(0); }}
-                    placeholder="🔍 Buscar tema, pregunta o creador..."
+                    placeholder="Buscar tema, concepto o autor..."
                     style={{
                       flex: '1 1 200px',
                       padding: '10px 14px',
@@ -690,53 +1221,29 @@ export const Simulador = () => {
                     }}
                   />
 
-                  {/* Dropdown de Temas/Materias (ideal para móviles y evitar colapso) */}
-                  <select
+                  {/* Dropdown de Temas/Materias Teóricas */}
+                  <SimuladorSelect
                     value={selectedSubject}
-                    onChange={(e) => { setSelectedSubject(e.target.value); setCurrentCard(0); setIsFlipped(false); }}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '14px',
-                      border: '1.5px solid var(--card-border)',
-                      background: 'var(--card-bg)',
-                      color: 'var(--text-main)',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      outline: 'none',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                    }}
-                  >
-                    <option value="Todos">📚 Todos los Temas</option>
-                    {['Biología', 'Anatomía', 'Química', 'Física', 'Historia', 'Geografía', 'Lenguaje', 'Literatura', 'Matemática', 'Filosofía', 'Psicología'].map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => { setSelectedSubject(val); setCurrentCard(0); setIsFlipped(false); }}
+                    options={[
+                      { value: 'Todos', label: 'Todos los Temas Teóricos' },
+                      ...['Biología', 'Anatomía', 'Química', 'Física', 'Historia', 'Geografía', 'Lenguaje', 'Literatura', 'Filosofía', 'Psicología', 'Ed. Cívica'].map(sub => ({ value: sub, label: sub }))
+                    ]}
+                    style={{ flex: '1 1 200px' }}
+                    ariaLabel="Seleccionar tema teórico"
+                  />
 
                   {/* Dropdown de Filtrado por Usuario Creador */}
-                  <select
+                  <SimuladorSelect
                     value={cardAuthorFilter}
-                    onChange={(e) => { setCardAuthorFilter(e.target.value); setCurrentCard(0); }}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '14px',
-                      border: '1.5px solid var(--card-border)',
-                      background: 'var(--card-bg)',
-                      color: 'var(--text-main)',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      outline: 'none',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                    }}
-                  >
-                    <option value="todos">👤 Todos los Creadores</option>
-                    {flashcardAuthors.map(auth => (
-                      <option key={auth.key} value={auth.key}>
-                        👤 {auth.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => { setCardAuthorFilter(val); setCurrentCard(0); }}
+                    options={[
+                      { value: 'todos', label: 'Todos los Autores' },
+                      ...flashcardAuthors.map(auth => ({ value: auth.key, label: auth.name }))
+                    ]}
+                    style={{ flex: '1 1 180px' }}
+                    ariaLabel="Seleccionar autor"
+                  />
 
                   <button
                     onClick={() => setIsCreateOpen(true)}
@@ -764,7 +1271,7 @@ export const Simulador = () => {
 
               {/* Flashcard 3D Scene */}
               {filteredCards.length > 0 ? (
-                <div style={{ perspective: '1000px', width: '100%', maxWidth: '600px', height: '340px', marginBottom: '28px' }}>
+                <div style={{ perspective: '1000px', width: '100%', maxWidth: '580px', height: '330px', marginBottom: '26px' }}>
                   <motion.div
                     onClick={() => setIsFlipped(!isFlipped)}
                     animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -787,13 +1294,14 @@ export const Simulador = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '24px 28px',
+                      padding: '20px 24px',
                       textAlign: 'center',
-                      borderRadius: '26px',
-                      boxSizing: 'border-box'
+                      borderRadius: '24px',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <span style={{ fontSize: '0.8rem', background: 'rgba(0,122,255,0.1)', color: 'var(--accent-color)', padding: '4px 12px', borderRadius: '10px', fontWeight: 800 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.78rem', background: 'rgba(0,122,255,0.1)', color: 'var(--accent-color)', padding: '4px 10px', borderRadius: '10px', fontWeight: 800 }}>
                           {filteredCards[activeCardIndex]?.subject || 'General'}
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -847,46 +1355,85 @@ export const Simulador = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              const currentCardItem = filteredCards[activeCardIndex];
+                              if (!currentCardItem) return;
                               setReportData({
                                 isOpen: true,
-                                targetId: filteredCards[activeCardIndex]?.id || 'flashcard_item',
-                                targetTitle: filteredCards[activeCardIndex]?.q || 'Tarjeta Flashcard',
+                                targetId: currentCardItem.id,
+                                targetTitle: currentCardItem.q || 'Tarjeta Flashcard',
                                 targetType: 'flashcard'
                               });
                             }}
-                            title="Reportar Tarjeta"
-                            style={{ background: 'rgba(120,120,128,0.12)', border: 'none', color: 'var(--text-secondary)', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                            title="Reportar tarjeta incorrecta o sin contexto"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              color: '#EF4444',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700
+                            }}
                           >
-                            <Flag size={15} />
+                            <Flag size={13} />
+                            <span>Reportar</span>
                           </button>
                         </div>
                       </div>
                       
-                      {/* Image if present */}
-                      {filteredCards[activeCardIndex]?.imageUrl && (
-                        <div style={{ margin: '10px 0', textAlign: 'center', width: '100%' }}>
-                          <img
-                            src={filteredCards[activeCardIndex].imageUrl}
-                            alt="Gráfico de la tarjeta"
-                            style={{
-                              maxHeight: '140px',
-                              maxWidth: '100%',
-                              borderRadius: '14px',
-                              objectFit: 'contain',
-                              border: '1.5px solid var(--card-border)',
-                              background: 'rgba(0,0,0,0.02)'
-                            }}
-                          />
-                        </div>
-                      )}
+                      {/* Contenedor desplazable de la pregunta con tipografía compacta */}
+                      <div style={{
+                        flex: 1,
+                        minHeight: 0,
+                        width: '100%',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '8px 0',
+                        padding: '0 4px',
+                        WebkitOverflowScrolling: 'touch'
+                      }}>
+                        {/* Image if present */}
+                        {filteredCards[activeCardIndex]?.imageUrl && (
+                          <div style={{ marginBottom: '8px', textAlign: 'center', width: '100%', flexShrink: 0 }}>
+                            <img
+                              src={filteredCards[activeCardIndex].imageUrl}
+                              alt="Gráfico de la tarjeta"
+                              style={{
+                                maxHeight: '95px',
+                                maxWidth: '100%',
+                                borderRadius: '12px',
+                                objectFit: 'contain',
+                                border: '1.5px solid var(--card-border)',
+                                background: 'rgba(0,0,0,0.02)'
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        <h2 style={{
+                          fontSize: (filteredCards[activeCardIndex]?.q || '').length > 70 ? '0.94rem' : ((filteredCards[activeCardIndex]?.q || '').length > 40 ? '1.04rem' : '1.15rem'),
+                          color: 'var(--text-main)',
+                          fontWeight: 700,
+                          lineHeight: 1.4,
+                          margin: 'auto 0',
+                          wordBreak: 'break-word'
+                        }}>
+                          {filteredCards[activeCardIndex]?.q}
+                        </h2>
+                      </div>
                       
-                      <h2 style={{ fontSize: '1.35rem', color: 'var(--text-main)', fontWeight: 700, lineHeight: 1.45, margin: '12px 0', wordBreak: 'break-word' }}>
-                        {filteredCards[activeCardIndex]?.q}
-                      </h2>
-                      
-                      <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                        👆 Toca para ver la respuesta
-                      </p>
+                      <div style={{ flexShrink: 0, width: '100%', paddingTop: '4px' }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          Toca la tarjeta para ver la respuesta
+                        </p>
+                      </div>
                     </div>
 
                     {/* Back */}
@@ -899,18 +1446,19 @@ export const Simulador = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '24px 28px',
+                      padding: '20px 24px',
                       textAlign: 'center',
                       transform: 'rotateY(180deg)',
                       background: 'linear-gradient(135deg, #007aff, #6366F1)',
                       border: 'none',
-                      borderRadius: '26px',
+                      borderRadius: '24px',
                       color: '#fff',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
+                      overflow: 'hidden'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 800 }}>
-                          Respuesta & Fundamento
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 800 }}>
+                          Respuesta Directa
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {(isAdmin || (user && user.uid === filteredCards[activeCardIndex]?.authorUid)) && (
@@ -919,7 +1467,8 @@ export const Simulador = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const cardToDelete = filteredCards[activeCardIndex];
-                                if (!cardToDelete.id || cardToDelete.id === '1' || cardToDelete.id === '2' || cardToDelete.id === '3' || cardToDelete.id === '4') {
+                                const isDefault = !cardToDelete.id || DEFAULT_FLASHCARDS.some(fc => String(fc.id) === String(cardToDelete.id)) || String(cardToDelete.id).startsWith('default_fc_');
+                                if (isDefault) {
                                   alert("Esta es una tarjeta predeterminada del sistema.");
                                   return;
                                 }
@@ -937,27 +1486,81 @@ export const Simulador = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              const currentCardItem = filteredCards[activeCardIndex];
+                              if (!currentCardItem) return;
                               setReportData({
                                 isOpen: true,
-                                targetId: filteredCards[activeCardIndex]?.id || 'flashcard_item',
-                                targetTitle: filteredCards[activeCardIndex]?.q || 'Tarjeta Flashcard',
+                                targetId: currentCardItem.id,
+                                targetTitle: currentCardItem.q || 'Tarjeta Flashcard',
                                 targetType: 'flashcard'
                               });
                             }}
-                            title="Reportar Tarjeta"
-                            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#FFF', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                            title="Reportar tarjeta incorrecta o sin contexto"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.22)',
+                              border: '1px solid rgba(255, 255, 255, 0.35)',
+                              color: '#FFFFFF',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700
+                            }}
                           >
-                            <Flag size={15} />
+                            <Flag size={13} />
+                            <span>Reportar</span>
                           </button>
                         </div>
                       </div>
 
-                      <h3 style={{ fontSize: '1.2rem', color: '#fff', fontWeight: 600, lineHeight: 1.5, margin: '14px 0', wordBreak: 'break-word' }}>
-                        {filteredCards[activeCardIndex]?.a}
-                      </h3>
+                      {/* Contenedor de respuesta directa y rápida */}
+                      <div style={{
+                        flex: 1,
+                        minHeight: 0,
+                        width: '100%',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '8px 0',
+                        padding: '0 6px',
+                        WebkitOverflowScrolling: 'touch'
+                      }}>
+                        <h3 style={{
+                          fontSize: (filteredCards[activeCardIndex]?.a || '').length > 35 ? '1.12rem' : '1.35rem',
+                          color: '#fff',
+                          fontWeight: 800,
+                          lineHeight: 1.35,
+                          margin: '0 0 6px 0',
+                          wordBreak: 'break-word',
+                          textAlign: 'center'
+                        }}>
+                          {filteredCards[activeCardIndex]?.a}
+                        </h3>
+
+                        {filteredCards[activeCardIndex]?.claveLetra && (
+                          <span style={{
+                            fontSize: '0.74rem',
+                            background: 'rgba(255,255,255,0.2)',
+                            padding: '2px 8px',
+                            borderRadius: '8px',
+                            fontWeight: 700,
+                            color: 'rgba(255,255,255,0.95)',
+                            marginTop: '4px'
+                          }}>
+                            Clave ({filteredCards[activeCardIndex].claveLetra})
+                          </span>
+                        )}
+                      </div>
                       
-                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>
-                        ✍️ Aportado por: {filteredCards[activeCardIndex]?.authorName || 'Comunidad RASTRO'}
+                      <div style={{ flexShrink: 0, width: '100%', paddingTop: '4px' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>
+                          Aporte: {filteredCards[activeCardIndex]?.authorName || 'Comunidad RASTRO'}
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -1016,7 +1619,7 @@ export const Simulador = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                          ✨ Crear Tarjeta de Repaso Comunitaria
+                          Crear Tarjeta de Repaso Teórico
                         </h3>
                         <button onClick={() => setIsCreateOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                           <X size={20} />
@@ -1026,37 +1629,45 @@ export const Simulador = () => {
                       <form onSubmit={handleSaveFlashcard} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            Materia o Curso
+                            Materia o Curso Teórico
                           </label>
-                          <select
+                          <SimuladorSelect
                             value={newCard.subject}
-                            onChange={(e) => setNewCard(prev => ({ ...prev, subject: e.target.value }))}
-                            style={{ width: '100%', padding: '10px', borderRadius: '12px', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.9rem' }}
-                          >
-                            {['Biología', 'Anatomía', 'Química', 'Física', 'Historia', 'Geografía', 'Lenguaje', 'Literatura', 'Matemática', 'Filosofía', 'Psicología'].map(s => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            Pregunta o Concepto Clave
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={newCard.q}
-                            onChange={(e) => setNewCard(prev => ({ ...prev, q: e.target.value }))}
-                            placeholder="Ej. ¿Cuáles son las fases de la fotosíntesis?"
-                            style={{ width: '100%', padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--card-border)', background: 'rgba(120,120,128,0.06)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
-                            required
+                            onChange={(val) => setNewCard(prev => ({ ...prev, subject: val }))}
+                            options={['Biología', 'Anatomía', 'Química', 'Física', 'Historia', 'Geografía', 'Lenguaje', 'Literatura', 'Filosofía', 'Psicología', 'Ed. Cívica'].map(s => ({ value: s, label: s }))}
+                            style={{ width: '100%' }}
+                            menuStyle={{ width: '100%', maxWidth: '100%' }}
+                            ariaLabel="Seleccionar materia teórica"
                           />
                         </div>
 
-                        {/* 🖼️ Imagen opcional para la tarjeta */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                              Pregunta o Concepto Teórico Corto
+                            </label>
+                            <span style={{ fontSize: '0.72rem', color: newCard.q.length > 100 ? '#EF4444' : 'var(--text-secondary)', fontWeight: 600 }}>
+                              {newCard.q.length}/110 car.
+                            </span>
+                          </div>
+                          <textarea
+                            rows={2}
+                            maxLength={110}
+                            value={newCard.q}
+                            onChange={(e) => setNewCard(prev => ({ ...prev, q: e.target.value }))}
+                            placeholder="Ej. ¿Quién formuló la Teoría de la Relatividad?"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--card-border)', background: 'rgba(120,120,128,0.06)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                            required
+                          />
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                            Las flashcards son exclusivamente para teoría con una sola respuesta directa (sin ejercicios, sin V/F, sin orden ni cálculos).
+                          </span>
+                        </div>
+
+                        {/* Imagen opcional para la tarjeta */}
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            🖼️ Imagen o Esquema (Opcional)
+                            Imagen o Esquema (Opcional)
                           </label>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <input
@@ -1152,16 +1763,20 @@ export const Simulador = () => {
 
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            Respuesta & Explicación
+                            Respuesta Directa (Única y rápida)
                           </label>
                           <textarea
-                            rows={3}
+                            rows={2}
+                            maxLength={40}
                             value={newCard.a}
                             onChange={(e) => setNewCard(prev => ({ ...prev, a: e.target.value }))}
-                            placeholder="Ej. Fase luminosa (ocurre en los tilacoides) y fase oscura o ciclo de Calvin (en el estroma)."
+                            placeholder="Ej. Albert Einstein (o Mitocondria)"
                             style={{ width: '100%', padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--card-border)', background: 'rgba(120,120,128,0.06)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                             required
                           />
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                            Máximo 40 caracteres. Debe ser un concepto, autor o término puntual (sin párrafos ni explicaciones).
+                          </span>
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
@@ -1196,84 +1811,287 @@ export const Simulador = () => {
               exit={{ opacity: 0, y: -20 }}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}
             >
-              {/* Header bar for Examen Rápido with search, author filter and "+ Crear Pregunta" button */}
+              {/* Header bar for Examen con Banco CEPREUNSA Oficial */}
               <div style={{
                 width: '100%',
-                maxWidth: '680px',
+                maxWidth: '720px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                marginBottom: '16px'
+                marginBottom: '18px'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                    📝 Examen Rápido de Práctica
-                  </span>
-                  <button
-                    onClick={() => {
-                      setEditingExamId(null);
-                      setNewExamQuestion({ q: '', opt0: '', opt1: '', opt2: '', opt3: '', answer: 0, imageUrl: '' });
-                      setIsExamCreateOpen(true);
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '14px',
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
-                      color: '#FFFFFF',
-                      fontWeight: 800,
-                      fontSize: '0.84rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 4px 14px rgba(244, 63, 94, 0.35)'
-                    }}
-                  >
-                    <PlusCircle size={15} /> + Crear Pregunta
-                  </button>
+                {/* Banner de Banco Oficial */}
+                <div style={{
+                  padding: '12px 18px',
+                  borderRadius: '18px',
+                  background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.12) 0%, rgba(244, 63, 94, 0.08) 100%)',
+                  border: '1.5px solid rgba(236, 72, 153, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.1rem' }}>🏛️</span>
+                    <div>
+                      <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)', display: 'block' }}>
+                        Banco Oficial CEPREUNSA — Solucionarios & Claves
+                      </span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        {isCepreLoading ? 'Cargando solucionarios...' : `${allAvailableExamQuestions.length.toLocaleString()} preguntas reales clasificadas por semana y asignatura`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cronómetro en vivo */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '12px',
+                    background: 'var(--card-bg)',
+                    border: '1px solid var(--card-border)',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    color: 'var(--text-main)'
+                  }}>
+                    <Clock size={15} color="#EC4899" />
+                    <span>{formatTimer(examTimerSeconds)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsTimerRunning(prev => !prev)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                      title={isTimerRunning ? 'Pausar Cronómetro' : 'Reanudar Cronómetro'}
+                    >
+                      {isTimerRunning ? '⏸️' : '▶️'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExamTimerSeconds(0)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                      title="Reiniciar Cronómetro"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                {/* Modos de Examen */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setExamMode('simulacro'); setCurrentQuestion(0); }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '12px',
+                        border: examMode === 'simulacro' ? '1.5px solid #EC4899' : '1px solid var(--card-border)',
+                        background: examMode === 'simulacro' ? 'rgba(236, 72, 153, 0.15)' : 'var(--card-bg)',
+                        color: examMode === 'simulacro' ? '#EC4899' : 'var(--text-secondary)',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Simulacro
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setExamMode('rapido'); setCurrentQuestion(0); }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '12px',
+                        border: examMode === 'rapido' ? '1.5px solid #EC4899' : '1px solid var(--card-border)',
+                        background: examMode === 'rapido' ? 'rgba(236, 72, 153, 0.15)' : 'var(--card-bg)',
+                        color: examMode === 'rapido' ? '#EC4899' : 'var(--text-secondary)',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Examen Rápido ({customRapidoCount})
+                    </button>
+
+                    {/* Selector de cantidad personalizada para Examen Rápido */}
+                    {examMode === 'rapido' && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'var(--card-bg)', padding: '3px 8px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Cant:</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={customRapidoCount}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            setCustomRapidoCount(isNaN(val) ? 15 : Math.max(1, Math.min(100, val)));
+                            setCurrentQuestion(0);
+                          }}
+                          style={{
+                            width: '42px',
+                            padding: '2px 4px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--card-border)',
+                            background: 'transparent',
+                            color: 'var(--text-main)',
+                            fontSize: '0.76rem',
+                            fontWeight: 800,
+                            textAlign: 'center'
+                          }}
+                          title="Escribe la cantidad de preguntas"
+                        />
+                        <div style={{ display: 'flex', gap: '3px' }}>
+                          {[10, 15, 20, 30].map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => { setCustomRapidoCount(n); setCurrentQuestion(0); }}
+                              style={{
+                                padding: '2px 6px',
+                                borderRadius: '6px',
+                                border: customRapidoCount === n ? '1px solid #EC4899' : '1px solid transparent',
+                                background: customRapidoCount === n ? 'rgba(236, 72, 153, 0.18)' : 'rgba(120,120,128,0.08)',
+                                color: customRapidoCount === n ? '#EC4899' : 'var(--text-secondary)',
+                                fontSize: '0.70rem',
+                                fontWeight: 800,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setExamMode('todo'); setCurrentQuestion(0); }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '12px',
+                        border: examMode === 'todo' ? '1.5px solid #EC4899' : '1px solid var(--card-border)',
+                        background: examMode === 'todo' ? 'rgba(236, 72, 153, 0.15)' : 'var(--card-bg)',
+                        color: examMode === 'todo' ? '#EC4899' : 'var(--text-secondary)',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Todas
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExamShuffleSeed(prev => prev + 1);
+                        setCurrentQuestion(0);
+                        setUserExamAnswers({});
+                        setSelectedOption(null);
+                      }}
+                      title="Barajar y generar nuevo lote de preguntas"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--card-border)',
+                        background: 'var(--card-bg)',
+                        color: 'var(--text-main)',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Shuffle size={13} /> Reordenar Lote
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setEditingExamId(null);
+                        setNewExamQuestion({ q: '', opt0: '', opt1: '', opt2: '', opt3: '', opt4: '', answer: 0, asignatura: 'Biología', explanation: '', imageUrl: '' });
+                        setIsExamCreateOpen(true);
+                      }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 4px 12px rgba(244, 63, 94, 0.25)'
+                      }}
+                    >
+                      <PlusCircle size={14} /> + Crear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filtros de Asignatura, Semana y Búsqueda */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                  {/* Selector Asignatura */}
+                  <SimuladorSelect
+                    value={examAsignaturaFilter}
+                    onChange={(val) => { setExamAsignaturaFilter(val); setCurrentQuestion(0); }}
+                    options={[
+                      { value: 'todas', label: 'Todas las Asignaturas' },
+                      ...availableExamAsignaturas.map(asig => ({ value: asig, label: asig }))
+                    ]}
+                    style={{ flex: '1 1 180px' }}
+                    ariaLabel="Filtrar por asignatura"
+                  />
+
+                  {/* Selector Semana */}
+                  <SimuladorSelect
+                    value={examSemanaFilter}
+                    onChange={(val) => { setExamSemanaFilter(val); setCurrentQuestion(0); }}
+                    options={[
+                      { value: 'todas', label: 'Todas las Semanas' },
+                      ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => ({
+                        value: String(s),
+                        label: `Semana ${s} (Solucionario)`
+                      }))
+                    ]}
+                    style={{ flex: '1 1 180px' }}
+                    ariaLabel="Filtrar por semana"
+                  />
+
+                  {/* Buscador */}
                   <input
                     type="text"
                     value={examSearch}
                     onChange={(e) => { setExamSearch(e.target.value); setCurrentQuestion(0); }}
-                    placeholder="🔍 Buscar pregunta o autor del examen..."
+                    placeholder="Buscar pregunta..."
                     style={{
-                      flex: '1 1 200px',
-                      padding: '9px 14px',
+                      flex: '2 1 180px',
+                      padding: '9px 12px',
                       borderRadius: '14px',
                       border: '1.5px solid var(--card-border)',
                       background: 'var(--card-bg)',
                       color: 'var(--text-main)',
-                      fontSize: '0.85rem',
+                      fontSize: '0.84rem',
                       outline: 'none'
                     }}
                   />
+                </div>
 
-                  <select
-                    value={examAuthorFilter}
-                    onChange={(e) => { setExamAuthorFilter(e.target.value); setCurrentQuestion(0); }}
-                    style={{
-                      padding: '9px 14px',
-                      borderRadius: '14px',
-                      border: '1.5px solid var(--card-border)',
-                      background: 'var(--card-bg)',
-                      color: 'var(--text-main)',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="todos">👤 Todos los Creadores</option>
-                    {examAuthors.map(auth => (
-                      <option key={auth.key} value={auth.key}>
-                        👤 {auth.name}
-                      </option>
-                    ))}
-                  </select>
+                {/* Barra de progreso de preguntas respondidas vs en blanco */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, padding: '2px 4px' }}>
+                  <span>
+                    ✅ Respondidas: <strong style={{ color: '#10B981' }}>{Object.keys(userExamAnswers).length}</strong> de {filteredExamQuestions.length}
+                  </span>
+                  <span>
+                    ⚪ En blanco: <strong style={{ color: '#F59E0B' }}>{Math.max(0, filteredExamQuestions.length - Object.keys(userExamAnswers).length)}</strong>
+                  </span>
                 </div>
               </div>
 
@@ -1347,7 +2165,7 @@ export const Simulador = () => {
                         </div>
 
                         <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span style={{ 
                               background: 'rgba(236, 72, 153, 0.12)', 
                               color: '#EC4899', 
@@ -1358,6 +2176,48 @@ export const Simulador = () => {
                             }}>
                               🎯 Pregunta {safeQIndex + 1} de {filteredExamQuestions.length}
                             </span>
+
+                            {(currentQItem?.asignatura || currentQItem?.subject || currentQItem?.curso) && (
+                              <span style={{
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: '#2563EB',
+                                padding: '6px 12px',
+                                borderRadius: '999px',
+                                fontSize: '0.8rem',
+                                fontWeight: 800,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                🧪 {normalizeAsignatura(currentQItem.asignatura || currentQItem.subject || currentQItem.curso)}
+                              </span>
+                            )}
+
+                            {currentQItem?.semana && (
+                              <span style={{
+                                background: 'rgba(16, 185, 129, 0.12)',
+                                color: '#059669',
+                                padding: '6px 12px',
+                                borderRadius: '999px',
+                                fontSize: '0.8rem',
+                                fontWeight: 800
+                              }}>
+                                📅 S{currentQItem.semana}
+                              </span>
+                            )}
+
+                            {currentQItem?.fuente && (
+                              <span style={{
+                                background: 'rgba(139, 92, 246, 0.12)',
+                                color: '#7C3AED',
+                                padding: '6px 12px',
+                                borderRadius: '999px',
+                                fontSize: '0.8rem',
+                                fontWeight: 800
+                              }}>
+                                🏛️ Solucionario Oficial
+                              </span>
+                            )}
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1403,11 +2263,32 @@ export const Simulador = () => {
                             )}
                             <button
                               type="button"
-                              onClick={() => setReportData({ isOpen: true, targetId: currentQItem?.id || 'exam_q', targetTitle: currentQItem?.q || 'Pregunta Examen', targetType: 'examen' })}
-                              title="Reportar Pregunta"
-                              style={{ background: 'rgba(120,120,128,0.12)', border: 'none', color: 'var(--text-secondary)', padding: '6px 10px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                              onClick={() => {
+                                if (!currentQItem) return;
+                                setReportData({
+                                  isOpen: true,
+                                  targetId: currentQItem.id,
+                                  targetTitle: currentQItem.q || 'Pregunta Examen',
+                                  targetType: 'examen'
+                                });
+                              }}
+                              title="Reportar pregunta incorrecta o sin contexto"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                color: '#EF4444',
+                                padding: '6px 12px',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                fontWeight: 800,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                              }}
                             >
-                              <Flag size={14} />
+                              <Flag size={13} />
+                              <span>Reportar</span>
                             </button>
                           </div>
                         </div>
@@ -1435,8 +2316,9 @@ export const Simulador = () => {
                           </div>
                         )}
 
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '22px', fontWeight: 600 }}>
-                          ✍️ Pregunta creada por: <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{currentQItem?.authorName || 'Comunidad RASTRO'}</span>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '22px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>✍️ Autor / Origen: <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{currentQItem?.authorName || (currentQItem?.fuente ? 'Solucionario Oficial CEPREUNSA' : 'Comunidad RASTRO')}</span></span>
+                          {currentQItem?.semana && <span style={{ color: 'var(--text-muted)' }}>• Semana {currentQItem.semana}</span>}
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1494,7 +2376,7 @@ export const Simulador = () => {
                         </div>
 
                         <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {safeQIndex > 0 && (
                               <button
                                 type="button"
@@ -1517,51 +2399,18 @@ export const Simulador = () => {
                                   gap: '6px'
                                 }}
                               >
-                                ◀ Anterior
+                                Anterior
                               </button>
                             )}
 
                             <button
                               type="button"
                               onClick={() => {
-                                // Calculate score and build detailed summary with normalization
-                                const allAnswers = { ...userExamAnswers, [safeQIndex]: selectedOption };
-                                let correctCount = 0;
-                                const details = filteredExamQuestions.map((q, idx) => {
-                                  const userChoice = allAnswers[idx];
-                                  const userChoiceNorm = userChoice !== undefined && userChoice !== null ? normalizeAnswerIndex(userChoice, q.options) : null;
-                                  const correctChoiceNorm = normalizeAnswerIndex(q.answer, q.options);
-                                  
-                                  let isCorrect = false;
-                                  if (userChoiceNorm !== null) {
-                                    if (userChoiceNorm === correctChoiceNorm) {
-                                      isCorrect = true;
-                                    } else if (Array.isArray(q.options) && q.options[userChoiceNorm] && q.options[correctChoiceNorm]) {
-                                      const textUser = cleanOptionText(q.options[userChoiceNorm]).toLowerCase();
-                                      const textCorrect = cleanOptionText(q.options[correctChoiceNorm]).toLowerCase();
-                                      if (textUser === textCorrect && textUser.length > 0) {
-                                        isCorrect = true;
-                                      }
-                                    }
-                                  }
-                                  if (isCorrect) correctCount++;
-                                  return {
-                                    question: q.q,
-                                    imageUrl: q.imageUrl || q.img || '',
-                                    options: q.options || [],
-                                    userChoice: userChoiceNorm,
-                                    correctChoice: correctChoiceNorm,
-                                    isCorrect,
-                                    authorName: q.authorName || 'Comunidad RASTRO'
-                                  };
-                                });
-
-                                setExamResultsModal({
-                                  isOpen: true,
-                                  score: correctCount,
-                                  total: filteredExamQuestions.length,
-                                  details
-                                });
+                                const currentAnswers = { ...userExamAnswers };
+                                if (selectedOption !== null && selectedOption !== undefined) {
+                                  currentAnswers[safeQIndex] = selectedOption;
+                                }
+                                handleFinishExam(currentAnswers);
                               }}
                               style={{
                                 padding: '12px 18px',
@@ -1577,68 +2426,37 @@ export const Simulador = () => {
                                 gap: '6px'
                               }}
                             >
-                              📋 Ver Claves & Explicación
+                              📋 Ver Claves & Resultados
                             </button>
                           </div>
 
                           <button 
                             onClick={() => {
-                              const updatedAnswers = { ...userExamAnswers, [safeQIndex]: selectedOption };
+                              const updatedAnswers = { ...userExamAnswers };
+                              if (selectedOption !== null && selectedOption !== undefined) {
+                                updatedAnswers[safeQIndex] = selectedOption;
+                              } else {
+                                delete updatedAnswers[safeQIndex];
+                              }
+
                               if (safeQIndex < filteredExamQuestions.length - 1) {
                                 const nextIdx = safeQIndex + 1;
                                 setCurrentQuestion(nextIdx);
                                 setSelectedOption(updatedAnswers[nextIdx] !== undefined ? updatedAnswers[nextIdx] : null);
                               } else {
-                                // Finalize exam and open popup modal automatically
-                                let correctCount = 0;
-                                const details = filteredExamQuestions.map((q, idx) => {
-                                  const userChoice = updatedAnswers[idx];
-                                  const userChoiceNorm = userChoice !== undefined && userChoice !== null ? normalizeAnswerIndex(userChoice, q.options) : null;
-                                  const correctChoiceNorm = normalizeAnswerIndex(q.answer, q.options);
-                                  
-                                  let isCorrect = false;
-                                  if (userChoiceNorm !== null) {
-                                    if (userChoiceNorm === correctChoiceNorm) {
-                                      isCorrect = true;
-                                    } else if (Array.isArray(q.options) && q.options[userChoiceNorm] && q.options[correctChoiceNorm]) {
-                                      const textUser = cleanOptionText(q.options[userChoiceNorm]).toLowerCase();
-                                      const textCorrect = cleanOptionText(q.options[correctChoiceNorm]).toLowerCase();
-                                      if (textUser === textCorrect && textUser.length > 0) {
-                                        isCorrect = true;
-                                      }
-                                    }
-                                  }
-                                  if (isCorrect) correctCount++;
-                                  return {
-                                    question: q.q,
-                                    imageUrl: q.imageUrl || q.img || '',
-                                    options: q.options || [],
-                                    userChoice: userChoiceNorm,
-                                    correctChoice: correctChoiceNorm,
-                                    isCorrect,
-                                    authorName: q.authorName || 'Comunidad RASTRO'
-                                  };
-                                });
-
-                                setExamResultsModal({
-                                  isOpen: true,
-                                  score: correctCount,
-                                  total: filteredExamQuestions.length,
-                                  details
-                                });
+                                handleFinishExam(updatedAnswers);
                               }
                             }}
-                            disabled={selectedOption === null}
                             style={{
                               padding: '14px 28px',
                               borderRadius: '16px',
                               border: 'none',
-                              background: selectedOption === null ? 'var(--card-border)' : 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
-                              color: selectedOption === null ? 'var(--text-muted)' : '#FFFFFF',
+                              background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
+                              color: '#FFFFFF',
                               fontWeight: 800,
                               fontSize: '0.95rem',
-                              cursor: selectedOption === null ? 'not-allowed' : 'pointer',
-                              boxShadow: selectedOption === null ? 'none' : '0 8px 22px rgba(236, 72, 153, 0.35)',
+                              cursor: 'pointer',
+                              boxShadow: '0 8px 22px rgba(236, 72, 153, 0.35)',
                               transition: 'all 0.25s ease'
                             }}
                           >
@@ -1920,7 +2738,7 @@ export const Simulador = () => {
                           alignItems: 'center',
                           gap: '8px'
                         }}>
-                          <span style={{ fontSize: '0.85rem' }}>🎯</span>
+                          <Target size={16} color="#059669" />
                           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#059669' }}>
                             Clave asignada: <strong>Opción {['A', 'B', 'C', 'D', 'E'][normalizeAnswerIndex(newExamQuestion.answer)] || 'A'}</strong>
                             {newExamQuestion[`opt${normalizeAnswerIndex(newExamQuestion.answer)}`] ? ` ("${newExamQuestion[`opt${normalizeAnswerIndex(newExamQuestion.answer)}`]}")` : ''}
@@ -1959,57 +2777,55 @@ export const Simulador = () => {
               exit={{ opacity: 0, y: -20 }}
               style={{ display: 'flex', flexDirection: 'column', gap: '26px', width: '100%', maxWidth: '100%' }}
             >
-               {/* Area Selector with distinct vibrant colors */}
-               <div style={{ 
-                 display: 'flex', 
-                 gap: '12px', 
-                 justifyContent: 'center', 
-                 flexWrap: 'wrap',
-                 background: 'var(--card-bg)',
-                 padding: '12px',
-                 borderRadius: '24px',
-                 border: '1.5px solid var(--card-border)',
-                 boxShadow: '0 6px 20px rgba(0,0,0,0.04)'
-               }}>
-                 {Object.keys(datosSimulador).map(area => {
-                   const config = AREA_CONFIG[area] || AREA_CONFIG['Sociales'];
-                   const isSelected = simArea === area;
-                   return (
-                     <motion.button
-                       key={area}
-                       whileHover={{ scale: 1.02 }}
-                       whileTap={{ scale: 0.98 }}
-                       onClick={() => setSimArea(area)}
-                       style={{
-                         padding: '12px 24px',
-                         borderRadius: '16px',
-                         border: isSelected ? 'none' : `1.5px solid ${config.border}`,
-                         background: isSelected ? config.activeGradient : config.tint,
-                         color: isSelected ? '#FFFFFF' : 'var(--text-main)',
-                         fontWeight: 800,
-                         fontSize: '0.98rem',
-                         cursor: 'pointer',
-                         display: 'flex',
-                         alignItems: 'center',
-                         gap: '8px',
-                         boxShadow: isSelected ? config.activeShadow : 'none',
-                         transition: 'all 0.25s ease'
-                       }}
-                     >
-                       <span>{config.badge}</span>
-                       <span style={{ 
-                         fontSize: '0.75rem', 
-                         opacity: isSelected ? 0.9 : 0.7, 
-                         background: isSelected ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)',
-                         padding: '2px 8px',
-                         borderRadius: '8px'
-                       }}>
-                         60 preg.
-                       </span>
-                     </motion.button>
-                   );
-                 })}
-               </div>
+              {/* Selector de Área Académica - Horizontal centrado sin etiqueta de preguntas */}
+              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '0 auto' }}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(3, 1fr)', 
+                  gap: '6px', 
+                  width: '100%',
+                  maxWidth: '480px',
+                  background: 'var(--card-bg)',
+                  padding: '5px',
+                  borderRadius: '14px',
+                  border: '1.5px solid var(--card-border)',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
+                  boxSizing: 'border-box'
+                }}>
+                  {['Sociales', 'Ingenierías', 'Biomédicas'].map(area => {
+                    const config = AREA_CONFIG[area] || AREA_CONFIG['Sociales'];
+                    const isSelected = simArea === area;
+                    return (
+                      <motion.button
+                        key={area}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => setSimArea(area)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '10px',
+                          border: isSelected ? 'none' : `1px solid ${config.border}`,
+                          background: isSelected ? config.activeGradient : config.tint,
+                          color: isSelected ? '#FFFFFF' : 'var(--text-main)',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: isSelected ? config.activeShadow : 'none',
+                          transition: 'all 0.2s ease',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          minHeight: '36px'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', fontWeight: 800 }}>
+                          {config.badge}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
                
                {/* Pro Scoreboard HUD Sticky Card */}
                <div 
@@ -2321,66 +3137,63 @@ export const Simulador = () => {
         targetId={reportData.targetId}
         targetTitle={reportData.targetTitle}
         targetType={reportData.targetType}
+        onItemHidden={(hiddenId) => {
+          const idStr = String(hiddenId);
+          setReportedItemIds(prev => {
+            if (prev.includes(idStr)) return prev;
+            return [...prev, idStr];
+          });
+          if (activeTab === 'flashcards') {
+            setIsFlipped(false);
+          }
+        }}
       />
 
-      {/* 🏁 POPUP DE RESULTADOS Y RESPUESTAS DEL EXAMEN RÁPIDO */}
+      {/* VISTA DEDICADA DE RESULTADOS Y RESPUESTAS DEL EXAMEN */}
       <AnimatePresence>
         {examResultsModal.isOpen && (
           <div style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
+            background: 'var(--bg-main, #0F172A)',
             zIndex: 1000150,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '12px',
-            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-            paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+            overflowY: 'auto',
+            padding: '20px 16px 80px',
             boxSizing: 'border-box'
           }}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="ios-glass-card"
-              style={{
-                width: '100%',
-                maxWidth: '620px',
-                maxHeight: 'min(92dvh, 700px)',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: '28px',
-                padding: '26px',
-                background: 'var(--card-bg)',
-                border: '1.5px solid rgba(236, 72, 153, 0.4)',
-                boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
-                boxSizing: 'border-box'
-              }}
-            >
-              {/* Modal Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--card-border)', paddingBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(135deg, #EC4899, #F43F5E)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 800 }}>
-                    🏁
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      Resultados del Examen Rápido
-                    </h3>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Verificación de claves y explicaciones
-                    </span>
-                  </div>
-                </div>
+            <div style={{
+              width: '100%',
+              maxWidth: '820px',
+              margin: '0 auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px'
+            }}>
+              {/* Botón único para volver atrás */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--card-border)', paddingBottom: '14px' }}>
                 <button
-                  onClick={() => setExamResultsModal({ ...examResultsModal, isOpen: false })}
-                  style={{ background: 'rgba(120,120,128,0.1)', border: 'none', color: 'var(--text-secondary)', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}
+                  type="button"
+                  onClick={() => setExamResultsModal(prev => ({ ...prev, isOpen: false }))}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    borderRadius: '14px',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'var(--card-bg)',
+                    color: 'var(--text-main)',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <X size={20} />
+                  <ArrowLeft size={18} /> Volver al Simulador
                 </button>
+
+                <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                  Revisión Detallada de Preguntas
+                </span>
               </div>
 
               {/* Score Header Card */}
@@ -2388,67 +3201,131 @@ export const Simulador = () => {
                 background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.14) 0%, rgba(244, 63, 94, 0.08) 100%)',
                 border: '1.5px solid rgba(236, 72, 153, 0.3)',
                 borderRadius: '20px',
-                padding: '16px 20px',
+                padding: '20px 22px',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '18px'
+                flexDirection: 'column',
+                gap: '14px'
               }}>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#EC4899', display: 'block', marginBottom: '2px' }}>
-                    PUNTAJE OBTENIDO
-                  </span>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                    {examResultsModal.score} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 700 }}>/ {examResultsModal.total} correctas</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#EC4899', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '2px' }}>
+                      Puntaje Ponderado Oficial UNSA (Área {simArea})
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
+                      {(examResultsModal.unsaWeightedScore || 0).toFixed(4)}{' '}
+                      <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 700 }}>/ 100.0000 pts</span>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '8px 16px',
+                    borderRadius: '14px',
+                    background: examResultsModal.score === examResultsModal.total && examResultsModal.total > 0 ? '#10B981' : (examResultsModal.score > 0 ? 'linear-gradient(135deg, #EC4899, #F43F5E)' : '#6B7280'),
+                    color: '#FFFFFF',
+                    fontWeight: 900,
+                    fontSize: '0.92rem',
+                    boxShadow: '0 4px 14px rgba(236, 72, 153, 0.25)'
+                  }}>
+                    {examResultsModal.percentage || 0}% Eficiencia
                   </div>
                 </div>
-                <div style={{
-                  padding: '8px 16px',
-                  borderRadius: '14px',
-                  background: examResultsModal.score === examResultsModal.total ? '#10B981' : (examResultsModal.score > 0 ? '#F59E0B' : '#EF4444'),
-                  color: '#FFFFFF',
-                  fontWeight: 900,
-                  fontSize: '0.9rem',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
-                }}>
-                  {Math.round((examResultsModal.score / Math.max(1, examResultsModal.total)) * 100)}% Eficiencia
+
+                {/* Metrics Badges Row */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ background: 'rgba(16, 185, 129, 0.14)', color: '#059669', padding: '6px 14px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 800 }}>
+                    {examResultsModal.score} Correctas
+                  </span>
+                  <span style={{ background: 'rgba(239, 68, 68, 0.14)', color: '#DC2626', padding: '6px 14px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 800 }}>
+                    {examResultsModal.wrongCount || 0} Incorrectas
+                  </span>
+                  <span style={{ background: 'rgba(120, 120, 128, 0.14)', color: 'var(--text-secondary)', padding: '6px 14px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 800 }}>
+                    {examResultsModal.blankCount || 0} Sin responder
+                  </span>
+                  <span style={{ background: 'rgba(59, 130, 246, 0.14)', color: '#2563EB', padding: '6px 14px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 800 }}>
+                    Tiempo: {examResultsModal.elapsedTime || '00:00'}
+                  </span>
                 </div>
+
+                {/* Subject Breakdown Pills */}
+                {examResultsModal.aciertosPorAsignatura && Object.keys(examResultsModal.aciertosPorAsignatura).length > 0 && (
+                  <div style={{ borderTop: '1px dashed rgba(236, 72, 153, 0.25)', paddingTop: '10px' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Distribución de Aciertos por Materia:
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {Object.entries(examResultsModal.aciertosPorAsignatura).map(([asig, count]) => (
+                        <span
+                          key={asig}
+                          style={{
+                            background: 'var(--card-bg)',
+                            border: '1px solid var(--card-border)',
+                            color: 'var(--text-main)',
+                            padding: '3px 9px',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          {asig}: <strong style={{ color: '#EC4899' }}>{count}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Scrollable Questions & Answers List */}
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', paddingRight: '4px' }}>
+              {/* Questions & Answers List with CEPREUNSA step-by-step solutions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {examResultsModal.details.map((item, qIdx) => {
-                  const userLetter = item.userChoice !== undefined && item.userChoice !== null ? (['A','B','C','D','E'][item.userChoice] || String.fromCharCode(65 + item.userChoice)) : '';
-                  const userOptText = item.userChoice !== undefined && item.userChoice !== null && item.options[item.userChoice] !== undefined 
+                  const isBlank = item.userChoice === null || item.userChoice === undefined;
+                  const userLetter = !isBlank ? (['A','B','C','D','E'][item.userChoice] || String.fromCharCode(65 + item.userChoice)) : '';
+                  const userOptText = !isBlank && item.options[item.userChoice] !== undefined 
                     ? `(${userLetter}) ${cleanOptionText(item.options[item.userChoice])}` 
                     : 'Sin responder';
                   const correctLetter = item.correctChoice !== undefined && item.correctChoice !== null ? (['A','B','C','D','E'][item.correctChoice] || String.fromCharCode(65 + item.correctChoice)) : '';
                   const correctOptText = `(${correctLetter}) ${cleanOptionText(item.options[item.correctChoice]) || 'N.A.'}`;
 
+                  const cardBg = item.isCorrect 
+                    ? 'rgba(16, 185, 129, 0.06)' 
+                    : (isBlank ? 'rgba(120, 120, 128, 0.06)' : 'rgba(239, 68, 68, 0.06)');
+                  const cardBorder = item.isCorrect 
+                    ? '1.5px solid rgba(16, 185, 129, 0.3)' 
+                    : (isBlank ? '1.5px solid rgba(120, 120, 128, 0.2)' : '1.5px solid rgba(239, 68, 68, 0.3)');
+
                   return (
                     <div
                       key={qIdx}
                       style={{
-                        padding: '16px 18px',
+                        padding: '18px 20px',
                         borderRadius: '18px',
-                        background: item.isCorrect ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
-                        border: item.isCorrect ? '1.5px solid rgba(16, 185, 129, 0.3)' : '1.5px solid rgba(239, 68, 68, 0.3)'
+                        background: cardBg,
+                        border: cardBorder
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
-                          {qIdx + 1}. {item.question}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.94rem', color: 'var(--text-main)', lineHeight: 1.45 }}>
+                            {qIdx + 1}. {item.question}
+                          </span>
+                          {item.asignatura && (
+                            <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                              {normalizeAsignatura(item.asignatura)} {item.semana ? `• Semana ${item.semana}` : ''}
+                            </span>
+                          )}
+                        </div>
+
                         <span style={{
                           padding: '4px 10px',
                           borderRadius: '10px',
                           fontSize: '0.75rem',
                           fontWeight: 800,
-                          background: item.isCorrect ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)',
-                          color: item.isCorrect ? '#059669' : '#DC2626',
+                          background: item.isCorrect 
+                            ? 'rgba(16, 185, 129, 0.18)' 
+                            : (isBlank ? 'rgba(120, 120, 128, 0.18)' : 'rgba(239, 68, 68, 0.18)'),
+                          color: item.isCorrect ? '#059669' : (isBlank ? 'var(--text-secondary)' : '#DC2626'),
                           flexShrink: 0
                         }}>
-                          {item.isCorrect ? '✓ CORRECTA' : '✗ INCORRECTA'}
+                          {item.isCorrect ? 'CORRECTA' : (isBlank ? 'EN BLANCO' : 'INCORRECTA')}
                         </span>
                       </div>
 
@@ -2462,8 +3339,8 @@ export const Simulador = () => {
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.84rem', marginTop: '8px' }}>
-                        <div style={{ color: item.isCorrect ? '#059669' : '#DC2626', fontWeight: 700 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem', marginTop: '8px' }}>
+                        <div style={{ color: item.isCorrect ? '#059669' : (isBlank ? 'var(--text-secondary)' : '#DC2626'), fontWeight: 700 }}>
                           Tu Respuesta: <span style={{ fontWeight: 800 }}>{userOptText}</span>
                         </div>
                         {!item.isCorrect && (
@@ -2471,35 +3348,121 @@ export const Simulador = () => {
                             Respuesta Correcta: <span style={{ fontWeight: 800 }}>{correctOptText}</span>
                           </div>
                         )}
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          ✍️ Pregunta aportada por: {item.authorName}
-                        </span>
+
+                        {/* Official CEPREUNSA Step-by-Step Solution */}
+                        {item.explanation && (
+                          <div style={{
+                            marginTop: '10px',
+                            padding: '12px 14px',
+                            borderRadius: '12px',
+                            background: 'rgba(236, 72, 153, 0.07)',
+                            border: '1px solid rgba(236, 72, 153, 0.25)',
+                            fontSize: '0.82rem',
+                            lineHeight: 1.5,
+                            color: 'var(--text-main)',
+                            whiteSpace: 'pre-line'
+                          }}>
+                            <div style={{ fontWeight: 800, color: '#EC4899', marginBottom: '4px' }}>
+                              Solución Oficial CEPREUNSA:
+                            </div>
+                            {item.explanation}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Modal Footer */}
-              <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid var(--card-border)', display: 'flex', justifyContent: 'flex-end' }}>
+              {/* Actions Bottom Bar */}
+              <div style={{
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid var(--card-border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
                 <button
-                  onClick={() => setExamResultsModal({ ...examResultsModal, isOpen: false })}
+                  type="button"
+                  onClick={() => {
+                    setUserExamAnswers({});
+                    setCurrentQuestion(0);
+                    setSelectedOption(null);
+                    setExamTimerSeconds(0);
+                    setExamShuffleSeed(prev => prev + 1);
+                    setExamResultsModal(prev => ({ ...prev, isOpen: false }));
+                  }}
                   style={{
-                    padding: '12px 24px',
+                    padding: '10px 18px',
                     borderRadius: '14px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
-                    color: '#FFFFFF',
-                    fontWeight: 800,
-                    fontSize: '0.9rem',
+                    border: '1.5px solid var(--card-border)',
+                    background: 'var(--card-bg)',
+                    color: 'var(--text-main)',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
                     cursor: 'pointer',
-                    boxShadow: '0 6px 16px rgba(244, 63, 94, 0.35)'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  Entendido / Cerrar
+                  <RotateCcw size={15} /> Nuevo Examen
                 </button>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {examResultsModal.aciertosPorAsignatura && Object.keys(examResultsModal.aciertosPorAsignatura).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAciertos(prev => ({
+                          ...prev,
+                          ...examResultsModal.aciertosPorAsignatura
+                        }));
+                        setExamResultsModal(prev => ({ ...prev, isOpen: false }));
+                        setActiveTab('puntaje');
+                      }}
+                      style={{
+                        padding: '11px 18px',
+                        borderRadius: '14px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: '0.86rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)'
+                      }}
+                      title="Copiar los aciertos de este examen a la Calculadora Oficial UNSA para ver el desglose por materia"
+                    >
+                      <BarChart3 size={15} /> Pasar Aciertos a Calculadora
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setExamResultsModal(prev => ({ ...prev, isOpen: false }))}
+                    style={{
+                      padding: '11px 22px',
+                      borderRadius: '14px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 16px rgba(244, 63, 94, 0.35)'
+                    }}
+                  >
+                    Volver al Simulador
+                  </button>
+                </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>

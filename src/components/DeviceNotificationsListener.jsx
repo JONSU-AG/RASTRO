@@ -47,57 +47,145 @@ export const DeviceNotificationsListener = () => {
     let isFirstUserSnapshot = true;
     let isFirstAllSnapshot = true;
 
+    // Función para extraer el texto real del mensaje sin prefijos redundantes
+    const extractNotificationContent = (data) => {
+      const sender = data.senderName || 'Estudiante';
+      let title = '🎓 RUMBO';
+      let body = '';
+      let targetUrl = '/';
+
+      // Extrae texto real si viene formateado con comillas o prefijos conocidos
+      const cleanQuotedText = (raw) => {
+        if (!raw || typeof raw !== 'string') return '';
+        const match = raw.match(/:\s*["“](.+)["”]$/);
+        if (match && match[1]?.trim()) {
+          return match[1].trim();
+        }
+        return raw
+          .replace(/^te envió un mensaje privado:\s*/i, '')
+          .replace(/^te envió un mensaje:\s*/i, '')
+          .replace(/^publicó en tu muro:\s*/i, '')
+          .replace(/^publicó en su muro:\s*/i, '')
+          .replace(/^comentó en tu publicación:\s*/i, '')
+          .replace(/^comentó en tu material:\s*/i, '')
+          .replace(/^comentó:\s*/i, '')
+          .replace(/^["“]|["”]$/g, '')
+          .trim();
+      };
+
+      const rawText = data.text || data.content || '';
+      const messageClean = cleanQuotedText(data.message);
+      const actualText = rawText || messageClean || data.message || '';
+
+      switch (data.type) {
+        case 'chat':
+        case 'mensaje':
+        case 'direct_message': {
+          title = `💬 ${sender}`;
+          body = actualText || (data.imageUrl ? '📷 Te envió una foto' : 'Te envió un nuevo mensaje');
+          targetUrl = `/chats?with=${data.senderUid || ''}`;
+          break;
+        }
+
+        case 'nuevo_material':
+        case 'material': {
+          title = `📚 ${sender} subió material`;
+          const docTitle = data.postTitle || data.title || actualText;
+          body = docTitle ? `"${docTitle}"` : 'Nuevo material de estudio disponible';
+          targetUrl = data.targetPath || `/biblioteca?materialId=${data.materialId || data.postId || ''}`;
+          break;
+        }
+
+        case 'wall_post':
+        case 'post': {
+          title = `📝 ${sender} en el Muro`;
+          body = actualText ? `"${actualText}"` : 'Compartió una nueva publicación en el muro';
+          const targetProfile = data.profileUid || data.senderUid || user?.uid || '';
+          targetUrl = data.targetPath || `/usuario/${targetProfile}?tab=muro${data.postId ? `&postId=${data.postId}` : ''}`;
+          break;
+        }
+
+        case 'comment': {
+          title = `💬 Comentario de ${sender}`;
+          body = actualText ? `"${actualText}"` : 'Comentó en tu publicación';
+          const wallProfile = data.profileUid || user?.uid || '';
+          targetUrl = data.targetPath || `/usuario/${wallProfile}?tab=muro${data.postId ? `&postId=${data.postId}` : ''}`;
+          break;
+        }
+
+        case 'reaction': {
+          title = `❤️ Reacción de ${sender}`;
+          body = data.message || `Reaccionó a tu publicación ${data.postTitle ? `"${data.postTitle}"` : ''}`;
+          const wallProfile = data.profileUid || user?.uid || '';
+          targetUrl = data.targetPath || `/usuario/${wallProfile}?tab=muro${data.postId ? `&postId=${data.postId}` : ''}`;
+          break;
+        }
+
+        case 'follow': {
+          title = `👤 ${sender}`;
+          body = `${sender} comenzó a seguirte en Rumbo`;
+          targetUrl = data.targetPath || `/usuario/${data.senderUid || ''}`;
+          break;
+        }
+
+        case 'admin_broadcast':
+        case 'aviso': {
+          title = `📢 ${data.title || 'Aviso Oficial RUMBO'}`;
+          body = actualText || data.body || 'Nuevo comunicado para la comunidad estudiantil';
+          targetUrl = '/?openAvisos=true';
+          break;
+        }
+
+        case 'admin_warning': {
+          title = `⚠️ ${data.title || 'Aviso de Moderación'}`;
+          body = actualText || data.body || 'Has recibido una notificación de moderación';
+          targetUrl = '/';
+          break;
+        }
+
+        default: {
+          title = data.title || `🎓 ${sender || 'RUMBO'}`;
+          body = actualText || data.body || data.message || 'Tienes una nueva notificación';
+          targetUrl = data.targetPath || '/';
+          break;
+        }
+      }
+
+      return { title, body, targetUrl };
+    };
+
     const processDoc = (docSnap) => {
       const data = docSnap.data();
       const id = docSnap.id;
 
+      if (!data) return;
       if (notifiedIdsRef.current.has(id)) return;
+
+      // Si ya está leída, no alertar
+      if (data.read) return;
+
+      const notifTime = data.createdAt?.toMillis 
+        ? data.createdAt.toMillis() 
+        : (typeof data.timestamp === 'number' ? data.timestamp : 0);
+
+      // Descartar solo si tiene fecha explícita y es anterior a cuando se inició la app
+      if (notifTime > 0 && notifTime < initialLoadTimeRef.current - 15000) {
+        notifiedIdsRef.current.add(id);
+        return;
+      }
+
+      // Marcar como procesada para no duplicar alertas
       notifiedIdsRef.current.add(id);
 
-      // Si ya está leída o es anterior a la sesión actual, no alertar
-      if (data.read) return;
-      const notifTime = data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.timestamp || 0);
-      if (notifTime < initialLoadTimeRef.current - 15000) return;
-
-      // Determinamos título, mensaje y URL de destino de acuerdo al tipo
-      let title = '🎓 RASTRO';
-      let body = data.message || 'Tienes una nueva notificación';
-      let targetUrl = '/';
-
-      if (data.type === 'chat' || data.type === 'mensaje') {
-        title = `💬 ${data.senderName || 'Mensaje Privado'}`;
-        body = data.message || 'Te envió un nuevo mensaje';
-        targetUrl = `/chats?with=${data.senderUid || ''}`;
-      } else if (data.type === 'nuevo_material' || data.type === 'material') {
-        title = `📚 ${data.senderName || 'Usuario que sigues'} subió material`;
-        body = data.message || (data.postTitle ? `"${data.postTitle}"` : 'Nuevo material disponible');
-        targetUrl = data.targetPath || `/biblioteca?materialId=${data.materialId || data.postId || ''}`;
-      } else if (data.type === 'wall_post' || data.type === 'post') {
-        title = `📝 ${data.senderName || 'Usuario que sigues'} publicó en su muro`;
-        body = data.message || 'Compartió una nueva publicación';
-        targetUrl = data.targetPath || `/usuario/${data.profileUid || data.senderUid}?tab=muro`;
-      } else if (data.type === 'admin_broadcast' || data.type === 'aviso' || data.recipientUid === 'all') {
-        title = `📢 ${data.title || 'Aviso Oficial RASTRO'}`;
-        body = data.message || data.body || 'Nuevo comunicado para la comunidad estudiantil';
-        targetUrl = `/?openAvisos=true`;
-      } else if (data.type === 'comment') {
-        title = `💬 ${data.senderName || 'Comunidad RASTRO'}`;
-        body = data.message || 'Comentó en tu contenido';
-        targetUrl = `/usuario/${data.profileUid || user.uid}?tab=muro${data.postId ? `&postId=${data.postId}` : ''}`;
-      } else if (data.type === 'reaction') {
-        title = `❤️ ${data.senderName || 'Estudiante'}`;
-        body = data.message || 'Reaccionó a tu publicación';
-        targetUrl = `/usuario/${data.profileUid || user.uid}?tab=muro${data.postId ? `&postId=${data.postId}` : ''}`;
-      } else if (data.targetPath) {
-        targetUrl = data.targetPath;
-      }
+      // Extraer título, cuerpo exacto del mensaje y enlace de destino
+      const { title, body, targetUrl } = extractNotificationContent(data);
 
       triggerSystemNotification({
         title,
         body,
         icon: data.senderPhoto || '/assets/LOGOR.png',
         data: { url: targetUrl, notifId: id },
-        tag: `rastro-notif-${id}`
+        tag: `rumbo-notif-${id}`
       });
     };
 
@@ -120,7 +208,7 @@ export const DeviceNotificationsListener = () => {
         return;
       }
       snap.docChanges().forEach((change) => {
-        if (change.type === 'added') {
+        if (change.type === 'added' || change.type === 'modified') {
           processDoc(change.doc);
         }
       });
@@ -133,7 +221,7 @@ export const DeviceNotificationsListener = () => {
         return;
       }
       snap.docChanges().forEach((change) => {
-        if (change.type === 'added') {
+        if (change.type === 'added' || change.type === 'modified') {
           processDoc(change.doc);
         }
       });

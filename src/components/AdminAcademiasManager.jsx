@@ -41,7 +41,7 @@ export const ACADEMY_COLOR_PRESETS = [
     btnShadow: 'rgba(0, 122, 255, 0.25)'
   },
   { 
-    name: 'Verde Briceño (Plantilla)', 
+    name: 'Verde Esmeralda', 
     primary: '#059669', 
     gradient: 'linear-gradient(135deg, #059669, #10B981)', 
     badgeGradient: 'linear-gradient(135deg, #059669, #34D399)',
@@ -51,7 +51,7 @@ export const ACADEMY_COLOR_PRESETS = [
     btnShadow: 'rgba(5, 150, 105, 0.25)'
   },
   { 
-    name: 'Rojo Esparta', 
+    name: 'Rojo Carmesí', 
     primary: '#FF3B30', 
     gradient: 'linear-gradient(135deg, #FF3B30, #FF5252)', 
     badgeGradient: 'linear-gradient(135deg, #FF3B30, #FF6B6B)',

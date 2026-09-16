@@ -109,7 +109,8 @@ export function playNotificationSound(type) {
 export function getNotificationStatus() {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const permission = isSupported ? Notification.permission : 'unsupported';
-  const isEnabledLocally = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED) === 'true';
+  // Si el navegador ya concedió el permiso, se habilita por defecto salvo que el usuario lo haya apagado explícitamente ('false')
+  const isEnabledLocally = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED) !== 'false';
   const soundEnabled = localStorage.getItem(STORAGE_KEYS.SOUND_ENABLED) !== 'false';
   const vibrateEnabled = localStorage.getItem(STORAGE_KEYS.VIBRATE_ENABLED) !== 'false';
   const soundType = localStorage.getItem(STORAGE_KEYS.SELECTED_SOUND) || 'pop';
@@ -131,7 +132,14 @@ export async function requestSystemNotificationPermission() {
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    let permission;
+    const req = Notification.requestPermission();
+    if (req && typeof req.then === 'function') {
+      permission = await req;
+    } else {
+      permission = await new Promise((resolve) => Notification.requestPermission(resolve));
+    }
+
     if (permission === 'granted') {
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED, 'true');
       return { success: true, permission: 'granted' };
@@ -163,13 +171,17 @@ export async function triggerSystemNotification({
   body = 'Tienes una nueva actualización',
   icon = '/assets/LOGOR.png',
   data = {},
-  tag = 'rumbo-alert'
+  tag = null
 }) {
   const status = getNotificationStatus();
 
-  // 1. Reproducir sonido si está habilitado
+  // 1. Reproducir sonido si está habilitado en primer plano
   if (status.soundEnabled) {
-    playNotificationSound(status.soundType);
+    try {
+      playNotificationSound(status.soundType);
+    } catch {
+      // Ignorar si el audio falla
+    }
   }
 
   // 2. Vibración háptica en móvil
@@ -177,54 +189,85 @@ export async function triggerSystemNotification({
     try {
       navigator.vibrate([150, 80, 150]);
     } catch {
-      // Ignorar si el navegador bloquea vibración por interacción
+      // Ignorar si el navegador bloquea vibración por falta de interacción
     }
   }
 
-  // Si no tiene permisos del sistema, no lanzamos el pop-up de Android (la app igual puede mostrar su pop-up interno)
+  // Si no tiene permisos del sistema, no lanzamos el pop-up de Android
   if (!status.isSupported || Notification.permission !== 'granted' || !status.isEnabled) {
     return false;
   }
 
-  try {
-    // Si tenemos Service Worker activo (típico en PWA instalada en Android)
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg && reg.showNotification) {
-        await reg.showNotification(title, {
-          body,
-          icon,
-          badge: '/assets/LOGOR.png',
-          silent: true, // Silencia el tono nativo por defecto del teléfono Android
-          vibrate: status.vibrateEnabled ? [200, 100, 200] : undefined,
-          tag,
-          renotify: true,
-          data: {
-            url: data.url || '/',
-            ...data
-          }
-        });
+  const cleanBody = (typeof body === 'string' && body.trim()) ? body.trim() : 'Tienes una nueva actualización';
+  const cleanTitle = (typeof title === 'string' && title.trim()) ? title.trim() : 'RUMBO';
+  const finalTag = tag || (data?.notifId ? `rumbo-notif-${data.notifId}` : `rumbo-alert-${Date.now()}`);
+  const finalIcon = icon || '/assets/LOGOR.png';
+  const finalBadge = '/assets/LOGOR.png';
+
+  const notifOptions = {
+    body: cleanBody,
+    icon: finalIcon,
+    badge: finalBadge,
+    tag: finalTag,
+    renotify: true,
+    // En Android Chrome, si silent=true se suprime el banner heads-up emergente.
+    // Solo marcamos silent si el usuario desactivó expresamente el sonido.
+    silent: !status.soundEnabled,
+    vibrate: status.vibrateEnabled ? [200, 100, 200] : undefined,
+    data: {
+      url: data.url || '/',
+      ...data
+    }
+  };
+
+  let shown = false;
+
+  // 1. Prioridad: Service Worker (obligatorio en Android PWA para evitar 'Illegal constructor' error)
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      let reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+      ]).catch(() => null);
+
+      if (!reg) {
+        reg = await navigator.serviceWorker.getRegistration();
+      }
+
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(cleanTitle, notifOptions);
+        shown = true;
         return true;
       }
+    } catch (swErr) {
+      console.warn('SW showNotification error:', swErr);
     }
-
-    // Fallback con Notification API estándar del navegador
-    const n = new Notification(title, {
-      body,
-      icon,
-      silent: true, // Silencia el tono nativo por defecto del teléfono Android
-      tag
-    });
-    n.onclick = () => {
-      window.focus();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-      n.close();
-    };
-    return true;
-  } catch (err) {
-    console.warn('Could not launch system notification:', err);
-    return false;
   }
+
+  // 2. Fallback: Notification API estándar del navegador (escritorio / entornos sin SW)
+  if (!shown && typeof Notification !== 'undefined') {
+    try {
+      const n = new Notification(cleanTitle, {
+        body: notifOptions.body,
+        icon: notifOptions.icon,
+        badge: notifOptions.badge,
+        tag: notifOptions.tag,
+        silent: notifOptions.silent
+      });
+      n.onclick = () => {
+        window.focus();
+        if (data.url) {
+          window.location.href = data.url;
+        }
+        n.close();
+      };
+      return true;
+    } catch (errFallback) {
+      console.warn('Notification constructor fallback failed:', errFallback);
+      return false;
+    }
+  }
+
+  return shown;
 }
+

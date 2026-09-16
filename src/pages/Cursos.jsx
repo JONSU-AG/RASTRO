@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Book, Award, MessageCircle, Share2, Lock, AlertTriangle, Plus, Settings, Search, Sparkles, Layers, Video, Edit3, Trash2, Terminal, Flag } from 'lucide-react';
+import { Shield, Book, BookOpen, Award, MessageCircle, Share2, Lock, AlertTriangle, Plus, Settings, Search, Sparkles, Layers, Video, Edit3, Trash2, Terminal, Flag, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { InspirationalDailyBanner } from '../components/InspirationalDailyBanner';
 import { useAuth } from '../context/AuthContext';
@@ -103,7 +103,7 @@ export const Cursos = () => {
     {
       id: 'esparta',
       nombre: 'Esparta',
-      badge: '⚔️ ESPARTA',
+      badge: 'ESPARTA',
       subtitulo: '18 Materias',
       descripcion: 'Preparación exigente y disciplinada para asegurar tu vacante universitaria.',
       colorTheme: {
@@ -119,7 +119,7 @@ export const Cursos = () => {
     {
       id: 'kelsen',
       nombre: 'Kelsen',
-      badge: '⚖️ KELSEN',
+      badge: 'KELSEN',
       subtitulo: 'Letras y Leyes',
       descripcion: 'Especialistas en humanidades, derecho, ciencias sociales y letras preuniversitarias.',
       colorTheme: {
@@ -135,7 +135,7 @@ export const Cursos = () => {
     {
       id: 'briceno',
       nombre: 'Briceño',
-      badge: '🎓 BRICEÑO',
+      badge: 'BRICEÑO',
       subtitulo: '2027 EN CURSO',
       descripcion: 'Clases 2027 en curso (CEPREUNSA / Ordinario) y Proceso 2026 intensivo con todas las áreas.',
       colorTheme: {
@@ -212,7 +212,7 @@ export const Cursos = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                💙 Mensaje de la Comunidad
+                <MessageCircle size={16} /> Mensaje de la Comunidad
               </span>
               <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(0,122,255,0.1)', padding: '2px 10px', borderRadius: '10px' }}>
                 Comunidad RASTRO
@@ -252,7 +252,7 @@ export const Cursos = () => {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(window.location.origin);
-                alert('¡Enlace de RASTRO copiado al portapapeles! 🚀');
+                alert('Enlace de RASTRO copiado al portapapeles.');
               }}
               style={{
                 padding: '10px 16px',
@@ -330,7 +330,7 @@ export const Cursos = () => {
               }}
             >
               <Terminal size={15} />
-              <span>⚡ Extractor para Consola</span>
+              <span>Extractor para Consola</span>
             </button>
           )}
 
@@ -352,7 +352,7 @@ export const Cursos = () => {
               }}
             >
               <Settings size={14} />
-              <span>⚙️ Administrar Cursos</span>
+              <span>Administrar Cursos</span>
             </Link>
           )}
         </div>
@@ -394,6 +394,75 @@ export const Cursos = () => {
         </div>
       ) : (
         <section className="academy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '20px', width: '100%', maxWidth: '1200px', margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* Card Especial: Formulario Preuniversitario */}
+          {(!searchQuery.trim() || 'formulario fisica quimica algebra aritmetica trigonometria geometria'.includes(searchQuery.toLowerCase())) && (
+            <Link to="/formulario" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <motion.div 
+                whileHover={{ y: -4, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="glass-card" 
+                style={{ 
+                  padding: 'clamp(16px, 2.2vw, 20px)', 
+                  borderRadius: '20px', 
+                  border: '1.5px solid rgba(139, 92, 246, 0.35)', 
+                  background: 'linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, var(--card-bg) 60%)', 
+                  boxShadow: '0 8px 20px rgba(139, 92, 246, 0.12)', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  height: '100%', 
+                  boxSizing: 'border-box', 
+                  transition: 'all 0.2s ease' 
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ 
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)', 
+                    color: '#FFFFFF', 
+                    padding: '4px 10px', 
+                    borderRadius: '999px', 
+                    fontWeight: 800, 
+                    fontSize: '0.78rem', 
+                    boxShadow: '0 2px 6px rgba(139, 92, 246, 0.3)' 
+                  }}>
+                    FORMULARIO
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                    Leyes y Fórmulas
+                  </span>
+                </div>
+
+                <h3 style={{ fontSize: 'clamp(1.18rem, 1.6vw, 1.35rem)', fontWeight: 800, marginBottom: '6px', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                  Formulario Preuniversitario
+                </h3>
+
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.86rem', lineHeight: 1.45, flex: 1 }}>
+                  Leyes físicas y fórmulas esenciales: Ley de Ohm, Pouillet, Dinámica, Gases, Productos Notables, Geometría y Trigonometría.
+                </p>
+
+                <div style={{ 
+                  width: '100%', 
+                  textAlign: 'center', 
+                  padding: '10px 14px', 
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)', 
+                  color: '#FFFFFF', 
+                  borderRadius: '12px', 
+                  fontWeight: 800, 
+                  fontSize: '0.88rem', 
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px', 
+                  boxSizing: 'border-box' 
+                }}>
+                  <span>Abrir Formulario</span>
+                  <ArrowRight size={15} />
+                </div>
+              </motion.div>
+            </Link>
+          )}
+
           {filteredCourses.map((c) => {
             const theme = c.colorTheme || {};
             const primaryColor = theme.primary || '#7C3AED';
@@ -409,6 +478,18 @@ export const Cursos = () => {
               ? c.modules.reduce((acc, m) => acc + (m.items?.length || 0), 0)
               : 0;
 
+            const displayBadge = (c.badge && c.badge !== 'GENERAL') 
+              ? c.badge 
+              : (c.nombre ? c.nombre.toUpperCase().slice(0, 14) : 'CURSO');
+
+            const displaySubtitulo = (c.subtitulo && !c.subtitulo.toLowerCase().includes('general •')) 
+              ? c.subtitulo 
+              : (totalModules > 0 ? `${totalModules} Módulos` : 'Clases y Materiales');
+
+            const displayDescripcion = (c.descripcion && !c.descripcion.toLowerCase().includes('curso de general')) 
+              ? c.descripcion 
+              : 'Clases y material complementario para tu preparación universitaria.';
+
             return (
               <Link key={c.id} to={`/cursos/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <motion.div 
@@ -417,16 +498,16 @@ export const Cursos = () => {
                   className="glass-card" 
                   style={{ 
                     padding: 'clamp(16px, 2.2vw, 20px)', 
-                    borderRadius: '20px',
-                    border: `1.5px solid ${borderCol}`,
-                    background: bgGrad,
-                    boxShadow: `0 8px 20px ${shadowCol}`,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '100%',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.2s ease'
+                    borderRadius: '20px', 
+                    border: `1.5px solid ${borderCol}`, 
+                    background: bgGrad, 
+                    boxShadow: `0 8px 20px ${shadowCol}`, 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    height: '100%', 
+                    boxSizing: 'border-box', 
+                    transition: 'all 0.2s ease' 
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -436,15 +517,15 @@ export const Cursos = () => {
                       padding: '4px 10px', 
                       borderRadius: '999px', 
                       fontWeight: 800, 
-                      fontSize: '0.78rem',
-                      boxShadow: `0 2px 6px ${btnShadow}`
+                      fontSize: '0.78rem', 
+                      boxShadow: `0 2px 6px ${btnShadow}` 
                     }}>
-                      {c.badge || '🎓 CURSO'}
+                      {displayBadge}
                     </span>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, marginRight: '4px' }}>
-                        {c.subtitulo || (totalModules > 0 ? `${totalModules} Módulos` : 'Contenido Activo')}
+                        {displaySubtitulo}
                       </span>
 
                       {/* Botón Editar para usuarios autenticados si es custom */}
@@ -527,18 +608,12 @@ export const Cursos = () => {
                     </div>
                   </div>
 
-                  {c.creatorName && (
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>👤 Creado por: <strong style={{ color: 'var(--text-main)' }}>{c.creatorName}</strong></span>
-                    </div>
-                  )}
-
                   <h3 style={{ fontSize: 'clamp(1.18rem, 1.6vw, 1.35rem)', fontWeight: 800, marginBottom: '6px', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                     {c.nombre}
                   </h3>
 
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.86rem', lineHeight: 1.45, flex: 1 }}>
-                    {c.descripcion || 'Accede a todas las sesiones, clases grabadas y material complementario.'}
+                    {displayDescripcion}
                   </p>
 
                   <div style={{ 
@@ -549,15 +624,16 @@ export const Cursos = () => {
                     color: '#FFFFFF', 
                     borderRadius: '12px', 
                     fontWeight: 800, 
-                    fontSize: '0.88rem',
-                    boxShadow: `0 4px 12px ${btnShadow}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    boxSizing: 'border-box'
+                    fontSize: '0.88rem', 
+                    boxShadow: `0 4px 12px ${btnShadow}`, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px', 
+                    boxSizing: 'border-box' 
                   }}>
-                    <span>Ingresar a {c.nombre.replace(/^(Academia|Curso|Ciclo)\s+/i, '')}</span> ➔
+                    <span>Ingresar a {c.nombre.replace(/^(Academia|Curso|Ciclo)\s+/i, '')}</span>
+                    <ArrowRight size={15} />
                   </div>
                 </motion.div>
               </Link>

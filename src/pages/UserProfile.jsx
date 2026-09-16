@@ -342,11 +342,11 @@ export const UserProfile = () => {
           await addDoc(collection(db, 'notificaciones'), {
             recipientUid: targetUid,
             senderUid: user.uid,
-            senderName: user.displayName || 'Estudiante RASTRO',
+            senderName: user.displayName || 'Estudiante RUMBO',
             senderPhoto: user.photoURL || null,
             type: 'follow',
             targetPath: `/usuario/${user.uid}`,
-            message: 'comenzó a seguirte en RASTRO',
+            message: 'comenzó a seguirte en Rumbo',
             read: false,
             createdAt: serverTimestamp(),
             timestamp: Date.now()

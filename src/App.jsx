@@ -22,6 +22,7 @@ import { Admin } from './pages/Admin';
 import { UserProfile } from './pages/UserProfile';
 import { Chats } from './pages/Chats';
 import OrsttyPage from './pages/OrsttyPage';
+import { FormularioPage } from './pages/FormularioPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const PageLoader = () => (
@@ -108,6 +109,7 @@ export function App() {
                   <Route path="/cursos" element={<Cursos />} />
                   <Route path="/cursos/:id" element={<AcademyDetail />} />
                   <Route path="/biblioteca" element={<Biblioteca />} />
+                  <Route path="/formulario" element={<FormularioPage />} />
                   <Route path="/simulador" element={<Simulador />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/admin" element={<Admin />} />
