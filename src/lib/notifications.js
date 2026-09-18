@@ -167,9 +167,9 @@ export function setNotificationSettings({ sound, vibrate, soundType }) {
 
 // Disparar una notificación nativa emergente al sistema Android / Navegador
 export async function triggerSystemNotification({
-  title = 'Rumbo',
+  title = 'Rastro',
   body = 'Tienes una nueva actualización',
-  icon = '/assets/LOGOR.png',
+  icon = '/assets/rastro-pwa-icon-192.png',
   data = {},
   tag = null
 }) {
@@ -199,10 +199,10 @@ export async function triggerSystemNotification({
   }
 
   const cleanBody = (typeof body === 'string' && body.trim()) ? body.trim() : 'Tienes una nueva actualización';
-  const cleanTitle = (typeof title === 'string' && title.trim()) ? title.trim() : 'RUMBO';
-  const finalTag = tag || (data?.notifId ? `rumbo-notif-${data.notifId}` : `rumbo-alert-${Date.now()}`);
-  const finalIcon = icon || '/assets/LOGOR.png';
-  const finalBadge = '/assets/LOGOR.png';
+  const cleanTitle = (typeof title === 'string' && title.trim()) ? title.trim() : 'RASTRO';
+  const finalTag = tag || (data?.notifId ? `rastro-notif-${data.notifId}` : `rastro-alert-${Date.now()}`);
+  const finalIcon = icon || '/assets/rastro-pwa-icon-192.png';
+  const finalBadge = '/assets/rastro-pwa-icon-192.png';
 
   const notifOptions = {
     body: cleanBody,

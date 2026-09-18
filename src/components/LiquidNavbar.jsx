@@ -16,7 +16,9 @@ import {
   MessageSquare,
   Sparkles,
   Download,
-  LogOut
+  LogIn,
+  LogOut,
+  Flame
 } from 'lucide-react';
 
 import { Logo } from './Logo';
@@ -32,35 +34,16 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
+import { OrsttyAvatarIcon } from './Mascots';
 
-// Ícono SVG de estrella estilo Gemini para el botón de ORSTTY en la barra de navegación
-export const GeminiStarIcon = ({ size = 18, color, style = {} }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{
-      display: 'inline-block',
-      verticalAlign: 'middle',
-      flexShrink: 0,
-      ...style
-    }}
-  >
-    <path
-      d="M12 2L13.8 9.2L21 11L13.8 12.8L12 20L10.2 12.8L3 11L10.2 9.2L12 2Z"
-      stroke={color || 'currentColor'}
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    />
-    <circle cx="18" cy="4" r="1" fill={color || 'currentColor'} />
-    <circle cx="20" cy="14" r="0.8" fill={color || 'currentColor'} opacity="0.7" />
-  </svg>
+// Ícono representativo de ORSTTY en la barra de navegación: El chiquito moradito oficial de RASTRO
+export const GeminiStarIcon = ({ size = 22, color, active = false, style = {} }) => (
+  <OrsttyAvatarIcon size={size} active={active} style={style} />
 );
 
 export const LiquidNavbar = () => {
   const location = useLocation();
+  const isAprender = location.pathname === '/aprender' || location.pathname.startsWith('/aprender');
   const { user, isAdmin, logout } = useAuth();
 
   const [isThemeOpen, setIsThemeOpen] = useState(false);
@@ -390,6 +373,11 @@ export const LiquidNavbar = () => {
       icon: Home
     },
     {
+      path: '/aprender',
+      label: 'Aprender',
+      icon: Flame
+    },
+    {
       path: '/cursos',
       label: 'Cursos',
       icon: BookOpen
@@ -430,6 +418,13 @@ export const LiquidNavbar = () => {
   const isItemActive = (itemPath) => {
     if (itemPath === '/') {
       return location.pathname === '/';
+    }
+
+    if (itemPath === '/aprender') {
+      return (
+        location.pathname === '/aprender' ||
+        location.pathname.startsWith('/aprender/')
+      );
     }
 
     if (itemPath === '/cursos') {
@@ -499,7 +494,7 @@ export const LiquidNavbar = () => {
           ====================================================== */}
 
       <header
-        className="mobile-header"
+        className={`mobile-header ${isAprender ? 'mobile-header-cosmic' : ''}`}
         style={{
           padding: '6px 12px',
           gap: '6px',
@@ -509,7 +504,25 @@ export const LiquidNavbar = () => {
           overflow: 'hidden'
         }}
       >
-        <Logo height={32} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Logo height={32} />
+          {isAprender && (
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                color: '#FFFFFF',
+                fontSize: '0.62rem',
+                fontWeight: 900,
+                padding: '2px 8px',
+                borderRadius: '8px',
+                boxShadow: '0 0 10px rgba(245, 158, 11, 0.6)',
+                letterSpacing: '0.04em'
+              }}
+            >
+              ASTRAL
+            </span>
+          )}
+        </div>
 
         <div
           style={{
@@ -531,7 +544,7 @@ export const LiquidNavbar = () => {
               background: location.pathname.startsWith('/orstty')
                 ? 'rgba(168, 85, 247, 0.15)'
                 : 'transparent',
-              color: location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : 'var(--text-secondary)',
+              color: location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : (isAprender ? '#E2E8F0' : 'var(--text-secondary)'),
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -545,7 +558,7 @@ export const LiquidNavbar = () => {
               transition: 'all 0.15s ease'
             }}
           >
-            <GeminiStarIcon size={16} color={location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : 'currentColor'} />
+            <GeminiStarIcon size={18} active={location.pathname.startsWith('/orstty')} />
             <span style={{ lineHeight: 1 }}>ORSTTY</span>
           </NavLink>
 
@@ -560,7 +573,7 @@ export const LiquidNavbar = () => {
               background: location.pathname.startsWith('/chats')
                 ? 'rgba(0, 122, 255, 0.15)'
                 : 'transparent',
-              color: location.pathname.startsWith('/chats') ? 'var(--accent-color, #007AFF)' : 'var(--text-secondary, #6B7280)',
+              color: location.pathname.startsWith('/chats') ? 'var(--accent-color, #007AFF)' : (isAprender ? '#E2E8F0' : 'var(--text-secondary, #6B7280)'),
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -587,10 +600,10 @@ export const LiquidNavbar = () => {
                 padding: '4px 6px',
                 borderRadius: '9px',
                 border: 'none',
-                background: isNotifOpen || unreadCount > 0
-                  ? 'rgba(168, 85, 247, 0.15)'
+                background: isNotifOpen
+                  ? 'rgba(0, 122, 255, 0.15)'
                   : 'transparent',
-                color: isNotifOpen || unreadCount > 0 ? 'var(--accent-color)' : 'var(--text-secondary)',
+                color: isAprender ? '#E2E8F0' : 'var(--text-secondary)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -599,12 +612,11 @@ export const LiquidNavbar = () => {
                 fontSize: '0.60rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                position: 'relative',
                 minWidth: '34px',
-                transition: 'all 0.15s ease'
+                position: 'relative'
               }}
             >
-              <Bell size={16} color={isNotifOpen || unreadCount > 0 ? 'var(--accent-color)' : 'currentColor'} />
+              <Bell size={16} />
 
               <span style={{ lineHeight: 1 }}>
                 Avisos
@@ -614,22 +626,23 @@ export const LiquidNavbar = () => {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '-2px',
-                    right: '1px',
-                    background: 'var(--accent-color, #EF4444)',
+                    top: '2px',
+                    right: '6px',
+                    background: '#EF4444',
                     color: '#FFFFFF',
-                    fontSize: '0.52rem',
+                    fontSize: '0.6rem',
                     fontWeight: 800,
-                    width: '13px',
-                    height: '13px',
+                    width: '14px',
+                    height: '14px',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1.5px solid var(--card-bg)'
+                    justifyContent: 'center'
                   }}
                 >
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {unreadCount > 9
+                    ? '9+'
+                    : unreadCount}
                 </span>
               )}
             </button>
@@ -643,8 +656,8 @@ export const LiquidNavbar = () => {
               padding: '4px 7px',
               borderRadius: '9px',
               border: 'none',
-              background: 'rgba(0, 122, 255, 0.12)',
-              color: 'var(--accent-color)',
+              background: isAprender ? 'rgba(245, 158, 11, 0.2)' : 'rgba(0, 122, 255, 0.12)',
+              color: isAprender ? '#FDE047' : 'var(--accent-color)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -663,33 +676,35 @@ export const LiquidNavbar = () => {
             </span>
           </button>
 
-          {/* Tema */}
-          <button
-            onClick={() => setIsThemeOpen(true)}
-            title="Cambiar Tema Visual"
-            style={{
-              padding: '4px 6px',
-              borderRadius: '9px',
-              border: 'none',
-              background: 'rgba(120, 120, 128, 0.12)',
-              color: 'var(--text-main)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '2px',
-              fontSize: '0.60rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              minWidth: '34px'
-            }}
-          >
-            <Palette size={15} />
+          {/* Tema (Oculto en /aprender ya que no aplican temas) */}
+          {!isAprender && (
+            <button
+              onClick={() => setIsThemeOpen(true)}
+              title="Cambiar Tema Visual"
+              style={{
+                padding: '4px 6px',
+                borderRadius: '9px',
+                border: 'none',
+                background: 'rgba(120, 120, 128, 0.12)',
+                color: 'var(--text-main)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                fontSize: '0.60rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                minWidth: '34px'
+              }}
+            >
+              <Palette size={15} />
 
-            <span style={{ lineHeight: 1 }}>
-              Tema
-            </span>
-          </button>
+              <span style={{ lineHeight: 1 }}>
+                Tema
+              </span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -699,7 +714,7 @@ export const LiquidNavbar = () => {
 
       <div className="liquid-navbar-wrapper">
 
-        <nav className="liquid-navbar">
+        <nav className={`liquid-navbar ${isAprender ? 'liquid-navbar-cosmic' : ''}`}>
 
           <div className="desktop-logo-container">
             <NavLink
@@ -711,7 +726,28 @@ export const LiquidNavbar = () => {
                 textDecoration: 'none'
               }}
             >
-              <Logo height={38} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Logo height={38} />
+                {isAprender && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: '-4px',
+                      right: '-6px',
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      color: '#FFFFFF',
+                      fontSize: '0.55rem',
+                      fontWeight: 900,
+                      padding: '1px 5px',
+                      borderRadius: '6px',
+                      boxShadow: '0 0 10px rgba(245, 158, 11, 0.7)',
+                      letterSpacing: '0.04em'
+                    }}
+                  >
+                    ASTRAL
+                  </span>
+                )}
+              </div>
             </NavLink>
           </div>
 
@@ -769,7 +805,7 @@ export const LiquidNavbar = () => {
                         zIndex: 2
                       }}
                     >
-                      <GeminiStarIcon size={19} color={isActive ? 'var(--pill-active-text)' : 'var(--text-main)'} />
+                      <GeminiStarIcon size={21} active={isActive} />
                     </div>
                   ) : Icon ? (
                     <Icon
@@ -858,7 +894,8 @@ export const LiquidNavbar = () => {
               style={{
                 background: 'transparent',
                 border: 'none',
-                position: 'relative'
+                position: 'relative',
+                color: isAprender ? '#E2E8F0' : undefined
               }}
             >
               <Bell
@@ -914,7 +951,7 @@ export const LiquidNavbar = () => {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'var(--accent-color)'
+                color: isAprender ? '#38BDF8' : 'var(--accent-color)'
               }}
             >
               <UploadCloud
@@ -936,36 +973,37 @@ export const LiquidNavbar = () => {
               </span>
             </button>
 
-            {/* Tema */}
-
-            <button
-              onClick={() => setIsThemeOpen(true)}
-              className="nav-item desktop-action-btn"
-              title="Cambiar Tema"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              <Palette
-                size={18}
+            {/* Tema (Oculto en /aprender ya que no aplican temas) */}
+            {!isAprender && (
+              <button
+                onClick={() => setIsThemeOpen(true)}
+                className="nav-item desktop-action-btn"
+                title="Cambiar Tema"
                 style={{
-                  zIndex: 2,
-                  position: 'relative'
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)'
                 }}
-              />
-
-              <span
-                style={{
-                  zIndex: 2,
-                  position: 'relative'
-                }}
-                className="nav-label"
               >
-                Tema
-              </span>
-            </button>
+                <Palette
+                  size={18}
+                  style={{
+                    zIndex: 2,
+                    position: 'relative'
+                  }}
+                />
+
+                <span
+                  style={{
+                    zIndex: 2,
+                    position: 'relative'
+                  }}
+                  className="nav-label"
+                >
+                  Tema
+                </span>
+              </button>
+            )}
 
             {/* ==================================================
                 MENÚ MÁS
@@ -997,10 +1035,10 @@ export const LiquidNavbar = () => {
                   background: 'transparent',
                   border: 'none',
                   color: isMenuOpen
-                    ? 'var(--accent-color)'
+                    ? (isAprender ? '#FDE047' : 'var(--accent-color)')
                     : isAdminActive
                       ? '#A855F7'
-                      : 'var(--text-secondary)',
+                      : (isAprender ? '#E2E8F0' : 'var(--text-secondary)'),
                   cursor: 'pointer'
                 }}
               >
@@ -1099,7 +1137,6 @@ export const LiquidNavbar = () => {
                   >
 
                     {/* Avisos */}
-
                     {user && (
                       <button
                         type="button"
@@ -1107,22 +1144,24 @@ export const LiquidNavbar = () => {
                           setIsNotifOpen(true);
                           setIsMenuOpen(false);
                         }}
+                        className="nav-popover-item"
                         style={{
                           padding: '10px 14px',
                           borderRadius: '14px',
                           border: 'none',
-                          background:
-                            'rgba(120, 120, 128, 0.06)',
-                          color: 'var(--text-main)',
+                          background: isAprender
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(120, 120, 128, 0.06)',
+                          color: isAprender ? '#F8FAFC' : 'var(--text-main, #1F2937)',
                           fontSize: '0.84rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent:
-                            'space-between',
+                          justifyContent: 'space-between',
                           width: '100%',
-                          textAlign: 'left'
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease'
                         }}
                       >
                         <div
@@ -1135,12 +1174,11 @@ export const LiquidNavbar = () => {
                           <Bell
                             size={16}
                             style={{
-                              color:
-                                'var(--accent-color)'
+                              color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)'
                             }}
                           />
 
-                          <span>
+                          <span style={{ color: isAprender ? '#F8FAFC' : 'inherit' }}>
                             Avisos & Notificaciones
                           </span>
                         </div>
@@ -1166,14 +1204,15 @@ export const LiquidNavbar = () => {
                     <NavLink
                       to="/chats"
                       onClick={() => setIsMenuOpen(false)}
+                      className="nav-popover-item"
                       style={{
                         padding: '10px 14px',
                         borderRadius: '14px',
                         border: 'none',
                         background: location.pathname.startsWith('/chats')
-                          ? 'rgba(0, 122, 255, 0.12)'
-                          : 'rgba(120, 120, 128, 0.06)',
-                        color: 'var(--text-main)',
+                          ? (isAprender ? 'rgba(56, 189, 248, 0.22)' : 'rgba(0, 122, 255, 0.12)')
+                          : (isAprender ? 'rgba(255, 255, 255, 0.08)' : 'rgba(120, 120, 128, 0.06)'),
+                        color: isAprender ? '#F8FAFC' : 'var(--text-main, #1F2937)',
                         fontSize: '0.84rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -1182,33 +1221,36 @@ export const LiquidNavbar = () => {
                         gap: '10px',
                         width: '100%',
                         textAlign: 'left',
-                        textDecoration: 'none'
+                        textDecoration: 'none',
+                        boxSizing: 'border-box',
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       <MessageSquare
                         size={16}
                         style={{
-                          color: 'var(--accent-color)'
+                          color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)'
                         }}
                       />
-                      <span>Mis Chats Privados</span>
+                      <span style={{ color: isAprender ? '#F8FAFC' : 'inherit' }}>Mis Chats Privados</span>
                     </NavLink>
 
                     {/* Aportar */}
-
                     <button
                       type="button"
                       onClick={() => {
                         setIsUploadOpen(true);
                         setIsMenuOpen(false);
                       }}
+                      className="nav-popover-item"
                       style={{
                         padding: '10px 14px',
                         borderRadius: '14px',
                         border: 'none',
-                        background:
-                          'rgba(120, 120, 128, 0.06)',
-                        color: 'var(--text-main)',
+                        background: isAprender
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(120, 120, 128, 0.06)',
+                        color: isAprender ? '#F8FAFC' : 'var(--text-main, #1F2937)',
                         fontSize: '0.84rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -1216,58 +1258,60 @@ export const LiquidNavbar = () => {
                         alignItems: 'center',
                         gap: '10px',
                         width: '100%',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       <UploadCloud
                         size={16}
                         style={{
-                          color:
-                            'var(--accent-color)'
+                          color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)'
                         }}
                       />
 
-                      <span>
+                      <span style={{ color: isAprender ? '#F8FAFC' : 'inherit' }}>
                         Aportar Material
                       </span>
                     </button>
 
-                    {/* Tema */}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsThemeOpen(true);
-                        setIsMenuOpen(false);
-                      }}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '14px',
-                        border: 'none',
-                        background:
-                          'rgba(120, 120, 128, 0.06)',
-                        color: 'var(--text-main)',
-                        fontSize: '0.84rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        width: '100%',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <Palette
-                        size={16}
-                        style={{
-                          color: '#F59E0B'
+                    {/* Tema (Oculto en /aprender ya que no aplican temas) */}
+                    {!isAprender && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsThemeOpen(true);
+                          setIsMenuOpen(false);
                         }}
-                      />
+                        className="nav-popover-item"
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '14px',
+                          border: 'none',
+                          background: 'rgba(120, 120, 128, 0.06)',
+                          color: 'var(--text-main, #1F2937)',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          width: '100%',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Palette
+                          size={16}
+                          style={{
+                            color: '#F59E0B'
+                          }}
+                        />
 
-                      <span>
-                        Cambiar Tema
-                      </span>
-                    </button>
+                        <span>
+                          Cambiar Tema
+                        </span>
+                      </button>
+                    )}
 
                     {/* ==================================================
                         INSTALAR APP PWA
@@ -1282,9 +1326,9 @@ export const LiquidNavbar = () => {
                       style={{
                         padding: '10px 14px',
                         borderRadius: '14px',
-                        border: 'none',
+                        border: isAprender ? '1px solid rgba(16, 185, 129, 0.35)' : 'none',
                         background:
-                          'rgba(16, 185, 129, 0.12)',
+                          'rgba(16, 185, 129, 0.14)',
                         color: '#10B981',
                         fontSize: '0.84rem',
                         fontWeight: 800,
@@ -1293,17 +1337,92 @@ export const LiquidNavbar = () => {
                         alignItems: 'center',
                         gap: '10px',
                         width: '100%',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease'
                       }}
                     >
-                      <Download size={16} />
+                      <Download size={16} style={{ color: '#10B981' }} />
 
-                      <span>
+                      <span style={{ color: '#10B981' }}>
                         {isStandalone
                           ? 'App Instalada'
                           : 'Instalar App (PWA)'}
                       </span>
                     </button>
+
+                    {/* ==================================================
+                        INICIAR SESIÓN / CERRAR SESIÓN
+                        ================================================== */}
+
+                    {/* Si no ha iniciado sesión: botón directo para Iniciar Sesión */}
+                    {!user && (
+                      <NavLink
+                        to="/auth"
+                        onClick={() => setIsMenuOpen(false)}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '14px',
+                          border: isAprender
+                            ? '1px solid rgba(56, 189, 248, 0.45)'
+                            : '1px solid rgba(0, 122, 255, 0.3)',
+                          background: isAprender
+                            ? 'linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(99, 102, 241, 0.22))'
+                            : 'linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(88, 86, 214, 0.12))',
+                          color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)',
+                          fontSize: '0.84rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          width: '100%',
+                          textAlign: 'left',
+                          textDecoration: 'none',
+                          boxSizing: 'border-box',
+                          boxShadow: isAprender ? '0 0 14px rgba(56, 189, 248, 0.2)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <LogIn size={16} style={{ color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)' }} />
+                        <span style={{ color: isAprender ? '#FFFFFF' : 'var(--accent-color, #007AFF)', fontWeight: 800 }}>
+                          Iniciar sesión
+                        </span>
+                      </NavLink>
+                    )}
+
+                    {/* Si ya inició sesión: opción de cambiar de cuenta / iniciar otra sesión */}
+                    {user && (
+                      <NavLink
+                        to="/auth"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="nav-popover-item"
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '14px',
+                          border: 'none',
+                          background: isAprender
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(120, 120, 128, 0.06)',
+                          color: isAprender ? '#F8FAFC' : 'var(--text-main, #1F2937)',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          width: '100%',
+                          textAlign: 'left',
+                          textDecoration: 'none',
+                          boxSizing: 'border-box',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <LogIn size={16} style={{ color: isAprender ? '#38BDF8' : 'var(--accent-color, #007AFF)' }} />
+                        <span style={{ color: isAprender ? '#F8FAFC' : 'inherit' }}>
+                          Iniciar sesión (otra cuenta)
+                        </span>
+                      </NavLink>
+                    )}
 
                     {/* Cerrar sesión — ⋮ */}
                     {user && (
@@ -1316,8 +1435,8 @@ export const LiquidNavbar = () => {
                         style={{
                           padding: '10px 14px',
                           borderRadius: '14px',
-                          border: 'none',
-                          background: 'rgba(255,59,48,0.08)',
+                          border: isAprender ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                          background: 'rgba(255, 59, 48, 0.12)',
                           color: '#EF4444',
                           fontSize: '0.84rem',
                           fontWeight: 800,
@@ -1326,10 +1445,12 @@ export const LiquidNavbar = () => {
                           alignItems: 'center',
                           gap: '10px',
                           width: '100%',
-                          textAlign: 'left'
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease'
                         }}
                       >
-                        <LogOut size={16} style={{ color: '#EF4444' }} /> Cerrar sesión
+                        <LogOut size={16} style={{ color: '#EF4444' }} />
+                        <span style={{ color: '#EF4444' }}>Cerrar sesión</span>
                       </button>
                     )}
 

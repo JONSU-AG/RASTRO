@@ -33,7 +33,8 @@ import {
   Code,
   Download,
   Lock,
-  BookOpen
+  BookOpen,
+  Heart
 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { uploadFileReliable, getDirectImageUrl } from '../lib/storageHelper';
@@ -1078,6 +1079,16 @@ export const Admin = () => {
     }
   };
 
+  const handleSaveLives = async (val) => {
+    const num = Math.max(1, parseInt(val, 10) || 200);
+    try {
+      await saveSiteSettings({ maxGamificationLives: num });
+      showNotice("Vidas Actualizadas", `Las vidas en el Modo Aprender se configuraron en ${num} vidas por estudiante.`);
+    } catch (e) {
+      showNotice("Error", e.message);
+    }
+  };
+
   const handleApproveAllPending = () => {
     if (pendientesList.length === 0) return;
     setConfirmModal({
@@ -1986,6 +1997,65 @@ export const Admin = () => {
           >
             Cambiar
           </button>
+        </div>
+
+        {/* Control de Vidas Máximas (Modo Aprender) */}
+        <div style={{
+          background: 'var(--card-bg)',
+          border: '1.5px solid rgba(239, 68, 68, 0.35)',
+          borderRadius: '16px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(239, 68, 68, 0.14)',
+              color: '#EF4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Heart size={20} fill="#EF4444" color="#EF4444" />
+            </div>
+            <div>
+              <strong style={{ fontSize: '0.86rem', color: 'var(--text-main)', display: 'block' }}>
+                Vidas Modo Aprender
+              </strong>
+              <span style={{ fontSize: '0.74rem', color: '#EF4444', fontWeight: 800 }}>
+                {siteSettings.maxGamificationLives || 200} vidas por estudiante
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {[5, 50, 100, 200].map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => handleSaveLives(num)}
+                style={{
+                  padding: '5px 9px',
+                  borderRadius: '8px',
+                  border: (siteSettings.maxGamificationLives || 200) === num ? '1.5px solid #EF4444' : '1px solid var(--card-border)',
+                  background: (siteSettings.maxGamificationLives || 200) === num ? 'rgba(239, 68, 68, 0.2)' : 'rgba(120, 120, 128, 0.08)',
+                  color: (siteSettings.maxGamificationLives || 200) === num ? '#EF4444' : 'var(--text-main)',
+                  fontWeight: 800,
+                  fontSize: '0.76rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -204,7 +204,7 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
           });
           finalUrl = res.driveUrl;
           driveFileId = res.fileId;
-          driveFolderId = res.folderId;
+          driveFolderId = null; // Un archivo individual NO es una carpeta
           driveUrl = res.driveUrl;
           if (singleFile.type?.includes('image')) {
             imagesList = [res.driveUrl];
@@ -226,6 +226,25 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
       const categoriaObj = CATEGORIES.find(c => c.id === category);
       const categoriaLabel = categoriaObj ? categoriaObj.label : 'Tomos y Libros';
 
+      // Detección estricta de PDF vs Carpeta:
+      const isPdf = Boolean(
+        selectedFile?.type?.includes('pdf') ||
+        finalUrl.toLowerCase().includes('.pdf') ||
+        finalUrl.includes('drive.google.com/file/d/') ||
+        title.trim().toLowerCase().endsWith('.pdf')
+      );
+
+      const isFolder = Boolean(
+        (!isPdf && finalUrl.includes('/drive/folders/')) ||
+        (!isPdf && finalUrl.includes('embeddedfolderview'))
+      );
+
+      const inferredType = (imagesList.length > 1 || (sourceMode === 'file' && selectedFiles.length > 1))
+        ? 'galeria'
+        : (imagesList.length === 1 || selectedFile?.type?.includes('image')
+          ? 'imagen'
+          : (isPdf ? 'pdf' : (isFolder ? 'carpeta' : (sourceMode === 'file' ? 'archivo' : 'drive'))));
+
       // 1. Prepare data for Firestore — metadatos + referencia Drive del PROPIO usuario
       const rawAuthor = author.trim();
       // Proteger datos privados y omitir nombres de cuenta de Google
@@ -242,11 +261,7 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
         author: cleanAuthor,
         category: category,
         categoriaLabel: categoriaLabel,
-        type: (imagesList.length > 1 || (sourceMode === 'file' && selectedFiles.length > 1))
-          ? 'galeria'
-          : (imagesList.length === 1 || selectedFile?.type?.includes('image')
-            ? 'imagen'
-            : (selectedFile?.type?.includes('pdf') ? 'pdf' : (sourceMode === 'file' ? 'archivo' : 'drive'))),
+        type: inferredType,
         sourceMode: sourceMode,
         url: finalUrl,
         driveLinks: validDriveLinks.length > 0 ? validDriveLinks : (finalUrl ? [finalUrl] : []),
@@ -254,8 +269,8 @@ export const UploadModal = ({ isOpen, onClose, onUploadSuccess, initialSourceMod
         fileMeta: fileMeta,
         images: imagesList,
         imageUrl: imagesList[0] || (selectedFile?.type?.includes('image') ? finalUrl : null),
-        driveFolderId: driveFolderId || null,
-        driveFolderUrl: driveFolderUrl || (driveFolderId ? `https://drive.google.com/drive/folders/${driveFolderId}` : null),
+        driveFolderId: isFolder ? (driveFolderId || null) : null,
+        driveFolderUrl: isFolder ? (driveFolderUrl || (driveFolderId ? `https://drive.google.com/drive/folders/${driveFolderId}` : null)) : null,
         // Owner inequívoco (datos públicos)
         ownerId: user.uid,
         ownerEmail: '',

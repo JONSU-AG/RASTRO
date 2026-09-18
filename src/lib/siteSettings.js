@@ -12,6 +12,8 @@ export const DEFAULT_SITE_SETTINGS = {
   hiddenDefaultItems: [],
   // Elementos reportados por estudiantes/comunidad ocultados automáticamente (1 reporte):
   hiddenReportedItems: [],
+  // Vidas máximas en modo Aprender (administrable por el admin para modelo gratuito o futuros planes de pago)
+  maxGamificationLives: 200,
 };
 
 const LOCAL_STORAGE_KEY = 'rastro_site_settings_cached';

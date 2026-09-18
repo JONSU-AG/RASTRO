@@ -50,7 +50,7 @@ export const DeviceNotificationsListener = () => {
     // Función para extraer el texto real del mensaje sin prefijos redundantes
     const extractNotificationContent = (data) => {
       const sender = data.senderName || 'Estudiante';
-      let title = '🎓 RUMBO';
+      let title = '🎓 RASTRO';
       let body = '';
       let targetUrl = '/';
 
@@ -183,9 +183,9 @@ export const DeviceNotificationsListener = () => {
       triggerSystemNotification({
         title,
         body,
-        icon: data.senderPhoto || '/assets/LOGOR.png',
+        icon: data.senderPhoto || '/assets/rastro-pwa-icon-192.png',
         data: { url: targetUrl, notifId: id },
-        tag: `rumbo-notif-${id}`
+        tag: `rastro-notif-${id}`
       });
     };
 

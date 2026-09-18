@@ -450,6 +450,76 @@ body {
   position: relative;
 }
 
+/* ============================================================
+   MODO APRENDER: COSMIC NAVBAR (ESTILO RASTRO / ASTRO ESPACIAL)
+   En /aprender no aplican los temas estándar; la barra adopta
+   el cristal cósmico y borde dorado del observatorio.
+   ============================================================ */
+
+.liquid-navbar.liquid-navbar-cosmic {
+  background: linear-gradient(135deg, rgba(26, 20, 56, 0.82) 0%, rgba(13, 17, 36, 0.9) 100%) !important;
+  backdrop-filter: blur(22px) !important;
+  -webkit-backdrop-filter: blur(22px) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 28px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+.liquid-navbar-cosmic .desktop-logo-container {
+  border-right-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+.liquid-navbar-cosmic .nav-item {
+  color: rgba(226, 232, 240, 0.88) !important;
+}
+
+.liquid-navbar-cosmic .nav-item:hover:not(.active) {
+  color: #FEF08A !important;
+  background: rgba(245, 158, 11, 0.16) !important;
+}
+
+.liquid-navbar-cosmic .nav-item.active {
+  color: #FFFFFF !important;
+}
+
+.liquid-navbar-cosmic .nav-pill-active {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.75), 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+  border: 1px solid rgba(254, 240, 138, 0.6) !important;
+}
+
+.liquid-navbar-cosmic .nav-popover-menu {
+  background: rgba(15, 23, 42, 0.97) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.45) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(245, 158, 11, 0.22) !important;
+  color: #F8FAFC !important;
+}
+
+.liquid-navbar-cosmic .nav-popover-menu .nav-popover-item {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #F8FAFC !important;
+}
+
+.liquid-navbar-cosmic .nav-popover-menu .nav-popover-item:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #FFFFFF !important;
+}
+
+.liquid-navbar-cosmic .nav-popover-menu .nav-popover-item span {
+  color: #F8FAFC !important;
+}
+
+.liquid-navbar-cosmic .nav-popover-menu .nav-popover-item svg {
+  color: #38BDF8 !important;
+}
+
+.mobile-header.mobile-header-cosmic {
+  background: linear-gradient(135deg, rgba(26, 20, 56, 0.9) 0%, rgba(13, 17, 36, 0.97) 100%) !important;
+  border-bottom: 1.5px solid rgba(251, 191, 36, 0.4) !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
 .nav-items-container {
   display: flex;
   align-items: center;
@@ -1526,3 +1596,26 @@ body {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   RASTRO: Modo Lección Full-Screen (Ocultar barras globales y soporte Android)
+   ========================================================================== */
+body.rastro-lesson-active .liquid-navbar-wrapper,
+body.rastro-lesson-active .mobile-header,
+body.rastro-lesson-active .floating-whatsapp,
+body.rastro-lesson-active .cookie-banner-wrapper {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Botón 3D táctil estilo Duolingo */
+.duo-btn-3d {
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.duo-btn-3d:active:not(:disabled) {
+  transform: translateY(2px) !important;
+}
+

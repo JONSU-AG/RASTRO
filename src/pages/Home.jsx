@@ -38,6 +38,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { InspirationalDailyBanner } from '../components/InspirationalDailyBanner';
 import { AliadosCarousel, WhatsAppIconSVG, TikTokIconSVG } from '../components/AliadosCarousel';
+import { useGamification } from '../context/GamificationContext';
 import { LiveUserAvatar } from '../components/LiveUserAvatar';
 import { UploadModal } from '../components/UploadModal';
 import { SuccessModal } from '../components/SuccessModal';
@@ -57,6 +58,7 @@ const formatFileSize = (bytes) => {
 
 export const Home = () => {
   const { user, userData, isAdmin, ensureDriveToken } = useAuth();
+  const { streak: gamificationStreak } = useGamification();
   const profileDisplayName = userData?.displayName || user?.displayName || 'Estudiante RASTRO';
 
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
@@ -698,6 +700,85 @@ export const Home = () => {
       {/* Frase / Versículo del Día */}
       <div style={{ padding: '0 24px', maxWidth: '1200px', margin: '0 auto' }}>
         <InspirationalDailyBanner />
+      </div>
+
+      {/* Widget Camino de Aprendizaje Gamificado (Estilo Duolingo) */}
+      <div style={{ padding: '0 24px', maxWidth: '1200px', margin: '20px auto 0' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+            border: '1.5px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: '24px',
+            padding: '20px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '20px',
+            flexWrap: 'wrap',
+            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.12)',
+            backdropFilter: 'blur(16px)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: '260px' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #10B981, #059669)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFF',
+                flexShrink: 0,
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+              }}
+            >
+              <Flame size={26} fill="#FFF" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  NUEVO: MODO APRENDER
+                </span>
+                <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', padding: '2px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                  🔥 {gamificationStreak} días de racha
+                </span>
+              </div>
+              <h3 style={{ margin: '2px 0', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Camino Interactivo de Estudio UNSA
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                Aprende teoría explicada paso a paso y resuelve ejercicios de solucionarios con dinámicas estilo Duolingo.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/aprender"
+            style={{
+              padding: '12px 22px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              color: '#FFF',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+              flexShrink: 0
+            }}
+          >
+            <span>Entrar al Camino</span>
+            <ArrowRight size={18} />
+          </Link>
+        </motion.div>
       </div>
 
       {/* Banner Informativo de la Comunidad RASTRO */}

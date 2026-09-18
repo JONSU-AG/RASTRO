@@ -78878,5 +78878,485 @@
     "explanation": "I. (Incorrecto)\nEl Al2O3 se clasifica como un óxido anfótero en\nesta reacción en particular exhibe propiedades\nbásicas puesto que está reaccionando con un\nácido.\nAl2O3 (s) + 6 HCl (ac) → 2 AlCl3 (ac) + 3 H2O (l)\nII. (Correcto)\nDe acuerdo a sus características estos óxidos\nZnO, BeO y Bi2O3. Son anfóteros también son\nsólidos, poseen carácter intermedio entre iónico y\ncovalente.\nIII.(Correcto)\nSi un metal forma más de un óxido, el carácter\nbásico del óxido disminuye a medida que el estado\nde oxidación del metal aumenta. Por ejemplo el\ncromo que es metal pero sus estados de oxidación\nalto como el +6 son netamente de carácter ácido,\nmientras el +2 son de carácter básico.\nSOLUCIÓN\nTodas las relaciones están correctamente\nescritas, pero solo II y V cumplen con la\nnomenclatura sistemática.\nI. (Incorrecto)\nAs2O3: óxido de arsénico(III) (N. stock)\nII. (Correcto)\nSO: monóxido de azufre (N. sistemática)\nIII. (Incorrecto)\nP2O3: óxido de fósforo(III) (N. stock)\nIV. (Incorrecto)\nCl2O5: anhídrido clórico (N. tradicional)\nV. (Correcto)\nSiO2: dióxido de silicio (N. sistemática)\n-- 6 of 7 --\n\nSOCIALES\nRespuesta correcta: C ✔",
     "fuente": "CEPREUNSA Solucionario Oficial",
     "authorName": "CEPREUNSA Solucionario Oficial"
+  },
+  {
+    "id": "cepre_ingles_s1_1",
+    "q": "Complete the paragraph correctly: “Hi, my name is Daniel. I _ ____ from Peru. My parents _____ teachers, and my sister _____ a student.”",
+    "options": [
+      "am / is / are",
+      "am / are / is",
+      "is / are / is",
+      "am / are / are",
+      "is / is / is"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. This question tests subject–verb agreement across different grammatical persons. “I” always requires “am,” which eliminates all options except B and D. “My parents” is a plural subject, so it must take “are,” which both options include. However, “my sister” is a third-person singular subject, so it must take “is,” not “are.” Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_2",
+    "q": "Choose the incorrect sentence:",
+    "options": [
+      "She is my friend, and her name is Carla.",
+      "They are my classmates, and their teacher is kind.",
+      "He is my brother, and his name is Luis.",
+      "We is in the classroom, and our teacher is here.",
+      "I am a student, and my school is big."
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. The error lies in subject –verb agreement. “We” is a plural subject and must take “are,” not “is.” Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_3",
+    "q": "Choose the correct question:",
+    "options": [
+      "What your name is?",
+      "What is your name?",
+      "Where you are from?",
+      "How you are?",
+      "What is name your?"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. This item evaluates knowledge of WH-question structure in English. Correct questions require inversion: auxiliary verb + subject. Option B follows the correct pattern: “What + is + your name?” Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_4",
+    "q": "Choose the correct short answer: “Are they your friends?” “Yes, ______.”",
+    "options": [
+      "they are",
+      "they is",
+      "are they",
+      "they am",
+      "is they"
+    ],
+    "answer": 0,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter A. Short answers in English follow the pattern: subject + auxiliary verb. “They” must be followed by “are,” since it is plural. Respuesta correcta:  A✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_5",
+    "q": "Choose the option with correct logical meaning:",
+    "options": [
+      "She is my sister, and his name is Ana.",
+      "He is my father, and her name is Carlos.",
+      "They are my parents, and their names are Maria and Luis.",
+      "I am a student, and your school is big.",
+      "We are friends, and his names are Pedro and Juan"
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. This item tests coherence between subject pronouns and possessive adjectives. “They” correctly corresponds to “their,” and “names are” is plural, matching two people Respuesta correcta: C✔ Biología Biología 1 SOCIALES",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_6",
+    "q": "Choose the correct WH-question: “_____ is your best friend?” “My best friend is Lucia.”",
+    "options": [
+      "What",
+      "Where",
+      "Who",
+      "When",
+      "Why"
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. This question evaluates understanding of WH -word meaning. The answer refers to a person, so the correct question word is “Who.” Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_7",
+    "q": "Choose the incorrect sentence:",
+    "options": [
+      "Good morning, how are you?",
+      "Hello, I am Sofia.",
+      "Nice to meet you.",
+      "Good night, how are you?",
+      "Hi, my name is Luis."
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. “Good night” is not typically used as a greeting; it is used as a farewell. Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_8",
+    "q": "Complete the sentence correctly: “This is my dog. _____ name is Max.”",
+    "options": [
+      "He",
+      "She",
+      "It",
+      "Its",
+      "His"
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. “Its” is the correct possessive adjective for animals or things. “It” is a subject pronoun, not possessive, so it cannot modify “name.” Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_9",
+    "q": "Analyze the statements and choose the correct sequence: I. “You” can be singular or plural. II. “Are” is used with “you,” “we,” and “they.” III. “Am” can be used with “he” and “she.",
+    "options": [
+      "T / T / T",
+      "T / T / F",
+      "T / F / T",
+      "F / T / T",
+      "F / F / T"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. Statement I is true: “you” functions for both singular and plural. Statement II is true: “are” is used with “you,” “we,” and “they.” Statement III is false: “am” is used only with “I,” never with “he” or “she.” Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_10",
+    "q": "Complete the dialogue correctly: A: Hello, I am Ana. Where are you from? B: ________ A: Nice to meet you. B: ________",
+    "options": [
+      "I from Peru / Nice to meet you too",
+      "I am from Peru / Nice to meet you too",
+      "I am from Peru / Nice meet you too",
+      "I from Peru am / Nice to meet you",
+      "I am Peru / Nice to meet you too"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. The first answer requires the correct structure: subject + verb “to be” + complement → “I am from Peru.” The second response must include the reciprocal expression “Nice to meet you too.” Respuesta correcta: B✔ Biología Biología 1 SOCIALES",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_11",
+    "q": "Which option completes the paragraph correctly? My mother’s brother is my favorite ________. He always helps me with my homework.",
+    "options": [
+      "aunt",
+      "cousin",
+      "uncle",
+      "nephew",
+      "siblings"
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. The mother's brother is the \"uncle\" Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_12",
+    "q": "Choose the incorrect sentence according to the workplace or function of these occupations:",
+    "options": [
+      "A nurse helps doctors and cares for patients in a hospital.",
+      "A scientist conducts experiments and works in a laboratory.",
+      "A vet treats and diagnoses illnesses in animals.",
+      "A lawyer designs machines and electrical systems.",
+      "A waiter serves food and drinks to customers in a restaurant."
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. Because designing machines and systems is the role of an engineer, not a lawyer. Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_13",
+    "q": "Which of the following sentences is incorrect?",
+    "options": [
+      "My son is sick I need to call the vet.",
+      "The teacher talks to the students.",
+      "The waiter speaks French too.",
+      "The doorman helped me with the suitcase.",
+      "I was given a citation by the police officer."
+    ],
+    "answer": 0,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter A. Because when someone is sick you must call a doctor Respuesta correcta: A✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_14",
+    "q": "Complete the sentence: \"The ________ is analyzing the financial records to prepare the company's tax report.\"",
+    "options": [
+      "Manager",
+      "Secretary",
+      "Accountant",
+      "Salesperson",
+      "Psychologist"
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. Accountants are the professionals who manage financial records, audits, and taxes. Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_15",
+    "q": "Which of these occupations is most likely responsible for designing the structure of a new university campus?",
+    "options": [
+      "Graphic designer",
+      "Law student",
+      "Accountant",
+      "Architect",
+      "Civil engineer"
+    ],
+    "answer": 4,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter E. Within the branches of engineering mentioned in the vocabulary of professions, the \"civil engineer\" is in charge of the design and construction of structures. Respuesta correcta: E✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_16",
+    "q": "Which occupation involves assisting a manager with administrative tasks, answering calls, and organizing schedules?",
+    "options": [
+      "Salesperson",
+      "Secretary",
+      "Lawyer",
+      "Driver",
+      "Manager"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. Biología Biología 1 SOCIALES The secretary's primary role is to provide administrative support and manage office communications. Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_17",
+    "q": "Read the statements below and choose the correct option: I. A firefighter and a police officer are both occupations related to public safety and emergency response. II. A nurse is authorized to perform complex brain surgeries independently in a hospital. III. A waiter and a salesperson are roles that involve direct interaction with customers to provide services or products.",
+    "options": [
+      "Only I is true.",
+      "Only II is true.",
+      "I and II are true.",
+      "I and III are true.",
+      "All statements are true."
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. Statement I is true. Statement II is false; surgeries are performed by surgeons, not by nurses independently. Statement III is true. Therefore, statements I and III are correct. Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_18",
+    "q": "Complete the description of a very professional family: \"My family is quite diverse. My _____ manages the city’s safety as a police officer, while my _____ helps sick people at the hospital as a nurse. My _____, who is my father’s brother, is an _____ and designs beautiful houses. Finally, my _____ works in a restaurant as a waiter to pay for his university.\"",
+    "options": [
+      "mother / father / friend / engineer / brother",
+      "father / mother / uncle / architect / brother",
+      "brother / sister / grandfather / scientist / daughter",
+      "uncle / aunt / father / architect / nephew",
+      "son / daughter / cousin / engineer / brother"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. Because the options fit best in the paragraph Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_19",
+    "q": "Analyze the statements and determine the correct sequence: I. My nephew is the son of my brother or sister, and he could work as a waiter. II. My aunt is the mother of my father, and she is usually an architect. III. A vet and a nurse are occupations that can be performed by my cousin or my daughter. IV. My grandfather is my father’s father, and if he audits money, he is an accountant. V. My niece is the daughter of my uncle, and she works as a scientist in a school.",
+    "options": [
+      "T / F / T / T / F",
+      "F / T / F / T / T",
+      "T / T / F / F / T",
+      "F / F / T / T / F",
+      "T / F / T / F / T"
+    ],
+    "answer": 0,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter A. I. True (definition of nephew). II. False (that's the grandmother). III. True (correct relationship and professions). IV. True (correct relationship and profession). V. False (the uncle's daughter is a cousin, not a niece). Respuesta correcta: A✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_20",
+    "q": "Choose the correct answer according to the pics.",
+    "options": [
+      "Doctor / Salesman / Art / Friends / Teacher",
+      "Vet / Student / Music / Relatives / Miss",
+      "Vet / Student / Musician / Relatives / Teacher",
+      "Nurse / Brother / pianist / Friends / Miss",
+      "Vet / studet / Art / Company / Teacher"
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. Because it is the one that best corresponds to the pics. Respuesta correcta: C✔ Biología Biología 1 SOCIALES TEXT 1 A Conversation About Applying to College JAMES: Good morning, Professor Austin, how are you doing? PROFESSOR AUSTIN: Good morning, James. I am doing well. And you? JAMES: I’m great, thank you. This is my friend Emma. She is thinking about applying to this college. She has a few questions. Would you mind telling us about the process, please? PROFESSOR AUSTIN: Hello, Emma! It’s a pleasure to meet you. I’m more than happy to speak with you. Please stop by my office next week. EMMA: It’s a pleasure to meet you, professor. Thank you so much for helping us. PROFESSOR AUSTIN: Don’t mention it. Hopefully, I will be able to answer your questions!",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_21",
+    "q": "What is the main purpose of James introducing Emma to Professor Austin?",
+    "options": [
+      "To invite the professor to an evento.",
+      "To ask for academic advice for himself.",
+      "To help Emma get information about applying to the college.",
+      "To discuss a class assignment.",
+      "To complain about a course."
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. James clearly states that Emma is thinking about applying and has questions, so he introduces her to get information about the process. Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_22",
+    "q": "How does Professor Austin respond to Emma’s situation?",
+    "options": [
+      "He refuses to help immediately.",
+      "He asks her to send an email.",
+      "He suggests meeting next week in his office.",
+      "He gives detailed information right away.",
+      "He ignores her questions."
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. The professor invites Emma to visit his office next week, indicating willingness to help but not immediately. Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_23",
+    "q": "What can be inferred about Emma’s goal?",
+    "options": [
+      "She wants to transfer to another university.",
+      "She is planning to apply to the college.",
+      "She is already enrolled in classes.",
+      "She is looking for a job.",
+      "She wants to meet new Friends."
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. The text explicitly says Emma is “thinking about applying,” which shows her goal is to apply. Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_24",
+    "q": "Why does James ask, Would you mind telling us about the process?",
+    "options": [
+      "To demand immediate information",
+      "To sound polite and respectful",
+      "To show he is confused",
+      "To test the profesor",
+      "To avoid speaking more"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. “Would you mind…” is a polite way to make a request in English, especially in formal situations. Respuesta correcta: B✔ Biología Biología 1 SOCIALES",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_25",
+    "q": "What can we conclude about James’s role in the conversation?",
+    "options": [
+      "He is the main applicant",
+      "He is uninterested in the conversation",
+      "He is the professor’s assistant",
+      "He is asking for a job",
+      "He is acting as a mediator or helper"
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. James introduces Emma and asks questions on her behalf, showing he is helping facilitate the interaction. Respuesta correcta: B✔ TEXT 2 My Classmate Daniel Hello! I am Sofia. I am 20 years old and I am from Peru. I am a student. This is my classmate, Daniel. He is 21 years old. He is from Argentina. Daniel is a student and he is in my class. His father is a lawyer and his mother is a nurse. They are in Argentina. Daniel has one sister. Her name is Laura. She is 25 years old and she is a doctor. Our class is not big. We are good students and our teacher is an engineer. He is very good.",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_26",
+    "q": "Which information is correct about Sofia?",
+    "options": [
+      "She is from Argentina and she is 21 years old.",
+      "She is 20 years old and she is from Peru.",
+      "She is a teacher in Daniel’s class.",
+      "She is Daniel’s sister.",
+      "She is a doctor."
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. The text states that Sofia is 20 years old and she is from Peru. Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_27",
+    "q": "Are Daniel’s parents in the same country as Daniel?",
+    "options": [
+      "Yes, they are.",
+      "Yes, they are in Peru.",
+      "No, they aren’t.",
+      "No, they are in Sofia’s class.",
+      "Yes, they aren’t."
+    ],
+    "answer": 0,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter A. Daniel and his parents are in Argentina, so they are in the same country. Respuesta correcta: A✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_28",
+    "q": "What can we infer about Laura?",
+    "options": [
+      "She is 21 years old.",
+      "She is in Sofia’s class.",
+      "She is not a student.",
+      "She is Daniel’s teacher.",
+      "She is from Peru."
+    ],
+    "answer": 2,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter C. Laura is a doctor, so she is not a student. Respuesta correcta: C✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_29",
+    "q": "Who is the engineer in the text?",
+    "options": [
+      "Daniel",
+      "Sofia",
+      "Laura",
+      "The teacher",
+      "The father"
+    ],
+    "answer": 3,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter D. The text says that the teacher is an engineer. Respuesta correcta: D✔",
+    "fuente": "CEPREUNSA I FASE 2027"
+  },
+  {
+    "id": "cepre_ingles_s1_30",
+    "q": "What is the main purpose of the text?",
+    "options": [
+      "To describe a hospital and its workers.",
+      "To introduce Sofia, Daniel, and their class.",
+      "To explain jobs in Peru.",
+      "To talk about Laura’s work only. Biología Biología 1 SOCIALES",
+      "To describe Argentina."
+    ],
+    "answer": 1,
+    "asignatura": "Inglés",
+    "semana": 1,
+    "explanation": "The correct answer is letter B. The text presents Sofia, her classmate Daniel, and their class. Respuesta correcta: B✔",
+    "fuente": "CEPREUNSA I FASE 2027"
   }
 ]

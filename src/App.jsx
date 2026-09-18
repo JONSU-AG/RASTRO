@@ -23,6 +23,8 @@ import { UserProfile } from './pages/UserProfile';
 import { Chats } from './pages/Chats';
 import OrsttyPage from './pages/OrsttyPage';
 import { FormularioPage } from './pages/FormularioPage';
+import { Aprender } from './pages/Aprender';
+import { GamificationProvider } from './context/GamificationContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const PageLoader = () => (
@@ -99,53 +101,57 @@ export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <ScrollPositionRestorer />
-          <div style={{ minHeight: '100vh', position: 'relative' }}>
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/cursos" element={<Cursos />} />
-                  <Route path="/cursos/:id" element={<AcademyDetail />} />
-                  <Route path="/biblioteca" element={<Biblioteca />} />
-                  <Route path="/formulario" element={<FormularioPage />} />
-                  <Route path="/simulador" element={<Simulador />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/chats" element={<Chats />} />
-                  <Route path="/orstty" element={<OrsttyPage />} />
-                  <Route path="/usuario/:uid" element={<UserProfile />} />
-                  <Route path="/perfil" element={<UserProfile />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
+        <GamificationProvider>
+          <Router>
+            <ScrollPositionRestorer />
+            <div style={{ minHeight: '100vh', position: 'relative' }}>
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/aprender" element={<Aprender />} />
+                    <Route path="/aprender/:subject" element={<Aprender />} />
+                    <Route path="/cursos" element={<Cursos />} />
+                    <Route path="/cursos/:id" element={<AcademyDetail />} />
+                    <Route path="/biblioteca" element={<Biblioteca />} />
+                    <Route path="/formulario" element={<FormularioPage />} />
+                    <Route path="/simulador" element={<Simulador />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/chats" element={<Chats />} />
+                    <Route path="/orstty" element={<OrsttyPage />} />
+                    <Route path="/usuario/:uid" element={<UserProfile />} />
+                    <Route path="/perfil" element={<UserProfile />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
 
-            {/* Liquid Floating Navbar */}
-            <LiquidNavbar />
+              {/* Liquid Floating Navbar */}
+              <LiquidNavbar />
 
-            {/* Native Device & Push Notification Listener */}
-            <DeviceNotificationsListener />
+              {/* Native Device & Push Notification Listener */}
+              <DeviceNotificationsListener />
 
-            {/* Mandatory Choose Username Flow for Users */}
-            <ChooseUsernameModal />
+              {/* Mandatory Choose Username Flow for Users */}
+              <ChooseUsernameModal />
 
-            {/* In-App On-Screen Notice Banner (Llamado de atención de moderación) */}
-            <WarningBanner />
+              {/* In-App On-Screen Notice Banner (Llamado de atención de moderación) */}
+              <WarningBanner />
 
-            {/* Floating Elements */}
-            <FloatingWhatsApp />
+              {/* Floating Elements */}
+              <FloatingWhatsApp />
 
-            {/* Cookie & Terms Banner */}
-            <CookieBanner onOpenTerms={() => setIsTermsOpen(true)} />
+              {/* Cookie & Terms Banner */}
+              <CookieBanner onOpenTerms={() => setIsTermsOpen(true)} />
 
-            {/* Super Terms & Privacy Modal (Centrado, amplio y protector) */}
-            <TermsModal
-              isOpen={isTermsOpen}
-              onClose={() => setIsTermsOpen(false)}
-            />
-          </div>
-        </Router>
+              {/* Super Terms & Privacy Modal (Centrado, amplio y protector) */}
+              <TermsModal
+                isOpen={isTermsOpen}
+                onClose={() => setIsTermsOpen(false)}
+              />
+            </div>
+          </Router>
+        </GamificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

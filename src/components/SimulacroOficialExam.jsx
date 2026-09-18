@@ -26,10 +26,16 @@ import {
   Timer,
   Sliders,
   Shuffle,
-  Coffee
+  Coffee,
+  Trophy
 } from 'lucide-react';
 import { generateSimulacroOficial80, calculateExamScore, datosSimulador, normalizeAsignatura } from '../data/simuladorData';
 import { cleanOptionText } from '../pages/Simulador';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { RankingSimulacroModal, getLigaForScore } from './RankingSimulacroModal';
+import AnimatedCounter from './AnimatedCounter';
 
 const DURATION_SECONDS = 9000; // 2 horas y 30 minutos (150 minutos = 9,000s)
 
@@ -39,12 +45,14 @@ export const SimulacroOficialExam = ({
   onTransferToCalculator,
   onBackToMenu
 }) => {
+  const { user } = useAuth();
   const [selectedArea, setSelectedArea] = useState(initialArea);
   const [examStage, setExamStage] = useState('welcome'); // 'welcome' | 'running' | 'results'
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({}); // { [index]: optionIndex }
   const [flagged, setFlagged] = useState({}); // { [index]: boolean }
+  const [showRankingModal, setShowRankingModal] = useState(false);
   
   // Modos de tiempo: 'temporizador' (2h 30m regresivo), 'cronometro' (libre progresivo), 'sin_tiempo' (relajado)
   const [timeMode, setTimeMode] = useState('temporizador');
@@ -113,7 +121,7 @@ export const SimulacroOficialExam = ({
     return `${h}:${m}:${s}`;
   };
 
-  // Finalizar examen
+  // Finalizar examen y registrar en el ranking oficial
   const handleFinishExam = () => {
     setShowConfirmModal(false);
     const timeSpentSecs = timeMode === 'temporizador'
@@ -128,14 +136,55 @@ export const SimulacroOficialExam = ({
       simData: datosSimulador
     });
 
-    setResultsData({
+    const resultsPayload = {
       ...scoreResults,
       timeSpent: timeSpentStr,
       timeMode,
       orderPreference,
       area: selectedArea
-    });
+    };
+
+    setResultsData(resultsPayload);
     setExamStage('results');
+
+    // Registrar en localStorage para consulta inmediata
+    const simSummary = {
+      score: scoreResults.unsaWeightedScore || 0,
+      correct: scoreResults.score || 0,
+      wrong: scoreResults.wrongCount || 0,
+      blank: scoreResults.blankCount || 0,
+      timeSpent: timeSpentStr,
+      area: selectedArea,
+      date: new Date().toISOString()
+    };
+    try {
+      localStorage.setItem('rastro_last_simulacro_score', JSON.stringify(simSummary));
+    } catch (e) {}
+
+    // Sincronizar en Firebase Firestore ranking_simulacros si el usuario está conectado
+    if (user?.uid) {
+      try {
+        const rankingDocRef = doc(db, 'ranking_simulacros', user.uid);
+        setDoc(rankingDocRef, {
+          userId: user.uid,
+          userName: user.displayName || user.email?.split('@')[0] || 'Postulante UNSA',
+          userPhoto: user.photoURL || null,
+          career: user.career || (user.displayName ? 'Postulante UNSA' : 'Aspirante'),
+          area: selectedArea,
+          score: scoreResults.unsaWeightedScore || 0,
+          correct: scoreResults.score || 0,
+          wrong: scoreResults.wrongCount || 0,
+          blank: scoreResults.blankCount || 0,
+          timeSpent: timeSpentStr,
+          date: new Date().toISOString().split('T')[0],
+          updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(err => {
+          console.warn('Ranking save firestore warning:', err);
+        });
+      } catch (err) {
+        console.warn('Ranking save err:', err);
+      }
+    }
   };
 
   const handleFinishExamAuto = () => {
@@ -1273,7 +1322,7 @@ export const SimulacroOficialExam = ({
               </span>
             </div>
 
-            {/* Score Big Display */}
+            {/* Score Big Display con AnimatedCounter y Liga RUMBO */}
             <div style={{
               textAlign: 'right',
               background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.08))',
@@ -1282,11 +1331,36 @@ export const SimulacroOficialExam = ({
               border: '1.5px solid rgba(16, 185, 129, 0.3)'
             }}>
               <div style={{ fontSize: 'clamp(2.2rem, 5vw, 3.2rem)', fontWeight: 950, color: '#059669', lineHeight: 1, letterSpacing: '-1px' }}>
-                {(resultsData.unsaWeightedScore || 0).toFixed(4)}
+                <AnimatedCounter value={resultsData.unsaWeightedScore || 0} decimals={4} duration={1400} />
               </div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                / 100.0000 PUNTOS
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                  / 100.0000 PUNTOS
+                </span>
+                {(() => {
+                  const assignedLiga = getLigaForScore(resultsData.unsaWeightedScore || 0);
+                  return (
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 900,
+                        background: assignedLiga.bg,
+                        color: assignedLiga.color,
+                        border: `1px solid ${assignedLiga.border}`,
+                        padding: '2px 10px',
+                        borderRadius: '999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: `0 0 10px ${assignedLiga.color}33`
+                      }}
+                    >
+                      <span>{assignedLiga.icon}</span>
+                      <span>{assignedLiga.name}</span>
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
           </div>
 
@@ -1372,25 +1446,50 @@ export const SimulacroOficialExam = ({
 
           {/* Botones de Acción */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => handleStartExam(selectedArea)}
-              style={{
-                padding: '12px 22px',
-                borderRadius: '16px',
-                border: '1.5px solid var(--card-border)',
-                background: 'var(--card-bg)',
-                color: 'var(--text-main)',
-                fontWeight: 800,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <RotateCcw size={16} /> Dar Otro Simulacro (80 Preguntas Nuevas)
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleStartExam(selectedArea)}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '16px',
+                  border: '1.5px solid var(--card-border)',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-main)',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <RotateCcw size={16} /> Dar Otro Simulacro
+              </button>
+
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => setShowRankingModal(true)}
+                style={{
+                  padding: '12px 22px',
+                  borderRadius: '16px',
+                  border: '1.5px solid rgba(245, 158, 11, 0.45)',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.25))',
+                  color: '#D97706',
+                  fontWeight: 900,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)'
+                }}
+              >
+                <Trophy size={18} color="#F59E0B" /> Ver Mi Puesto en el Ranking
+              </motion.button>
+            </div>
 
             {onTransferToCalculator && (
               <motion.button
@@ -1559,6 +1658,12 @@ export const SimulacroOficialExam = ({
             })}
           </div>
         </div>
+
+        {/* Modal de Ranking Oficial UNSA */}
+        <RankingSimulacroModal
+          isOpen={showRankingModal}
+          onClose={() => setShowRankingModal(false)}
+        />
       </div>
     );
   }
