@@ -42,11 +42,11 @@ import {
   CEPREUNSA_OFFICIAL_THEORY
 } from '../data/learningPathData';
 import { useGamification } from '../context/GamificationContext';
+import { usePomodoro } from '../context/PomodoroContext';
 import { LessonEngine } from '../components/aprender/LessonEngine';
 import { RankingSimulacroModal } from '../components/RankingSimulacroModal';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { OrsttyMascot, ArtyonMascot, MascotDialogue } from '../components/Mascots';
-import { PomodoroModal } from '../components/PomodoroModal';
 import { UnsaCountdownWidget } from '../components/UnsaCountdownWidget';
 
 // Iconos vectoriales nítidos para cada una de las 15 asignaturas sin cortes ni desfases tipográficos
@@ -246,14 +246,14 @@ export const Aprender = () => {
   const [showUnitGuide, setShowUnitGuide] = useState(false);
   const [chestModal, setChestModal] = useState(null);
   const [showRankingModal, setShowRankingModal] = useState(false);
-  const [showPomodoroModal, setShowPomodoroModal] = useState(false);
+  const { openModal: openPomodoroModal } = usePomodoro();
 
   // Cargar lecciones cada vez que se cambia de materia
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
-    getLessonsForSubject(selectedSubject.id, 8).then((loaded) => {
+    getLessonsForSubject(selectedSubject.id).then((loaded) => {
       if (isMounted) {
         setLessons(loaded);
         setIsLoading(false);
@@ -588,7 +588,7 @@ export const Aprender = () => {
           {/* Botón de Pomodoro de Estudio */}
           <motion.button
             type="button"
-            onClick={() => setShowPomodoroModal(true)}
+            onClick={openPomodoroModal}
             whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.94 }}
             title="Temporizador Pomodoro de Estudio"
@@ -919,7 +919,7 @@ export const Aprender = () => {
             title={`Consejo ORSTTY • ${selectedSubject.name}`}
             message={SUBJECT_MASCOT_TIPS[selectedSubject.name] || '¡Cada tema dominado te acerca a tu vacante! Domina la teoría y luego practica las preguntas fijas.'}
             actionText="Iniciar Temporizador Pomodoro 🍅"
-            onAction={() => setShowPomodoroModal(true)}
+            onAction={openPomodoroModal}
           />
         </div>
 
@@ -2119,12 +2119,6 @@ export const Aprender = () => {
       <RankingSimulacroModal
         isOpen={showRankingModal}
         onClose={() => setShowRankingModal(false)}
-      />
-
-      {/* ================= TEMPORIZADOR POMODORO DE ESTUDIO ================= */}
-      <PomodoroModal
-        isOpen={showPomodoroModal}
-        onClose={() => setShowPomodoroModal(false)}
       />
 
       {/* ================= MOTOR DE LECCIÓN EN PANTALLA COMPLETA ================= */}

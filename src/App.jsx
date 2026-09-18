@@ -25,6 +25,9 @@ import OrsttyPage from './pages/OrsttyPage';
 import { FormularioPage } from './pages/FormularioPage';
 import { Aprender } from './pages/Aprender';
 import { GamificationProvider } from './context/GamificationContext';
+import { PomodoroProvider } from './context/PomodoroContext';
+import { PomodoroFloatingPill } from './components/PomodoroFloatingPill';
+import { PomodoroModal } from './components/PomodoroModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const PageLoader = () => (
@@ -102,55 +105,63 @@ export function App() {
     <ThemeProvider>
       <AuthProvider>
         <GamificationProvider>
-          <Router>
-            <ScrollPositionRestorer />
-            <div style={{ minHeight: '100vh', position: 'relative' }}>
-              <ErrorBoundary>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/aprender" element={<Aprender />} />
-                    <Route path="/aprender/:subject" element={<Aprender />} />
-                    <Route path="/cursos" element={<Cursos />} />
-                    <Route path="/cursos/:id" element={<AcademyDetail />} />
-                    <Route path="/biblioteca" element={<Biblioteca />} />
-                    <Route path="/formulario" element={<FormularioPage />} />
-                    <Route path="/simulador" element={<Simulador />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/chats" element={<Chats />} />
-                    <Route path="/orstty" element={<OrsttyPage />} />
-                    <Route path="/usuario/:uid" element={<UserProfile />} />
-                    <Route path="/perfil" element={<UserProfile />} />
-                  </Routes>
-                </Suspense>
-              </ErrorBoundary>
+          <PomodoroProvider>
+            <Router>
+              <ScrollPositionRestorer />
+              <div style={{ minHeight: '100vh', position: 'relative' }}>
+                <ErrorBoundary>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/aprender" element={<Aprender />} />
+                      <Route path="/aprender/:subject" element={<Aprender />} />
+                      <Route path="/cursos" element={<Cursos />} />
+                      <Route path="/cursos/:id" element={<AcademyDetail />} />
+                      <Route path="/biblioteca" element={<Biblioteca />} />
+                      <Route path="/formulario" element={<FormularioPage />} />
+                      <Route path="/simulador" element={<Simulador />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/chats" element={<Chats />} />
+                      <Route path="/orstty" element={<OrsttyPage />} />
+                      <Route path="/usuario/:uid" element={<UserProfile />} />
+                      <Route path="/perfil" element={<UserProfile />} />
+                    </Routes>
+                  </Suspense>
+                </ErrorBoundary>
 
-              {/* Liquid Floating Navbar */}
-              <LiquidNavbar />
+                {/* Liquid Floating Navbar */}
+                <LiquidNavbar />
 
-              {/* Native Device & Push Notification Listener */}
-              <DeviceNotificationsListener />
+                {/* Dynamic Island Pomodoro Floating Pill (Visible solo cuando el temporizador está activo en segundo plano) */}
+                <PomodoroFloatingPill />
 
-              {/* Mandatory Choose Username Flow for Users */}
-              <ChooseUsernameModal />
+                {/* Global Pomodoro Modal */}
+                <PomodoroModal />
 
-              {/* In-App On-Screen Notice Banner (Llamado de atención de moderación) */}
-              <WarningBanner />
+                {/* Native Device & Push Notification Listener */}
+                <DeviceNotificationsListener />
 
-              {/* Floating Elements */}
-              <FloatingWhatsApp />
+                {/* Mandatory Choose Username Flow for Users */}
+                <ChooseUsernameModal />
 
-              {/* Cookie & Terms Banner */}
-              <CookieBanner onOpenTerms={() => setIsTermsOpen(true)} />
+                {/* In-App On-Screen Notice Banner (Llamado de atención de moderación) */}
+                <WarningBanner />
 
-              {/* Super Terms & Privacy Modal (Centrado, amplio y protector) */}
-              <TermsModal
-                isOpen={isTermsOpen}
-                onClose={() => setIsTermsOpen(false)}
-              />
-            </div>
-          </Router>
+                {/* Floating Elements */}
+                <FloatingWhatsApp />
+
+                {/* Cookie & Terms Banner */}
+                <CookieBanner onOpenTerms={() => setIsTermsOpen(true)} />
+
+                {/* Super Terms & Privacy Modal (Centrado, amplio y protector) */}
+                <TermsModal
+                  isOpen={isTermsOpen}
+                  onClose={() => setIsTermsOpen(false)}
+                />
+              </div>
+            </Router>
+          </PomodoroProvider>
         </GamificationProvider>
       </AuthProvider>
     </ThemeProvider>
