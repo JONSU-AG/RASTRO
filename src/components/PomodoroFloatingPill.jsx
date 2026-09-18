@@ -138,31 +138,34 @@ export const PomodoroFloatingPill = () => {
             </div>
           </div>
 
-          {/* Botón rápido de pausa integrado */}
+          {/* Botón rápido de pausa integrado con área táctil cómoda iOS */}
           <motion.button
             whileHover={{ scale: 1.12 }}
             whileTap={{ scale: 0.88 }}
             onClick={(e) => {
               e.stopPropagation();
+              if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate(12);
+              }
               togglePlay();
             }}
             title="Pausar / Reanudar Pomodoro"
             style={{
-              width: '26px',
-              height: '26px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.12)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              background: 'rgba(255, 255, 255, 0.14)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              marginLeft: '4px',
+              marginLeft: '6px',
               flexShrink: 0
             }}
           >
-            <Pause size={12} fill="#FFFFFF" />
+            <Pause size={13} fill="#FFFFFF" />
           </motion.button>
         </div>
       </motion.div>
