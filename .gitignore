@@ -30,3 +30,8 @@ dev-dist
 .env.production
 .env.local
 .env.*.local
+
+# Python and temp
+__pycache__/
+*.pyc
+scratch/

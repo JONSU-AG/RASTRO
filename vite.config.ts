@@ -27,7 +27,7 @@ export default defineConfig({
       },
 
       workbox: {
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/__/],
         importScripts: ['sw-notifications.js'],

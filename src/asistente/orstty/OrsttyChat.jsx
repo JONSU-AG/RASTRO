@@ -14,8 +14,13 @@ import {
   Layers,
   ArrowRight,
   X,
-  Power
+  Power,
+  Clock,
+  Ban,
+  EyeOff
 } from 'lucide-react';
+import { deactivateOrstty } from '../../lib/orsttySettings';
+import { IOSModal } from '../../components/IOSModal';
 import { process as processWithEngine, getTool, getContext, clearContext, updateContext } from './orstty-engine.js';
 import { getResponse } from './orstty-personality.js';
 import { registerAllRastroTools } from './rastro-tools.js';
@@ -97,6 +102,7 @@ export function OrsttyChat({
   // Modales interactivos dentro del chat
   const [activeVideoModal, setActiveVideoModal] = useState(null);
   const [activePreviewModal, setActivePreviewModal] = useState(null);
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
 
   // Estado de IA (Groq)
   const [groqEnabled] = useState(() => hasApiKey());
@@ -579,6 +585,30 @@ export function OrsttyChat({
             <span className="hide-on-mobile">Reiniciar</span>
           </button>
 
+          {/* Botón Desactivar Asistente */}
+          <button
+            onClick={() => setIsDeactivateModalOpen(true)}
+            title="Desactivar asistente y ocultar botón de la barra"
+            style={{
+              padding: '5px 9px',
+              borderRadius: '10px',
+              border: '1.5px solid rgba(239, 68, 68, 0.25)',
+              background: 'rgba(239, 68, 68, 0.08)',
+              color: '#EF4444',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Power size={13} color="#EF4444" />
+            <span className="hide-on-mobile">Desactivar</span>
+          </button>
+
           {onClose && (
             <button
               onClick={onClose}
@@ -983,6 +1013,102 @@ export function OrsttyChat({
         resource={activePreviewModal}
         onClose={() => setActivePreviewModal(null)}
       />
+
+      {/* Modal para configurar desactivación (temporal vs permanente) */}
+      <IOSModal
+        isOpen={isDeactivateModalOpen}
+        onClose={() => setIsDeactivateModalOpen(false)}
+        title="Desactivar Asistente ORSTTY"
+        closeText="Cancelar"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '4px' }}>
+          <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+            Elige cómo deseas desactivar al asistente para que <strong>su botón deje de aparecer</strong> en la barra de navegación:
+          </p>
+
+          <div 
+            onClick={() => {
+              deactivateOrstty('temp');
+              setIsDeactivateModalOpen(false);
+              if (onClose) onClose();
+            }}
+            style={{
+              padding: '14px 16px',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(245, 158, 11, 0.35)',
+              background: 'rgba(245, 158, 11, 0.08)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: 'rgba(245, 158, 11, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: '#B45309'
+            }}>
+              <Clock size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)', marginBottom: '3px' }}>
+                Desactivar Temporalmente
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Oculta el botón solo durante esta sesión de navegación. Volverá a aparecer si recargas la página o abres la app en otra ocasión.
+              </div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => {
+              deactivateOrstty('forever');
+              setIsDeactivateModalOpen(false);
+              if (onClose) onClose();
+            }}
+            style={{
+              padding: '14px 16px',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(239, 68, 68, 0.35)',
+              background: 'rgba(239, 68, 68, 0.08)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: 'rgba(239, 68, 68, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: '#DC2626'
+            }}>
+              <Ban size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)', marginBottom: '3px' }}>
+                Desactivar Para Siempre
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Oculta el botón de forma permanente en este dispositivo. Podrás volver a reactivarlo cuando quieras desde tu Perfil o visitando /orstty.
+              </div>
+            </div>
+          </div>
+        </div>
+      </IOSModal>
     </div>
   );
 }

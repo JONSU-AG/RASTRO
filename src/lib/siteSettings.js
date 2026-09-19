@@ -136,6 +136,9 @@ export const subscribeToSiteSettings = (callback) => {
           try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
           } catch {}
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('orstty_status_changed'));
+          }
           callback(merged);
         } else {
           callback(DEFAULT_SITE_SETTINGS);
@@ -159,6 +162,9 @@ export const saveSiteSettings = async (newSettings) => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
   } catch {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('orstty_status_changed'));
+  }
   try {
     const docRef = doc(db, 'system_config', 'site_settings');
     await setDoc(docRef, merged, { merge: true });

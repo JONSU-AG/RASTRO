@@ -1069,10 +1069,10 @@ export const Admin = () => {
     try {
       await saveSiteSettings({ orsttyEnabled: nextVal });
       showNotice(
-        nextVal ? "Asistente ORSTTY Activado ⚡" : "Asistente ORSTTY en Mantenimiento 🔧",
+        nextVal ? "Asistente ORSTTY Activado ⚡" : "Asistente ORSTTY Desactivado (Oculto) 🔧",
         nextVal
-          ? "ORSTTY IA está ahora activo y disponible para todos los estudiantes."
-          : "ORSTTY IA ha sido pausado temporalmente por motivos de mantenimiento técnico."
+          ? "ORSTTY IA está ahora activo y su botón es visible en la barra de navegación para los estudiantes."
+          : "ORSTTY IA ha sido desactivado a nivel general. Su botón ha dejado de aparecer en la barra de navegación para todos los estudiantes."
       );
     } catch (err) {
       showNotice("Error", err.message);
@@ -1923,7 +1923,7 @@ export const Admin = () => {
                 Asistente ORSTTY IA
               </strong>
               <span style={{ fontSize: '0.74rem', color: siteSettings.orsttyEnabled === false ? '#DC2626' : '#059669', fontWeight: 700 }}>
-                {siteSettings.orsttyEnabled === false ? '🔧 En Mantenimiento (Desactivado)' : '⚡ Activo para estudiantes'}
+                {siteSettings.orsttyEnabled === false ? '🔧 Desactivado (Botón oculto para estudiantes)' : '⚡ Activo y visible en la barra'}
               </span>
             </div>
           </div>

@@ -437,7 +437,7 @@ export const Cursos = () => {
                 </h3>
 
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.86rem', lineHeight: 1.45, flex: 1 }}>
-                  Leyes físicas y fórmulas esenciales: Ley de Ohm, Pouillet, Dinámica, Gases, Productos Notables, Geometría y Trigonometría.
+                  Compendio oficial con tipografía matemática KaTeX, despejes operacionales, desglose de unidades S.I., simulador de cálculo y ficha de bolsillo.
                 </p>
 
                 <div style={{ 

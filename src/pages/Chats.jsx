@@ -1,17 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { UserDirectChat } from '../components/UserDirectChat';
 import { motion } from 'framer-motion';
 import { MessageSquare, Sparkles, ArrowLeft } from 'lucide-react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { isOrsttyVisible } from '../lib/orsttySettings';
+import { useAuth } from '../context/AuthContext';
 
 export function Chats() {
   const [searchParams] = useSearchParams();
   const withUid = searchParams.get('with');
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const [isOrsttyBtnVisible, setIsOrsttyBtnVisible] = useState(() => isOrsttyVisible(isAdmin));
 
   useEffect(() => {
     document.title = 'Mis Chats Privados | RASTRO';
-  }, []);
+    const updateOrstty = () => setIsOrsttyBtnVisible(isOrsttyVisible(isAdmin));
+    window.addEventListener('orstty_status_changed', updateOrstty);
+    window.addEventListener('storage', updateOrstty);
+    return () => {
+      window.removeEventListener('orstty_status_changed', updateOrstty);
+      window.removeEventListener('storage', updateOrstty);
+    };
+  }, [isAdmin]);
 
   return (
     <div className="chats-page-wrapper">
@@ -71,25 +82,27 @@ export function Chats() {
           <span>Volver</span>
         </button>
 
-        <Link
-          to="/orstty"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: '12px',
-            border: '1px solid rgba(0, 122, 255, 0.3)',
-            background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(139, 92, 246, 0.12))',
-            color: 'var(--accent-color, #007AFF)',
-            fontSize: '0.78rem',
-            fontWeight: 800,
-            textDecoration: 'none'
-          }}
-        >
-          <Sparkles size={14} />
-          <span>Abrir Asistente ORSTTY</span>
-        </Link>
+        {isOrsttyBtnVisible && (
+          <Link
+            to="/orstty"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '12px',
+              border: '1px solid rgba(0, 122, 255, 0.3)',
+              background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(139, 92, 246, 0.12))',
+              color: 'var(--accent-color, #007AFF)',
+              fontSize: '0.78rem',
+              fontWeight: 800,
+              textDecoration: 'none'
+            }}
+          >
+            <Sparkles size={14} />
+            <span>Abrir Asistente ORSTTY</span>
+          </Link>
+        )}
       </div>
 
       {/* User to User Direct Messages */}

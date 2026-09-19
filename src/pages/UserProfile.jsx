@@ -79,6 +79,7 @@ import { fetchSavedMaterialsForUser, getLocalSavedMaterials } from '../lib/saved
 import { BookmarkButton } from '../components/BookmarkButton';
 import { PdfSheetPreview } from '../components/PdfSheetPreview';
 import { FollowersFollowingModal } from '../components/FollowersFollowingModal';
+import { getOrsttyStatus, deactivateOrstty, reactivateOrstty } from '../lib/orsttySettings';
 
 // ─── MARCOS DE PERFIL (GAMER, CREADOR & COMUNIDAD ACADÉMICA / UNSA) ────────────
 export const AVATAR_FRAMES = [
@@ -284,7 +285,18 @@ export const UserProfile = () => {
   }, [searchParams]);
   const [isDirectChatModalOpen, setIsDirectChatModalOpen] = useState(false);
   const [isPersonalizarOpen, setIsPersonalizarOpen] = useState(false);
-  const [personalizarSection, setPersonalizarSection] = useState('foto'); // 'foto' | 'banner' | 'perfil' | 'redes' | 'etiquetas'
+  const [personalizarSection, setPersonalizarSection] = useState('foto'); // 'foto' | 'banner' | 'perfil' | 'redes' | 'etiquetas' | 'asistente'
+  const [orsttyStatus, setOrsttyStatus] = useState(getOrsttyStatus);
+
+  useEffect(() => {
+    const handleStatus = () => setOrsttyStatus(getOrsttyStatus());
+    window.addEventListener('orstty_status_changed', handleStatus);
+    window.addEventListener('storage', handleStatus);
+    return () => {
+      window.removeEventListener('orstty_status_changed', handleStatus);
+      window.removeEventListener('storage', handleStatus);
+    };
+  }, []);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
@@ -2470,7 +2482,8 @@ export const UserProfile = () => {
             { id: 'banner', label: '🖼️ Portada' },
             { id: 'perfil', label: '👤 Datos' },
             { id: 'redes', label: '🌐 Redes' },
-            { id: 'etiquetas', label: '🏷️ Metas' }
+            { id: 'etiquetas', label: '🏷️ Metas' },
+            { id: 'asistente', label: '🤖 Asistente' }
           ].map(s => {
             const isActive = personalizarSection === s.id;
             return (
@@ -4029,6 +4042,139 @@ export const UserProfile = () => {
               </div>
             </div>
           </div>
+
+          {/* 5. ASISTENTE ORSTTY — Visibilidad y Control */}
+          <div style={{ display: personalizarSection === 'asistente' ? 'block' : 'none' }}>
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1.5px solid var(--card-border)',
+              borderRadius: '20px',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🤖 Visibilidad del Asistente ORSTTY
+                </h3>
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: '99px',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  background: orsttyStatus.mode === 'active' ? 'rgba(52, 168, 83, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                  color: orsttyStatus.mode === 'active' ? '#34A853' : '#D97706',
+                  border: orsttyStatus.mode === 'active' ? '1px solid rgba(52, 168, 83, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)'
+                }}>
+                  {orsttyStatus.label}
+                </span>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Controla si deseas que el botón del asistente ORSTTY aparezca en tu barra de navegación y en tus chats. Si decides ocultarlo o desactivarlo, podrás reactivarlo aquí en cualquier momento.
+              </p>
+
+              {/* Opciones de Estado */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Opción Activo */}
+                <div 
+                  onClick={() => {
+                    reactivateOrstty();
+                    setOrsttyStatus(getOrsttyStatus());
+                  }}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    border: orsttyStatus.mode === 'active' ? '2px solid #34A853' : '1px solid var(--card-border)',
+                    background: orsttyStatus.mode === 'active' ? 'rgba(52, 168, 83, 0.08)' : 'rgba(120,120,128,0.04)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🟢</span>
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        Activo y Visible (Predeterminado)
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        El botón de ORSTTY se muestra normalmente en la barra de navegación.
+                      </div>
+                    </div>
+                  </div>
+                  {orsttyStatus.mode === 'active' && <Check size={16} color="#34A853" />}
+                </div>
+
+                {/* Opción Temporal */}
+                <div 
+                  onClick={() => {
+                    deactivateOrstty('temp');
+                    setOrsttyStatus(getOrsttyStatus());
+                  }}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    border: orsttyStatus.mode === 'temp' ? '2px solid #F59E0B' : '1px solid var(--card-border)',
+                    background: orsttyStatus.mode === 'temp' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(120,120,128,0.04)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🟡</span>
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        Desactivado Temporalmente
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        Oculto de la barra solo durante esta sesión de navegación.
+                      </div>
+                    </div>
+                  </div>
+                  {orsttyStatus.mode === 'temp' && <Check size={16} color="#F59E0B" />}
+                </div>
+
+                {/* Opción Para Siempre */}
+                <div 
+                  onClick={() => {
+                    deactivateOrstty('forever');
+                    setOrsttyStatus(getOrsttyStatus());
+                  }}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    border: orsttyStatus.mode === 'forever' ? '2px solid #EF4444' : '1px solid var(--card-border)',
+                    background: orsttyStatus.mode === 'forever' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(120,120,128,0.04)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🔴</span>
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        Desactivado Para Siempre
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        El botón no volverá a aparecer en este dispositivo hasta que lo reactives aquí.
+                      </div>
+                    </div>
+                  </div>
+                  {orsttyStatus.mode === 'forever' && <Check size={16} color="#EF4444" />}
+                </div>
+              </div>
+            </div>
+          </div>
           </div>
         </div>
       </IOSModal>
@@ -4147,6 +4293,107 @@ export const UserProfile = () => {
                   {isUserAdmin ? '👑 Administrador Principal' : (profileUser.isAlly ? '🌟 Aliado Oficial Verificado' : '🎓 Estudiante RUMBO')}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Asistente Virtual ORSTTY en Ajustes */}
+          <div style={{
+            padding: '16px 20px',
+            borderRadius: '18px',
+            background: 'rgba(120, 120, 128, 0.06)',
+            border: '1px solid var(--card-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+              <div>
+                <div style={{ color: 'var(--text-main)', fontSize: '0.92rem', fontWeight: 800 }}>
+                  🤖 Asistente Virtual ORSTTY
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '2px' }}>
+                  Visibilidad del botón en la barra de navegación
+                </div>
+              </div>
+              <span style={{
+                padding: '4px 10px',
+                borderRadius: '99px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                background: orsttyStatus.mode === 'active' ? 'rgba(52, 168, 83, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                color: orsttyStatus.mode === 'active' ? '#34A853' : '#D97706',
+                border: orsttyStatus.mode === 'active' ? '1px solid rgba(52, 168, 83, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)'
+              }}>
+                {orsttyStatus.label}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {orsttyStatus.mode !== 'active' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    reactivateOrstty();
+                    setOrsttyStatus(getOrsttyStatus());
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#34A853',
+                    color: '#fff',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Sparkles size={14} /> Reactivar y Mostrar Botón
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deactivateOrstty('temp');
+                      setOrsttyStatus(getOrsttyStatus());
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      color: '#B45309',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ocultar Temporalmente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deactivateOrstty('forever');
+                      setOrsttyStatus(getOrsttyStatus());
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: '#DC2626',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Desactivar Para Siempre
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Flame,
@@ -34,7 +34,13 @@ import {
   Languages,
   Landmark,
   FileText,
-  Binary
+  Binary,
+  LayoutGrid,
+  Search,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import {
   SUBJECTS_CONFIG,
@@ -48,6 +54,7 @@ import { RankingSimulacroModal } from '../components/RankingSimulacroModal';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { OrsttyMascot, ArtyonMascot, MascotDialogue } from '../components/Mascots';
 import { UnsaCountdownWidget } from '../components/UnsaCountdownWidget';
+import { FormulaDisplay } from '../components/FormulaDisplay';
 
 // Iconos vectoriales nítidos para cada una de las 15 asignaturas sin cortes ni desfases tipográficos
 export const SubjectLucideIcon = ({ id, size = 18, color = 'currentColor' }) => {
@@ -231,6 +238,115 @@ const ANIMATED_STARS = Array.from({ length: 30 }, (_, i) => ({
   delay: ((i * 9) % 18) / 10
 }));
 
+// Componente orbital de Anillo de Progreso Planetario Estilo Duolingo con iluminación de partes (subtemas)
+export const PlanetProgressRing = ({
+  size = 104,
+  totalParts = 4,
+  completedParts = 0,
+  color = '#38BDF8',
+  isCurrent = false,
+  isMastered = false,
+  isChest = false,
+  isTrophy = false
+}) => {
+  if (isChest || isTrophy || totalParts <= 1) return null;
+
+  const radius = (size - 14) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const parts = Math.max(1, totalParts);
+  const gap = parts > 1 ? 8 : 0;
+  const segmentLength = Math.max(1, (circumference / parts) - gap);
+
+  const segments = [];
+  for (let i = 0; i < parts; i++) {
+    const isCompleted = isMastered || i < completedParts;
+    const strokeDasharray = `${segmentLength} ${circumference - segmentLength}`;
+    const strokeDashoffset = -((circumference / parts) * i) + (gap / 2);
+
+    segments.push(
+      <circle
+        key={i}
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={
+          isCompleted
+            ? (color || '#FDE047')
+            : isCurrent
+              ? 'rgba(255, 255, 255, 0.22)'
+              : 'rgba(148, 163, 184, 0.14)'
+        }
+        strokeWidth={isCompleted ? 4.5 : 2.5}
+        strokeDasharray={strokeDasharray}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        style={{
+          filter: isCompleted ? `drop-shadow(0 0 7px ${color || '#FDE047'})` : 'none',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        width: `${size}px`,
+        height: `${size}px`,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        zIndex: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{
+          transform: 'rotate(-90deg)',
+          overflow: 'visible'
+        }}
+      >
+        {segments}
+      </svg>
+      {/* Satélites luminosos o lunas orbitales en los nodos de los anillos */}
+      {Array.from({ length: parts }).map((_, idx) => {
+        const isDone = isMastered || idx < completedParts;
+        const angle = (idx * (360 / parts) - 90) * (Math.PI / 180);
+        const dotX = size / 2 + radius * Math.cos(angle);
+        const dotY = size / 2 + radius * Math.sin(angle);
+
+        return (
+          <div
+            key={`orb_${idx}`}
+            style={{
+              position: 'absolute',
+              left: `${dotX}px`,
+              top: `${dotY}px`,
+              transform: 'translate(-50%, -50%)',
+              width: isDone ? '8px' : '5px',
+              height: isDone ? '8px' : '5px',
+              borderRadius: '50%',
+              background: isDone ? '#FFFFFF' : 'rgba(148, 163, 184, 0.35)',
+              boxShadow: isDone ? `0 0 10px #FFFFFF, 0 0 16px ${color || '#FDE047'}` : 'none',
+              border: isDone ? `1.5px solid ${color || '#FDE047'}` : 'none',
+              zIndex: 3,
+              transition: 'all 0.4s ease'
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export const Aprender = () => {
   const { streak, xp, level, currentLevelProgress, hearts, completedLessons, addXp, recordLessonCompletion } = useGamification();
 
@@ -238,11 +354,37 @@ export const Aprender = () => {
   const [lessons, setLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Estados de navegación entre los 15 cursos oficiales de la Matriz CEPREUNSA
+  const [showAllCoursesModal, setShowAllCoursesModal] = useState(false);
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const coursesScrollRef = useRef(null);
+
+  const scrollCourses = (direction) => {
+    if (coursesScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -280 : 280;
+      coursesScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const filteredCourses = SUBJECTS_CONFIG;
+
+  const searchedCoursesInModal = useMemo(() => {
+    const q = courseSearchQuery.trim().toLowerCase();
+    return SUBJECTS_CONFIG.filter((subj) => {
+      if (!q) return true;
+      return (
+        subj.name.toLowerCase().includes(q) ||
+        (subj.description || '').toLowerCase().includes(q)
+      );
+    });
+  }, [courseSearchQuery]);
+
   // Lección activa para jugar en LessonEngine
   const [activeLesson, setActiveLesson] = useState(null);
 
   // Modales
   const [previewNode, setPreviewNode] = useState(null);
+  const [expandedTheorySubId, setExpandedTheorySubId] = useState(null);
   const [showUnitGuide, setShowUnitGuide] = useState(false);
   const [chestModal, setChestModal] = useState(null);
   const [showRankingModal, setShowRankingModal] = useState(false);
@@ -350,22 +492,10 @@ export const Aprender = () => {
           filter: 'contrast(1.05) brightness(1.05)'
         }}
       >
-        {/* ESTRELLAS ANIMADAS ESTILO CARTOON (TONOS AMARILLOS, DORADOS Y DESTELLOS) */}
+        {/* ESTRELLAS ESTILO CARTOON OPTIMIZADAS (CERO SOBRECARGA DE GPU/CPU) */}
         {ANIMATED_STARS.map((star) => (
-          <motion.div
+          <div
             key={star.id}
-            initial={{ opacity: 0.35, scale: 0.8, rotate: 0 }}
-            animate={{
-              opacity: [0.35, 1, 0.35],
-              scale: [0.8, 1.25, 0.8],
-              rotate: star.type !== 'dot' ? [0, 40, 0] : 0
-            }}
-            transition={{
-              duration: star.duration,
-              repeat: Infinity,
-              delay: star.delay,
-              ease: 'easeInOut'
-            }}
             style={{
               position: 'absolute',
               top: star.top,
@@ -374,13 +504,15 @@ export const Aprender = () => {
               alignItems: 'center',
               justifyContent: 'center',
               userSelect: 'none',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              opacity: star.type === 'dot' ? 0.7 : 0.85,
+              transform: 'translateZ(0)'
             }}
           >
             {star.type === 'star' ? (
-              <span style={{ fontSize: `${star.size}px`, filter: 'drop-shadow(0 0 6px rgba(253, 224, 71, 0.9))' }}>⭐</span>
+              <span style={{ fontSize: `${star.size}px` }}>⭐</span>
             ) : star.type === 'sparkle' ? (
-              <span style={{ fontSize: `${star.size}px`, filter: 'drop-shadow(0 0 7px rgba(251, 191, 36, 0.9))' }}>✨</span>
+              <span style={{ fontSize: `${star.size}px` }}>✨</span>
             ) : (
               <div
                 style={{
@@ -388,63 +520,13 @@ export const Aprender = () => {
                   height: `${star.size}px`,
                   borderRadius: '50%',
                   background: star.color,
-                  boxShadow: `0 0 ${star.size * 3}px ${star.color}`
+                  boxShadow: `0 0 6px ${star.color}`
                 }}
               />
             )}
-          </motion.div>
+          </div>
         ))}
 
-        {/* COMETA 1 VELOZ CON RASTRO DE ESTRELLAS DORADAS */}
-        <motion.div
-          animate={{
-            x: ['-20vw', '120vw'],
-            y: ['10vh', '75vh'],
-            opacity: [0, 1, 1, 0]
-          }}
-          transition={{
-            duration: 4.8,
-            repeat: Infinity,
-            repeatDelay: 8,
-            ease: 'easeInOut'
-          }}
-          style={{
-            position: 'absolute',
-            width: '180px',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, rgba(253, 224, 71, 0.3), rgba(251, 191, 36, 0.85), #FFFFFF)',
-            transform: 'rotate(26deg)',
-            boxShadow: '0 0 14px #FDE047, 0 0 28px rgba(245, 158, 11, 0.8)',
-            borderRadius: '999px',
-            filter: 'blur(0.2px)'
-          }}
-        />
-
-        {/* COMETA 2 VELOZ CON RASTRO ASTRAL AMARILLO Y CIELO */}
-        <motion.div
-          animate={{
-            x: ['-15vw', '115vw'],
-            y: ['32vh', '92vh'],
-            opacity: [0, 0.95, 0.95, 0]
-          }}
-          transition={{
-            duration: 5.5,
-            repeat: Infinity,
-            repeatDelay: 12,
-            delay: 4.5,
-            ease: 'easeInOut'
-          }}
-          style={{
-            position: 'absolute',
-            width: '150px',
-            height: '2.5px',
-            background: 'linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), rgba(253, 224, 71, 0.85), #FFFFFF)',
-            transform: 'rotate(24deg)',
-            boxShadow: '0 0 12px #FBBF24, 0 0 24px rgba(253, 224, 71, 0.7)',
-            borderRadius: '999px',
-            filter: 'blur(0.2px)'
-          }}
-        />
 
         {/* Planeta decorativo con anillo astral en marca de agua */}
         <div
@@ -498,10 +580,8 @@ export const Aprender = () => {
             marginBottom: '16px'
           }}
         >
-          {/* Racha Diaria (Fuego Estelar Animado con Contador Dinámico) */}
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          {/* Racha Diaria (Fuego Estelar) */}
+          <div
             title="Racha de estudio continuo"
             style={{
               display: 'flex',
@@ -516,20 +596,14 @@ export const Aprender = () => {
               fontSize: '0.86rem'
             }}
           >
-            <motion.div
-              animate={{ scale: [1, 1.2, 1], rotate: [-4, 4, -4] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ display: 'flex', alignItems: 'center' }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
               <Flame size={18} fill="#EF4444" color="#EF4444" />
-            </motion.div>
+            </div>
             <AnimatedCounter value={streak} suffix=" d" duration={700} />
-          </motion.div>
+          </div>
 
-          {/* Nivel y Barra XP con Contador Dinámico */}
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          {/* Nivel y Barra XP */}
+          <div
             title="Nivel de expedición y experiencia acumulada"
             style={{
               display: 'flex',
@@ -544,23 +618,17 @@ export const Aprender = () => {
               fontSize: '0.86rem'
             }}
           >
-            <motion.div
-              animate={{ rotate: [0, 180, 360] }}
-              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-              style={{ display: 'flex', alignItems: 'center' }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', color: '#FDE047' }}>
               <Sparkles size={16} />
-            </motion.div>
+            </div>
             <span>Nv. {level}</span>
             <span style={{ fontSize: '0.74rem', opacity: 0.85, fontWeight: 700 }}>
               (<AnimatedCounter value={currentLevelProgress} suffix=" XP" duration={900} />)
             </span>
-          </motion.div>
+          </div>
 
           {/* Vidas / Escudos */}
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <div
             title="Escudos / Vidas disponibles"
             style={{
               display: 'flex',
@@ -575,22 +643,17 @@ export const Aprender = () => {
               borderRadius: '999px'
             }}
           >
-            <motion.div
-              animate={{ scale: [1, 1.22, 1] }}
-              transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ display: 'flex', alignItems: 'center' }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
               <Heart size={16} fill="#EF4444" color="#EF4444" />
-            </motion.div>
+            </div>
             <span>{hearts}</span>
-          </motion.div>
+          </div>
 
           {/* Botón de Pomodoro de Estudio */}
-          <motion.button
+          <button
             type="button"
             onClick={openPomodoroModal}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
+            className="duo-btn-3d"
             title="Temporizador Pomodoro de Estudio"
             style={{
               display: 'flex',
@@ -609,28 +672,19 @@ export const Aprender = () => {
           >
             <Timer size={16} color="#C084FC" />
             <span>Pomodoro</span>
-          </motion.button>
+          </button>
 
           {/* Botón de Ranking Oficial UNSA */}
-          <motion.button
+          <button
             type="button"
             onClick={() => setShowRankingModal(true)}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
-            animate={{
-              boxShadow: [
-                '0 0 0 rgba(245, 158, 11, 0)',
-                '0 0 14px rgba(245, 158, 11, 0.55)',
-                '0 0 0 rgba(245, 158, 11, 0)'
-              ]
-            }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="duo-btn-3d"
             title="Ver Ranking Oficial de Simulacros UNSA"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.32))',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.32), rgba(217, 119, 6, 0.38))',
               border: '1.5px solid #F59E0B',
               padding: '6px 14px',
               borderRadius: '999px',
@@ -638,12 +692,13 @@ export const Aprender = () => {
               fontWeight: 900,
               fontSize: '0.86rem',
               cursor: 'pointer',
+              boxShadow: '0 0 12px rgba(245, 158, 11, 0.35)',
               backdropFilter: 'blur(10px)'
             }}
           >
             <Trophy size={16} color="#FDE047" />
             <span>Ranking</span>
-          </motion.button>
+          </button>
         </div>
 
         {/* ================= CRONÓMETRO Y CALENDARIO OFICIAL ADMISIÓN UNSA 2027 ================= */}
@@ -651,59 +706,149 @@ export const Aprender = () => {
           <UnsaCountdownWidget />
         </div>
 
-        {/* ================= CÁPSULAS ASTRALES DE LAS 15 ASIGNATURAS UNIVERSALES ================= */}
-        <div style={{ marginBottom: '20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              overflowX: 'auto',
-              paddingBottom: '10px',
-              paddingTop: '2px',
-              scrollbarWidth: 'none',
-              WebkitOverflowScrolling: 'touch',
-              paddingLeft: '4px',
-              paddingRight: '4px'
-            }}
-          >
-            {SUBJECTS_CONFIG.map((subj) => {
-              const isSelected = selectedSubject.id === subj.id;
-              return (
-                <button
-                  key={subj.id}
-                  onClick={() => setSelectedSubject(subj)}
-                  className="duo-btn-3d"
-                  style={{
-                    padding: '10px 18px',
-                    minWidth: 'max-content',
-                    boxSizing: 'border-box',
-                    borderRadius: '18px',
-                    border: isSelected ? `2px solid ${subj.color}` : '1.5px solid rgba(255, 255, 255, 0.14)',
-                    background: isSelected ? subj.color : 'rgba(15, 23, 42, 0.72)',
-                    color: '#FFFFFF',
-                    boxShadow: isSelected
-                      ? `0 5px 0 ${subj.color}99, 0 8px 24px ${subj.color}66`
-                      : '0 3px 0 rgba(0, 0, 0, 0.25)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '9px',
-                    cursor: 'pointer',
-                    fontWeight: 900,
-                    fontSize: '0.88rem',
-                    lineHeight: 1.2,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    backdropFilter: 'blur(14px)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <SubjectLucideIcon id={subj.id} size={18} color={isSelected ? '#FFFFFF' : subj.color} />
-                  </span>
-                  <span>{subj.name}</span>
-                </button>
-              );
-            })}
+        {/* ================= HEADER DE LA MATRIZ GENERAL Y BOTÓN VER 15 CURSOS ================= */}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={16} color="#FDE047" />
+              <span style={{ fontSize: '0.84rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FEF08A' }}>
+                Matriz General CEPREUNSA (15 Asignaturas de Admisión)
+              </span>
+            </div>
+
+            {/* BOTÓN PROMINENTE VER LOS 15 CURSOS */}
+            <motion.button
+              type="button"
+              onClick={() => setShowAllCoursesModal(true)}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 16px',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.24), rgba(217, 119, 6, 0.32))',
+                border: '1.5px solid #F59E0B',
+                borderRadius: '12px',
+                color: '#FEF08A',
+                fontWeight: 900,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                boxShadow: '0 0 14px rgba(245, 158, 11, 0.25)',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <LayoutGrid size={15} color="#FDE047" />
+              <span>Ver los 15 Cursos (Matriz Completa)</span>
+            </motion.button>
+          </div>
+        </div>
+
+        {/* ================= CÁPSULAS ASTRALES CON CONTROLES DE DESPLAZAMIENTO ================= */}
+        <div style={{ marginBottom: '20px', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              onClick={() => scrollCourses('left')}
+              title="Desplazar a la izquierda"
+              style={{
+                width: '32px',
+                height: '38px',
+                flexShrink: 0,
+                borderRadius: '12px',
+                background: 'rgba(15, 23, 42, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#94A3B8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            <div
+              ref={coursesScrollRef}
+              style={{
+                display: 'flex',
+                gap: '10px',
+                overflowX: 'auto',
+                paddingBottom: '8px',
+                paddingTop: '2px',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+                paddingLeft: '2px',
+                paddingRight: '2px',
+                flex: 1
+              }}
+            >
+              {filteredCourses.map((subj) => {
+                const isSelected = selectedSubject.id === subj.id;
+                return (
+                  <button
+                    key={subj.id}
+                    onClick={() => setSelectedSubject(subj)}
+                    className="duo-btn-3d"
+                    style={{
+                      padding: '10px 18px',
+                      minWidth: 'max-content',
+                      boxSizing: 'border-box',
+                      borderRadius: '18px',
+                      border: isSelected ? `2px solid ${subj.color}` : '1.5px solid rgba(255, 255, 255, 0.14)',
+                      background: isSelected ? subj.color : 'rgba(15, 23, 42, 0.72)',
+                      color: '#FFFFFF',
+                      boxShadow: isSelected
+                        ? `0 5px 0 ${subj.color}99, 0 8px 24px ${subj.color}66`
+                        : '0 3px 0 rgba(0, 0, 0, 0.25)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '9px',
+                      cursor: 'pointer',
+                      fontWeight: 900,
+                      fontSize: '0.88rem',
+                      lineHeight: 1.2,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      backdropFilter: 'blur(14px)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <SubjectLucideIcon id={subj.id} size={18} color={isSelected ? '#FFFFFF' : subj.color} />
+                    </span>
+                    <span style={{ letterSpacing: '0.01em' }}>{subj.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => scrollCourses('right')}
+              title="Desplazar a la derecha"
+              style={{
+                width: '32px',
+                height: '38px',
+                flexShrink: 0,
+                borderRadius: '12px',
+                background: 'rgba(15, 23, 42, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#94A3B8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Subtítulo informativo */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', padding: '0 4px', fontSize: '0.74rem', color: '#64748B' }}>
+            <span>Mostrando {filteredCourses.length} de {SUBJECTS_CONFIG.length} cursos oficiales CEPREUNSA</span>
+            <span style={{ color: '#FDE047' }}>10 Semanas • 40+ lecciones oficiales por curso</span>
           </div>
         </div>
 
@@ -1068,7 +1213,7 @@ export const Aprender = () => {
               minHeight: `${lessons.length * 175}px`
             }}
           >
-            {/* TRAZADO DEL "RASTRO" ASTRAL: POLVO DE ESTRELLAS Y CARRETERA CÓSMICA */}
+            {/* TRAZADO DEL "RASTRO" ASTRAL: POLVO DE ESTRELLAS Y CARRETERA CÓSMICA (GPU ACCELERATED) */}
             <svg
               viewBox={`0 0 420 ${Math.max(lessons.length * 175, 320)}`}
               preserveAspectRatio="xMidYMid meet"
@@ -1079,7 +1224,8 @@ export const Aprender = () => {
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
-                zIndex: 1
+                zIndex: 1,
+                transform: 'translateZ(0)'
               }}
             >
               <defs>
@@ -1090,15 +1236,6 @@ export const Aprender = () => {
                   <stop offset="70%" stopColor={selectedSubject.color} stopOpacity="0.9" />
                   <stop offset="100%" stopColor="#FBBF24" stopOpacity="1" />
                 </linearGradient>
-
-                {/* Resplandor galáctico (Aura Glow) */}
-                <filter id="astroGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="8" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
               </defs>
 
               {/* Rastro exterior difuminado (Nebulosa dorada guía) */}
@@ -1106,17 +1243,17 @@ export const Aprender = () => {
                 d={svgConnectorPath}
                 fill="none"
                 stroke="#F59E0B"
-                strokeWidth="32"
+                strokeWidth="28"
                 strokeLinecap="round"
-                strokeOpacity="0.25"
+                strokeOpacity="0.16"
               />
 
               {/* Pista de estela espacial con resplandor dorado suave */}
               <path
                 d={svgConnectorPath}
                 fill="none"
-                stroke="rgba(253, 224, 71, 0.28)"
-                strokeWidth="18"
+                stroke="rgba(253, 224, 71, 0.3)"
+                strokeWidth="16"
                 strokeLinecap="round"
               />
 
@@ -1125,10 +1262,9 @@ export const Aprender = () => {
                 d={svgConnectorPath}
                 fill="none"
                 stroke="url(#rastroGradient)"
-                strokeWidth="10"
+                strokeWidth="8"
                 strokeLinecap="round"
-                strokeDasharray="16 12"
-                filter="url(#astroGlow)"
+                strokeDasharray="14 10"
               />
             </svg>
 
@@ -1141,11 +1277,23 @@ export const Aprender = () => {
             ) : (
               lessons.map((lesson, idx) => {
                 const currentOffset = pathOffsets[idx % pathOffsets.length];
-                const isCompleted = Boolean(completedLessons[lesson.id]);
-                const isUnlocked = idx === 0 || Boolean(completedLessons[lessons[idx - 1]?.id]);
-                const isCurrent = isUnlocked && !isCompleted;
                 const isChest = lesson.nodeType === 'chest';
                 const isTrophy = lesson.nodeType === 'trophy';
+                const totalParts = lesson.subtemas?.length || 1;
+                const completedParts = lesson.subtemas && lesson.subtemas.length > 0
+                  ? lesson.subtemas.filter((st) => completedLessons[st.id] || completedLessons[lesson.id]).length
+                  : (completedLessons[lesson.id] ? 1 : 0);
+                const isPlanetMastered = (lesson.subtemas && lesson.subtemas.length > 0)
+                  ? (completedParts >= totalParts || Boolean(completedLessons[lesson.id]))
+                  : Boolean(completedLessons[lesson.id]);
+                const isCompleted = isPlanetMastered;
+                const prevLesson = lessons[idx - 1];
+                const isPrevCompleted = idx === 0 || Boolean(completedLessons[prevLesson?.id]) || (
+                  prevLesson?.subtemas && prevLesson.subtemas.length > 0 &&
+                  prevLesson.subtemas.every(st => completedLessons[st.id] || completedLessons[prevLesson.id])
+                );
+                const isUnlocked = idx === 0 || isPrevCompleted;
+                const isCurrent = isUnlocked && !isCompleted;
 
                 const posY = 14 + idx * 175;
 
@@ -1164,13 +1312,11 @@ export const Aprender = () => {
                       width: '200px'
                     }}
                   >
-                    {/* COMPAÑERO ORSTTY O HITO CÓSMICO AL COSTADO DEL NODO */}
+                    {/* COMPAÑERO ORSTTY O HITO CÓSMICO AL COSTADO DEL NODO (GPU ACCELERATED CSS) */}
                     {/* 1. Si es el nodo activo: ORSTTY al costado animado estilo Duolingo */}
                     {isCurrent && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1, y: [0, -6, 0] }}
-                        transition={{ y: { repeat: Infinity, duration: 2.2, ease: 'easeInOut' } }}
+                      <div
+                        className="rastro-float-mascot"
                         style={{
                           position: 'absolute',
                           top: '-6px',
@@ -1210,14 +1356,13 @@ export const Aprender = () => {
                             filter: 'blur(1px)'
                           }}
                         />
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* 2. Si no es el nodo activo pero es Astro 2 (idx === 1): Satélite espacial */}
                     {!isCurrent && idx === 1 && (
-                      <motion.div
-                        animate={{ y: [0, -6, 0], rotate: [0, 4, -4, 0] }}
-                        transition={{ repeat: Infinity, duration: 4.2, ease: 'easeInOut' }}
+                      <div
+                        className="rastro-float-satellite"
                         style={{
                           position: 'absolute',
                           top: '12px',
@@ -1234,14 +1379,13 @@ export const Aprender = () => {
                         <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#38BDF8', background: 'rgba(15, 23, 42, 0.75)', padding: '1px 6px', borderRadius: '999px', border: '1px solid rgba(56, 189, 248, 0.3)', whiteSpace: 'nowrap' }}>
                           Satélite UNSA 🛰️
                         </span>
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* 3. Si no es el nodo activo pero es Cofre (isChest o idx === 3): Cristales cósmicos de XP */}
                     {!isCurrent && (isChest || idx === 3) && (
-                      <motion.div
-                        animate={{ y: [0, -7, 0], scale: [1, 1.05, 1] }}
-                        transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
+                      <div
+                        className="rastro-float-crystal"
                         style={{
                           position: 'absolute',
                           top: '10px',
@@ -1258,14 +1402,13 @@ export const Aprender = () => {
                         <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#F472B6', background: 'rgba(15, 23, 42, 0.75)', padding: '1px 6px', borderRadius: '999px', border: '1px solid rgba(244, 114, 182, 0.3)', whiteSpace: 'nowrap' }}>
                           Cristal XP 💎
                         </span>
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* 4. Si no es el nodo activo pero es Astro 6 (idx === 5): Telescopio de cielo profundo */}
                     {!isCurrent && idx === 5 && (
-                      <motion.div
-                        animate={{ y: [0, -5, 0] }}
-                        transition={{ repeat: Infinity, duration: 3.8, ease: 'easeInOut' }}
+                      <div
+                        className="rastro-float-mascot"
                         style={{
                           position: 'absolute',
                           top: '12px',
@@ -1282,14 +1425,13 @@ export const Aprender = () => {
                         <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#FDE047', background: 'rgba(15, 23, 42, 0.75)', padding: '1px 6px', borderRadius: '999px', border: '1px solid rgba(253, 224, 71, 0.3)', whiteSpace: 'nowrap' }}>
                           Observatorio 🔭
                         </span>
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* 5. Si no es el nodo activo pero es Trofeo (isTrophy o idx === 7): Portal de Ingreso Final */}
                     {!isCurrent && (isTrophy || idx === 7) && (
-                      <motion.div
-                        animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }}
-                        transition={{ repeat: Infinity, duration: 3.5, ease: 'easeInOut' }}
+                      <div
+                        className="rastro-float-satellite"
                         style={{
                           position: 'absolute',
                           top: '8px',
@@ -1306,17 +1448,13 @@ export const Aprender = () => {
                         <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#FEF08A', background: 'rgba(15, 23, 42, 0.8)', padding: '1px 6px', borderRadius: '999px', border: '1px solid rgba(254, 240, 138, 0.4)', whiteSpace: 'nowrap' }}>
                           Meta Vacante 🏆
                         </span>
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* BOCADILLO DUOLINGO CON RESPLANDOR ASTRAL */}
                     {isCurrent && (
-                      <motion.div
-                        initial={{ y: -6, opacity: 0 }}
-                        animate={{ y: [0, -7, 0], opacity: 1 }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.95 }}
+                      <div
+                        className="rastro-float-mascot"
                         onClick={() => {
                           if (isChest) {
                             handleClaimChest(lesson);
@@ -1360,21 +1498,13 @@ export const Aprender = () => {
                             borderTop: '6px solid #D97706'
                           }}
                         />
-                      </motion.div>
+                      </div>
                     )}
 
-                    {/* HALO / CORONA PULSANTE PARA EL NODO ACTIVO */}
+                    {/* HALO / CORONA PULSANTE PARA EL NODO ACTIVO (GPU CSS) */}
                     {isCurrent && (
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.35, 1],
-                          opacity: [0.75, 0.15, 0.75]
-                        }}
-                        transition={{
-                          repeat: Infinity,
-                          duration: 2.4,
-                          ease: 'easeInOut'
-                        }}
+                      <div
+                        className="rastro-pulse-ring"
                         style={{
                           position: 'absolute',
                           top: isTrophy ? '-10px' : isChest ? '-8px' : '-6px',
@@ -1389,25 +1519,16 @@ export const Aprender = () => {
                       />
                     )}
 
-                    {/* ANILLO ORBITAL DECORATIVO (ESTILO SATURNO) */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '24px',
-                        width: isTrophy ? '112px' : '102px',
-                        height: '34px',
-                        borderRadius: '50%',
-                        border: isCompleted
-                          ? '2px solid rgba(16, 185, 129, 0.5)'
-                          : isCurrent
-                            ? '2.5px solid rgba(253, 224, 71, 0.75)'
-                            : '1.5px dashed rgba(148, 163, 184, 0.25)',
-                        boxShadow: isCurrent ? '0 0 16px rgba(251, 191, 36, 0.6)' : 'none',
-                        transform: 'rotate(-22deg)',
-                        pointerEvents: 'none',
-                        zIndex: 2,
-                        opacity: isUnlocked ? 0.9 : 0.4
-                      }}
+                    {/* ANILLO DE PROGRESO DE SUBTEMAS ESTILO DUOLINGO CON ILUMINACIÓN ORBITAL */}
+                    <PlanetProgressRing
+                      size={isTrophy ? 116 : isChest ? 108 : 104}
+                      totalParts={totalParts}
+                      completedParts={completedParts}
+                      color={selectedSubject.color}
+                      isCurrent={isCurrent}
+                      isMastered={isPlanetMastered}
+                      isChest={isChest}
+                      isTrophy={isTrophy}
                     />
 
                     {/* BOTÓN 3D PLANETARIO CON RELIEVE Y CORONA GRAVITACIONAL */}
@@ -1586,6 +1707,27 @@ export const Aprender = () => {
                       >
                         ⚡ +{lesson.xpReward || 25} XP
                       </span>
+
+                      {!isChest && !isTrophy && lesson.subtemas?.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 900,
+                            color: isPlanetMastered ? '#6EE7B7' : '#FEF08A',
+                            background: isPlanetMastered ? 'rgba(16, 185, 129, 0.22)' : 'rgba(0, 0, 0, 0.45)',
+                            border: isPlanetMastered ? '1px solid #10B981' : '1px solid rgba(245, 158, 11, 0.35)',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            marginTop: '2px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            boxShadow: isPlanetMastered ? '0 0 10px rgba(16, 185, 129, 0.35)' : 'none'
+                          }}
+                        >
+                          {isPlanetMastered ? '✨ Anillo 100% Iluminado' : `🪐 Anillo: ${completedParts}/${totalParts} partes`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1596,7 +1738,7 @@ export const Aprender = () => {
 
       </div>
 
-      {/* ================= MODAL PREVIEW DE LECCIÓN ================= */}
+      {/* ================= MODAL PREVIEW Y HUB ORBITAL DE SUBTEMAS ================= */}
       <AnimatePresence>
         {previewNode && (
           <div
@@ -1604,154 +1746,364 @@ export const Aprender = () => {
               position: 'fixed',
               inset: 0,
               zIndex: 90000,
-              background: 'rgba(0, 0, 0, 0.75)',
+              background: 'rgba(2, 6, 23, 0.82)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               display: 'flex',
-              alignItems: 'flex-end',
+              alignItems: 'center',
               justifyContent: 'center',
-              padding: '0 12px 16px'
+              padding: '16px'
             }}
             onClick={() => setPreviewNode(null)}
           >
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 20 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',
-                maxWidth: '460px',
-                background: '#0F172A',
+                maxWidth: '680px',
+                maxHeight: '92vh',
+                background: 'linear-gradient(180deg, #0F172A 0%, #080D1A 100%)',
                 border: '1.5px solid rgba(255, 255, 255, 0.18)',
                 borderRadius: '28px',
-                padding: '24px',
+                padding: 'clamp(18px, 3.5vw, 26px)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '16px',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)',
-                color: '#F8FAFC'
+                gap: '14px',
+                boxShadow: `0 25px 70px rgba(0, 0, 0, 0.8), 0 0 30px ${selectedSubject.color}25`,
+                color: '#F8FAFC',
+                overflowY: 'auto'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {/* Header del Planeta */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative' }}>
                 <div
                   style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '18px',
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '16px',
                     background: selectedSubject.gradient,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.8rem',
+                    fontSize: '1.7rem',
                     flexShrink: 0,
                     boxShadow: `0 0 20px ${selectedSubject.color}66`
                   }}
                 >
                   {previewNode.nodeIcon || selectedSubject.icon}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.78rem', color: '#38BDF8', fontWeight: 900, letterSpacing: '0.04em' }}>
-                    {selectedSubject.name.toUpperCase()} • {previewNode.shortName}
-                  </span>
-                  <h3 style={{ margin: '2px 0 0', fontSize: '1.2rem', fontWeight: 900, color: '#FFFFFF' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.74rem', color: '#FDE047', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {selectedSubject.name.toUpperCase()} • SEMANA {previewNode.semana}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', background: 'rgba(255, 255, 255, 0.12)', padding: '2px 8px', borderRadius: '6px', color: '#CBD5E1', fontWeight: 800 }}>
+                      Matriz Oficial UNSA
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '3px 0 0', fontSize: 'clamp(1.1rem, 2.8vw, 1.35rem)', fontWeight: 900, color: '#FFFFFF', lineHeight: 1.25 }}>
                     {previewNode.title}
                   </h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setPreviewNode(null)}
                   style={{
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
+                    width: '34px',
+                    height: '34px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: '#FFFFFF'
+                    color: '#94A3B8',
+                    flexShrink: 0
                   }}
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Insignias Pedagógicas */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.2)',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    color: '#93C5FD',
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.76rem',
-                    fontWeight: 800
-                  }}
-                >
-                  🏛️ Fundamento General
-                </span>
-                <span
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.2)',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                    color: '#6EE7B7',
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.76rem',
-                    fontWeight: 800
-                  }}
-                >
-                  🎯 Solucionario CEPREUNSA
-                </span>
-              </div>
+              {/* Si el nodo tiene subtemas (Planeta Duolingo-style) */}
+              {previewNode.subtemas && previewNode.subtemas.length > 0 ? (
+                <>
+                  {/* Banner de progreso del Anillo Planetario */}
+                  {(() => {
+                    const totalSt = previewNode.subtemas.length;
+                    const doneSt = previewNode.subtemas.filter((st) => completedLessons[st.id] || completedLessons[previewNode.id]).length;
+                    const pct = Math.round((doneSt / totalSt) * 100);
+                    return (
+                      <div
+                        style={{
+                          background: 'rgba(15, 23, 42, 0.85)',
+                          border: '1.5px solid rgba(255, 255, 255, 0.12)',
+                          borderRadius: '18px',
+                          padding: '12px 16px',
+                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.82rem', fontWeight: 900 }}>
+                          <span style={{ color: '#FEF08A', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Orbit size={15} color="#FDE047" /> Anillo del Planeta ({doneSt}/{totalSt} Subtemas Dominados)
+                          </span>
+                          <span style={{ color: doneSt === totalSt ? '#10B981' : '#38BDF8' }}>
+                            {pct}% ILUMINADO
+                          </span>
+                        </div>
 
-              <p style={{ margin: 0, fontSize: '0.92rem', color: '#94A3B8', lineHeight: '1.5' }}>
-                Comprende la ley teórica universal antes de resolver el ejercicio oficial y fortalece tu rumbo hacia la vacante.
-              </p>
+                        {/* Barra segmentada estilo Duolingo */}
+                        <div style={{ display: 'flex', gap: '6px', height: '8px' }}>
+                          {previewNode.subtemas.map((st, i) => {
+                            const isDone = Boolean(completedLessons[st.id] || completedLessons[previewNode.id]);
+                            return (
+                              <div
+                                key={st.id}
+                                style={{
+                                  flex: 1,
+                                  height: '100%',
+                                  borderRadius: '999px',
+                                  background: isDone
+                                    ? 'linear-gradient(90deg, #10B981, #34D399)'
+                                    : 'rgba(255, 255, 255, 0.12)',
+                                  boxShadow: isDone ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  padding: '12px 18px',
-                  borderRadius: '16px',
-                  fontSize: '0.9rem'
-                }}
-              >
-                <span style={{ color: '#94A3B8', fontWeight: 700 }}>Recompensa de expedición</span>
-                <span style={{ fontWeight: 900, color: '#FBBF24', fontSize: '1.05rem' }}>+{previewNode.xpReward || 25} XP ⚡</span>
-              </div>
+                  {/* Lista interactiva de los subtemas */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94A3B8' }}>
+                      Partes de la Lección (Subtemas del Prospecto UNSA):
+                    </div>
 
-              <button
-                className="duo-btn-3d"
-                onClick={() => {
-                  const toPlay = previewNode;
-                  setPreviewNode(null);
-                  setActiveLesson(toPlay);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  borderRadius: '18px',
-                  border: 'none',
-                  background: selectedSubject.color,
-                  boxShadow: `0 6px 0 ${selectedSubject.color}88, 0 0 20px ${selectedSubject.color}66`,
-                  color: '#FFFFFF',
-                  fontSize: '1.08rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase'
-                }}
-              >
-                {completedLessons[previewNode.id] ? 'Repasar Astro' : '¡Iniciar Expedición!'}
-              </button>
+                    {previewNode.subtemas.map((st, sIdx) => {
+                      const isSubDone = Boolean(completedLessons[st.id] || completedLessons[previewNode.id]);
+                      const isSubNext = !isSubDone && (sIdx === 0 || Boolean(completedLessons[previewNode.subtemas[sIdx - 1]?.id]));
+                      const isExpanded = expandedTheorySubId === st.id;
+
+                      return (
+                        <div
+                          key={st.id}
+                          style={{
+                            background: isSubDone
+                              ? 'rgba(16, 185, 129, 0.1)'
+                              : isSubNext
+                                ? 'rgba(56, 189, 248, 0.12)'
+                                : 'rgba(30, 41, 59, 0.55)',
+                            border: isSubDone
+                              ? '1.5px solid rgba(16, 185, 129, 0.45)'
+                              : isSubNext
+                                ? '1.5px solid rgba(56, 189, 248, 0.55)'
+                                : '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '18px',
+                            padding: '12px 14px',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isSubNext ? '0 0 16px rgba(56, 189, 248, 0.25)' : 'none'
+                          }}
+                        >
+                          {/* Fila principal del subtema */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '220px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 900, background: 'rgba(255, 255, 255, 0.14)', padding: '2px 7px', borderRadius: '6px', color: '#FEF08A' }}>
+                                  Parte {st.subCode}
+                                </span>
+                                {isSubDone ? (
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#6EE7B7', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <Check size={13} strokeWidth={3} /> Dominado (+25 XP)
+                                  </span>
+                                ) : isSubNext ? (
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <Sparkles size={13} /> Siguiente Misión
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                                    Por Conquistar
+                                  </span>
+                                )}
+                              </div>
+                              <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.3 }}>
+                                {st.title}
+                              </h4>
+                            </div>
+
+                            {/* Botones de acción del subtema */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {/* Botón Ver Teoría del Tomo */}
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTheorySubId(isExpanded ? null : st.id)}
+                                style={{
+                                  padding: '7px 11px',
+                                  borderRadius: '12px',
+                                  background: isExpanded ? '#0284C7' : 'rgba(255, 255, 255, 0.08)',
+                                  border: isExpanded ? '1px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.14)',
+                                  color: '#FFFFFF',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <BookOpen size={13} />
+                                <span>{isExpanded ? 'Ocultar Teoría' : 'Teoría Oficial'}</span>
+                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              </button>
+
+                              {/* Botón Iniciar Reto Oficial */}
+                              <button
+                                type="button"
+                                className="duo-btn-3d"
+                                onClick={() => {
+                                  const subLessonToPlay = {
+                                    id: st.id,
+                                    parentPlanetId: previewNode.id,
+                                    subject: selectedSubject.name,
+                                    semana: previewNode.semana,
+                                    title: `${selectedSubject.name} • ${st.title}`,
+                                    shortName: st.shortTitle,
+                                    nodeIcon: st.icon || '🪐',
+                                    xpReward: 25,
+                                    theory: st.theory,
+                                    challenges: st.challenges
+                                  };
+                                  setPreviewNode(null);
+                                  setActiveLesson(subLessonToPlay);
+                                }}
+                                style={{
+                                  padding: '7px 14px',
+                                  borderRadius: '12px',
+                                  background: isSubDone ? '#059669' : selectedSubject.color,
+                                  border: 'none',
+                                  color: '#FFFFFF',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 900,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  boxShadow: isSubDone
+                                    ? '0 3px 0 #047857'
+                                    : `0 3px 0 ${selectedSubject.color}99`
+                                }}
+                              >
+                                <Play size={13} fill="#FFFFFF" />
+                                <span>{isSubDone ? 'Repasar' : 'Entrenar'}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Acordeón desplegable con Teoría Oficial de Nivel 80+ Puntos */}
+                          <AnimatePresence>
+                            {isExpanded && st.theory && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                style={{
+                                  marginTop: '12px',
+                                  paddingTop: '12px',
+                                  borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '10px'
+                                }}
+                              >
+                                {/* Marco Teórico General */}
+                                <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '12px', padding: '12px' }}>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#38BDF8', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <BookOpen size={13} /> Marco Teórico Oficial CEPREUNSA
+                                  </div>
+                                  <div style={{ fontSize: '0.84rem', color: '#E2E8F0', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                                    {st.theory.marcoteorico}
+                                  </div>
+                                </div>
+
+                                {/* Pizarra de Fórmulas y Teoremas Canónicos con Tipografía KaTeX */}
+                                <FormulaDisplay
+                                  formulaData={st.theory?.formula_data}
+                                  rawMecanismos={st.theory?.mecanismos}
+                                />
+
+                                {/* Fija UNSA 80+ Puntos */}
+                                <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1.5px solid rgba(239, 68, 68, 0.45)', borderRadius: '12px', padding: '12px' }}>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#F87171', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <Flame size={13} /> Clave Fija CEPREUNSA (Meta 80+ Puntos)
+                                  </div>
+                                  <div style={{ fontSize: '0.84rem', color: '#FEE2E2', lineHeight: 1.5, whiteSpace: 'pre-line', fontWeight: 600 }}>
+                                    {st.theory.fijaUnsa}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                /* Vista estándar para Hitos, Cofres o Nodos Especiales */
+                <>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.4)', color: '#93C5FD', padding: '4px 10px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: 800 }}>
+                      🏛️ Hito Académico Oficial
+                    </span>
+                    <span style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#6EE7B7', padding: '4px 10px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: 800 }}>
+                      🎯 Bonificación de Experiencia
+                    </span>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: '0.92rem', color: '#94A3B8', lineHeight: '1.5' }}>
+                    {previewNode.title}. Conquista cada fase temática para consolidar tu ingreso a la Universidad Nacional de San Agustín.
+                  </p>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '12px 18px', borderRadius: '16px', fontSize: '0.9rem' }}>
+                    <span style={{ color: '#94A3B8', fontWeight: 700 }}>Recompensa de expedición</span>
+                    <span style={{ fontWeight: 900, color: '#FBBF24', fontSize: '1.05rem' }}>+{previewNode.xpReward || 50} XP ⚡</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="duo-btn-3d"
+                    onClick={() => {
+                      const toPlay = previewNode;
+                      setPreviewNode(null);
+                      setActiveLesson(toPlay);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      borderRadius: '18px',
+                      border: 'none',
+                      background: selectedSubject.color,
+                      boxShadow: `0 6px 0 ${selectedSubject.color}88, 0 0 20px ${selectedSubject.color}66`,
+                      color: '#FFFFFF',
+                      fontSize: '1.08rem',
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      letterSpacing: '0.02em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {completedLessons[previewNode.id] ? 'Repasar Hito' : '¡Iniciar Expedición!'}
+                  </button>
+                </>
+              )}
             </motion.div>
           </div>
         )}
@@ -1915,27 +2267,34 @@ export const Aprender = () => {
                   </p>
                 </div>
 
-                {/* Tarjeta 2: Casos Particulares y Taxonomía */}
-                <div
-                  style={{
-                    background: 'rgba(139, 92, 246, 0.09)',
-                    border: '1px solid rgba(139, 92, 246, 0.25)',
-                    borderLeft: '4px solid #8B5CF6',
-                    padding: '14px 16px',
-                    borderRadius: '0 16px 16px 0',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '7px' }}>
-                    <Target size={16} color="#C084FC" />
-                    <h4 style={{ margin: 0, color: '#C4B5FD', fontWeight: 900, fontSize: '0.92rem', letterSpacing: '-0.01em' }}>
-                      Casos Particulares, Fórmulas y Taxonomía Evaluada
-                    </h4>
+                {/* Tarjeta 2: Pizarra de Fórmulas y Teoremas Canónicos con Tipografía KaTeX */}
+                {lessons[0]?.subtemas?.[0]?.theory?.formula_data ? (
+                  <FormulaDisplay
+                    formulaData={lessons[0]?.subtemas?.[0]?.theory?.formula_data}
+                    rawMecanismos={lessons[0]?.theory?.sections?.[1]?.body}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.09)',
+                      border: '1px solid rgba(139, 92, 246, 0.25)',
+                      borderLeft: '4px solid #8B5CF6',
+                      padding: '14px 16px',
+                      borderRadius: '0 16px 16px 0',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '7px' }}>
+                      <Target size={16} color="#C084FC" />
+                      <h4 style={{ margin: 0, color: '#C4B5FD', fontWeight: 900, fontSize: '0.92rem', letterSpacing: '-0.01em' }}>
+                        Casos Particulares, Fórmulas y Taxonomía Evaluada
+                      </h4>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.86rem', lineHeight: '1.55', color: '#E2E8F0' }}>
+                      {lessons[0]?.theory?.sections?.[1]?.body || 'Revisión exhaustiva de clasificaciones, teoremas y casos operacionales evaluados en CEPREUNSA.'}
+                    </p>
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.86rem', lineHeight: '1.55', color: '#E2E8F0' }}>
-                    {lessons[0]?.theory?.sections[1]?.body || 'Revisión exhaustiva de clasificaciones, teoremas y casos operacionales evaluados en CEPREUNSA.'}
-                  </p>
-                </div>
+                )}
 
                 {/* Tarjeta 3: Deducción Práctica */}
                 <div
@@ -2115,6 +2474,215 @@ export const Aprender = () => {
         )}
       </AnimatePresence>
 
+      {/* ================= MODAL MATRIZ COMPLETA DE 15 CURSOS CEPREUNSA ================= */}
+      <AnimatePresence>
+        {showAllCoursesModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              backgroundColor: 'rgba(2, 6, 23, 0.88)',
+              backdropFilter: 'blur(16px)'
+            }}
+            onClick={() => setShowAllCoursesModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.16)',
+                borderRadius: '28px',
+                padding: 'clamp(20px, 4vw, 32px)',
+                width: '100%',
+                maxWidth: '840px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(245, 158, 11, 0.15)',
+                position: 'relative'
+              }}
+            >
+              {/* Header Modal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 900, color: '#FEF08A', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    <GraduationCap size={14} /> Temario y Matriz Oficial de Evaluación UNSA
+                  </div>
+                  <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.65rem)', fontWeight: 900, margin: '0 0 4px', color: '#FFFFFF' }}>
+                    Los 15 Cursos Oficiales de CEPREUNSA
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.84rem', color: '#94A3B8', lineHeight: 1.4 }}>
+                    Estructurados en 10 semanas académicas completas con teoría profunda y preguntas del banco oficial para asegurar más de 80 puntos.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllCoursesModal(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Barra de Búsqueda y Filtros de Área dentro del modal */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} color="#64748B" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    value={courseSearchQuery}
+                    onChange={(e) => setCourseSearchQuery(e.target.value)}
+                    placeholder="Buscar curso por nombre, área o temas..."
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '12px 14px 12px 42px',
+                      background: 'rgba(30, 41, 59, 0.7)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.14)',
+                      borderRadius: '16px',
+                      color: '#FFFFFF',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                  {courseSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCourseSearchQuery('')}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Indicador de Asignaturas Generales */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>
+                    Mostrando {searchedCoursesInModal.length} de {SUBJECTS_CONFIG.length} asignaturas generales del temario oficial
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#FEF08A', background: 'rgba(245, 158, 11, 0.15)', padding: '3px 10px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 800 }}>
+                    10 Semanas Oficiales c/u
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid de los 15 Cursos */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                  gap: '12px'
+                }}
+              >
+                {searchedCoursesInModal.map((subj) => {
+                  const isCurrent = selectedSubject.id === subj.id;
+                  return (
+                    <div
+                      key={subj.id}
+                      onClick={() => {
+                        setSelectedSubject(subj);
+                        setShowAllCoursesModal(false);
+                      }}
+                      style={{
+                        background: isCurrent ? `${subj.color}22` : 'rgba(15, 23, 42, 0.7)',
+                        border: isCurrent ? `2px solid ${subj.color}` : '1.5px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '20px',
+                        padding: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        position: 'relative',
+                        boxShadow: isCurrent ? `0 0 20px ${subj.color}40` : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
+                            background: `${subj.color}25`,
+                            border: `1px solid ${subj.color}55`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <SubjectLucideIcon id={subj.id} size={22} color={subj.color} />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            color: '#E2E8F0'
+                          }}
+                        >
+                          Asignatura General
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 4px', color: '#FFFFFF' }}>
+                        {subj.name}
+                      </h3>
+                      <p style={{ margin: '0 0 10px', fontSize: '0.78rem', color: '#94A3B8', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {subj.description}
+                      </p>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', fontSize: '0.72rem' }}>
+                        <span style={{ color: '#FDE047', fontWeight: 800 }}>10 Semanas • 40+ Lecciones</span>
+                        {isCurrent ? (
+                          <span style={{ color: '#10B981', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <Check size={13} strokeWidth={3} /> Activo
+                          </span>
+                        ) : (
+                          <span style={{ color: '#38BDF8', fontWeight: 700 }}>Seleccionar →</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {searchedCoursesInModal.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94A3B8' }}>
+                  <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>No se encontraron cursos con ese criterio.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setCourseSearchQuery(''); setSelectedAreaFilter('ALL'); }}
+                    style={{ marginTop: '10px', padding: '6px 14px', borderRadius: '10px', background: '#0284C7', border: 'none', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Restablecer Filtros
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ================= MODAL DE RANKING REAL DE SIMULACROS UNSA ================= */}
       <RankingSimulacroModal
         isOpen={showRankingModal}
@@ -2126,6 +2694,17 @@ export const Aprender = () => {
         <LessonEngine
           lesson={activeLesson}
           onComplete={() => {
+            if (activeLesson.parentPlanetId) {
+              const parentPlanet = lessons.find((l) => l.id === activeLesson.parentPlanetId);
+              if (parentPlanet && parentPlanet.subtemas) {
+                const allSubtemasDone = parentPlanet.subtemas.every(
+                  (st) => st.id === activeLesson.id || completedLessons[st.id]
+                );
+                if (allSubtemasDone && typeof recordLessonCompletion === 'function') {
+                  recordLessonCompletion(parentPlanet.id, 50, 3);
+                }
+              }
+            }
             setActiveLesson(null);
           }}
           onExit={() => {

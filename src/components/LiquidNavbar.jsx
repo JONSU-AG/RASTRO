@@ -35,6 +35,8 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { OrsttyAvatarIcon } from './Mascots';
+import { isOrsttyVisible } from '../lib/orsttySettings';
+import { subscribeToSiteSettings } from '../lib/siteSettings';
 
 // Ícono representativo de ORSTTY en la barra de navegación: El chiquito moradito oficial de RASTRO
 export const GeminiStarIcon = ({ size = 22, color, active = false, style = {} }) => (
@@ -53,6 +55,23 @@ export const LiquidNavbar = () => {
   const [showGooglePrompt, setShowGooglePrompt] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileNav, setIsMobileNav] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [isOrsttyBtnVisible, setIsOrsttyBtnVisible] = useState(() => isOrsttyVisible(isAdmin));
+
+  useEffect(() => {
+    const updateOrstty = () => {
+      setIsOrsttyBtnVisible(isOrsttyVisible(isAdmin));
+    };
+    updateOrstty();
+    window.addEventListener('orstty_status_changed', updateOrstty);
+    window.addEventListener('storage', updateOrstty);
+    const unsub = subscribeToSiteSettings(() => updateOrstty());
+    return () => {
+      window.removeEventListener('orstty_status_changed', updateOrstty);
+      window.removeEventListener('storage', updateOrstty);
+      unsub();
+    };
+  }, [isAdmin]);
+
   useEffect(() => {
     const onResize = () => setIsMobileNav(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
@@ -392,12 +411,12 @@ export const LiquidNavbar = () => {
       label: 'Biblioteca',
       icon: Library
     },
-    { 
+    ...(isOrsttyBtnVisible ? [{ 
       path: '/orstty', 
       label: 'ORSTTY', 
       isOrstty: true,
       desktopOnly: true
-    },
+    }] : []),
     {
       path: '/chats',
       label: 'Chats',
@@ -534,33 +553,35 @@ export const LiquidNavbar = () => {
         >
 
           {/* Asistente ORSTTY (Sección superior en teléfonos móviles) */}
-          <NavLink
-            to="/orstty"
-            title="Asistente ORSTTY"
-            style={{
-              padding: '4px 6px',
-              borderRadius: '9px',
-              border: 'none',
-              background: location.pathname.startsWith('/orstty')
-                ? 'rgba(168, 85, 247, 0.15)'
-                : 'transparent',
-              color: location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : (isAprender ? '#E2E8F0' : 'var(--text-secondary)'),
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '2px',
-              fontSize: '0.60rem',
-              fontWeight: 800,
-              textDecoration: 'none',
-              cursor: 'pointer',
-              minWidth: '34px',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <GeminiStarIcon size={18} active={location.pathname.startsWith('/orstty')} />
-            <span style={{ lineHeight: 1 }}>ORSTTY</span>
-          </NavLink>
+          {isOrsttyBtnVisible && (
+            <NavLink
+              to="/orstty"
+              title="Asistente ORSTTY"
+              style={{
+                padding: '4px 6px',
+                borderRadius: '9px',
+                border: 'none',
+                background: location.pathname.startsWith('/orstty')
+                  ? 'rgba(168, 85, 247, 0.15)'
+                  : 'transparent',
+                color: location.pathname.startsWith('/orstty') ? 'var(--accent-color)' : (isAprender ? '#E2E8F0' : 'var(--text-secondary)'),
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                fontSize: '0.60rem',
+                fontWeight: 800,
+                textDecoration: 'none',
+                cursor: 'pointer',
+                minWidth: '34px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <GeminiStarIcon size={18} active={location.pathname.startsWith('/orstty')} />
+              <span style={{ lineHeight: 1 }}>ORSTTY</span>
+            </NavLink>
+          )}
 
           {/* Mis Chats (Sección superior al lado de ORSTTY en teléfonos móviles) */}
           <NavLink

@@ -622,6 +622,17 @@ body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
+/* Animaciones ultra-optimizadas por hardware para Rastro Aprender */
+@keyframes rastro-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+.rastro-shake-anim {
+  animation: rastro-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
 /* Acciones ocultas en teléfonos móviles por defecto */
 .desktop-action-btn,
 .nav-notif-btn,
@@ -1618,4 +1629,57 @@ body.rastro-lesson-active .cookie-banner-wrapper {
 .duo-btn-3d:active:not(:disabled) {
   transform: translateY(2px) !important;
 }
+
+/* ==========================================================================
+   OPTIMIZACIÓN DE ALTO RENDIMIENTO (60-120 FPS) PARA APRENDER / RASTRO ASTRO
+   ========================================================================== */
+@keyframes rastroFloatGpu {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes rastroFloatRotateGpu {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0) rotate(3deg);
+  }
+}
+
+@keyframes rastroPulseRingGpu {
+  0%, 100% {
+    transform: scale3d(1, 1, 1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale3d(1.22, 1.22, 1);
+    opacity: 0.2;
+  }
+}
+
+.rastro-float-mascot {
+  animation: rastroFloatGpu 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.rastro-float-satellite {
+  animation: rastroFloatRotateGpu 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.rastro-float-crystal {
+  animation: rastroFloatGpu 3.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.rastro-pulse-ring {
+  animation: rastroPulseRingGpu 2.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
 
